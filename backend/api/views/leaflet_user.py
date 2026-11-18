@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.request import Request
+from django.conf import settings
 
 from .client import client
 
@@ -89,6 +90,15 @@ class LeafletUserView(APIView):
 
     def post(self, request: Request, *args, **kwargs):
         user_prompt = request.data.get("prompt")
+
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "error": "Live deal search needs an API_KEY.",
+                    "response": [],
+                },
+                status=503,
+            )
 
         kaufland_fetch_date = cache.get("last_fetch_timestamp_kaufland")
         lidl_fetch_date = cache.get("last_fetch_timestamp_lidl")

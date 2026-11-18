@@ -10,6 +10,7 @@ from PyPDF2 import PdfReader, PdfWriter
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.conf import settings
 
 from .client import client
 
@@ -105,6 +106,14 @@ class LidlLeafletView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "response": [],
+                    "notice": "Live deal discovery needs an API_KEY.",
+                },
+                status=200,
+            )
         cache_files_used = False
 
         request_date = datetime.now().date()

@@ -211,3 +211,39 @@
 .billa {
     display: none;
 }
+
+.deals-notice,
+.deal-search-error {
+    margin: 1rem 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid #d9ddf6;
+    border-radius: 10px;
+    background: #f5f6ff;
+    color: #505776;
+    line-height: 1.5;
+}
+
+.store-unavailable {
+    width: 150px;
+    height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #edf0f5;
+    border-radius: 15px;
+    background: #f8f9fb;
+    opacity: 0.58;
+}
+
+.store-unavailable img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+}
+
+.store-unavailable span {
+    font-size: 0.75rem;
+    font-weight: 700;
+}

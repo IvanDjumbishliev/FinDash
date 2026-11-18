@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "../styles/components/Deals.css";
 import kaufland from "../assets/kaufland.png";
 import lidl from "../assets/lidl.png";
@@ -31,23 +31,21 @@ const StoreItemGrid = ({ items }) => {
 };
 
 const Deals = ({ isFetched }) => {
-  const [activeStore, setActiveStore] = useState("kaufland");
+  const [activeStore, setActiveStore] = useState("lidl");
   const [kaudflandItems, setKauflandItems] = useState([]);
   const [lidlItems, setLidlItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const fetchKauflandDeals = async () => {
     try {
       const response = await api.get("/api/leaflet/kaufland/");
       if (response.status === 200) {
-        // response.data.response because we return a json object "response"
-        // containing the array of deals
-        setKauflandItems(response.data.response);
-      } else {
-        alert("Failed to fetch Kaufland deals");
+        setKauflandItems(response.data.response || []);
+        if (response.data.notice) setNotice(response.data.notice);
       }
     } catch (error) {
-      console.log("Error when fetching Kaufland deals: ", error);
+      setNotice("Could not reach the deal service.");
     }
   };
 
@@ -55,14 +53,11 @@ const Deals = ({ isFetched }) => {
     try {
       const response = await api.get("/api/leaflet/lidl/");
       if (response.status === 200) {
-        // response.data.response because we return a json object "response"
-        // containing the array of deals
-        setLidlItems(response.data.response);
-      } else {
-        alert("Failed to fetch Kaufland deals");
+        setLidlItems(response.data.response || []);
+        if (response.data.notice) setNotice(response.data.notice);
       }
     } catch (error) {
-      console.log("Error when fetching Kaufland deals: ", error);
+      setNotice("Could not reach the deal service.");
     }
   };
 
@@ -71,7 +66,7 @@ const Deals = ({ isFetched }) => {
       setIsLoading(true);
       try {
         await Promise.all([fetchKauflandDeals(), fetchLidlDeals()]);
-        isFetched();
+        isFetched?.();
       } catch (error) {
         console.error("Error loading deals:", error);
       } finally {
@@ -89,6 +84,11 @@ const Deals = ({ isFetched }) => {
   return (
     <div className="deals-container">
       <h2>Best deals right now</h2>
+      {notice && (
+        <div className="deals-notice" role="status">
+          {notice} Set <code>API_KEY</code> in <code>backend/.env</code>, then restart the backend.
+        </div>
+      )}
       <table className="deals-table">
         <thead>
           <tr>
@@ -109,12 +109,10 @@ const Deals = ({ isFetched }) => {
               />
             </td>
             <td>
-              <StoreButton
-                id="billa"
-                isActive={activeStore === "billa"}
-                onClick={() => handleClick("billa")}
-                image={billa}
-              />
+              <div className="store-unavailable" title="Billa integration is not available">
+                <img src={billa} alt="Billa (not connected)" />
+                <span>Not connected</span>
+              </div>
             </td>
           </tr>
         </thead>
@@ -141,20 +139,6 @@ const Deals = ({ isFetched }) => {
                   }`}
                 >
                   <StoreItemGrid items={lidlItems} />
-                </div>
-                <div
-                  className={`deals-content ${
-                    activeStore === "billa" ? "active" : ""
-                  }`}
-                >
-                  <StoreItemGrid
-                    items={[
-                      { name: "banani", value: "-20%" },
-                      { name: "qbylki", value: "-15%" },
-                      { name: "portokali", value: "-10%" },
-                      { name: "grozde", value: "-25%" },
-                    ]}
-                  />
                 </div>
               </td>
             )}

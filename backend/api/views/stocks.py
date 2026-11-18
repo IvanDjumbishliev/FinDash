@@ -73,8 +73,7 @@ class StockSearchView(views.APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        query = request.GET.get("query").strip().upper()
-        print(query)
+        query = (request.GET.get("query") or "").strip().upper()
         if len(query) < 2:
             return Response([])
 

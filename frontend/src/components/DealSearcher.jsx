@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import "../styles/components/DealSearcher.css";
 import kaufland from "../assets/kaufland.png";
 import lidl from "../assets/lidl.png";
@@ -60,8 +60,14 @@ const Deals = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const sendQuery = async () => {
+    if (!searchQuery.trim()) {
+      setError("Enter a product name to search.");
+      return;
+    }
+    setError("");
     setIsLoading(true);
     try {
       const response = await api.post("/api/leaflet/user/", {
@@ -76,7 +82,10 @@ const Deals = () => {
         alert("Failed to find user requested deals.");
       }
     } catch (error) {
-      console.log("Error when fetching user deals: ", error);
+      setError(
+        error.response?.data?.error ||
+        "Deal search is unavailable. Configure API_KEY in backend/.env and restart the backend."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +108,7 @@ const Deals = () => {
               <button className="search-button" onClick={sendQuery}>
                 Search
               </button>
+              {error && <p className="deal-search-error">{error}</p>}
             </td>
           </tr>
         </thead>

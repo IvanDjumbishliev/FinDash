@@ -9,6 +9,7 @@ from django.core.cache import cache
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.conf import settings
 from .client import client
 
 prompt = """Analyze the PDF leaflets carefully and extract exactly 5 deals with the highest percentage discounts. For each deal:
@@ -69,6 +70,14 @@ class LeafletKauflandView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "response": [],
+                    "notice": "Live deal discovery needs an API_KEY.",
+                },
+                status=200,
+            )
         cache_files_used = False
 
         request_date = datetime.now().date()
