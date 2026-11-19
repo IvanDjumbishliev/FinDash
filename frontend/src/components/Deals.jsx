@@ -116,15 +116,18 @@ const Deals = ({ isFetched }) => {
             </td>
           </tr>
         </thead>
-        {isLoading && (
-          <div className="spinner-container">
-            <div className="loading-spinner spinner-fst"></div>
-            <div className="loading-spinner spinner-scn"></div>
-          </div>
-        )}
         <tbody>
-          <tr>
-            {!isLoading && (
+          {isLoading ? (
+            <tr>
+              <td colSpan="3">
+                <div className="spinner-container">
+                  <div className="loading-spinner spinner-fst"></div>
+                  <div className="loading-spinner spinner-scn"></div>
+                </div>
+              </td>
+            </tr>
+          ) : (
+            <tr>
               <td colSpan="3">
                 <div
                   className={`deals-content ${
@@ -141,8 +144,8 @@ const Deals = ({ isFetched }) => {
                   <StoreItemGrid items={lidlItems} />
                 </div>
               </td>
-            )}
-          </tr>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
