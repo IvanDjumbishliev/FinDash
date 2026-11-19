@@ -60,15 +60,23 @@ const Deals = () => {
     setItems([]);
     setIsLoading(true);
     try {
-      const [lidlResponse, kauflandResponse, fantasticoResponse] = await Promise.all([
+      const results = await Promise.allSettled([
         api.get("/api/deals/lidl/"),
         api.get("/api/deals/kaufland/"),
         api.get("/api/deals/fantastico/"),
       ]);
+      const lidlResponse =
+        results[0].status === "fulfilled" ? results[0].value : null;
+      const kauflandResponse =
+        results[1].status === "fulfilled" ? results[1].value : null;
+      const fantasticoResponse =
+        results[2].status === "fulfilled" ? results[2].value : null;
       const combined = [
-        ...(Array.isArray(lidlResponse.data) ? lidlResponse.data : []),
-        ...(Array.isArray(kauflandResponse.data) ? kauflandResponse.data : []),
-        ...(Array.isArray(fantasticoResponse.data)
+        ...(Array.isArray(lidlResponse?.data) ? lidlResponse.data : []),
+        ...(Array.isArray(kauflandResponse?.data)
+          ? kauflandResponse.data
+          : []),
+        ...(Array.isArray(fantasticoResponse?.data)
           ? fantasticoResponse.data
           : []),
       ];

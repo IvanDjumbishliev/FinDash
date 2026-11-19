@@ -13,3 +13,5 @@ beautifulsoup4
 google-genai
 yfinance
 requests
+rapidocr-onnxruntime
+rapidocr-onnxruntime

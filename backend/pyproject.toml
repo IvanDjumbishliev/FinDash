@@ -22,4 +22,6 @@ dependencies = [
     "bs4>=0.0.2",
     "yfinance>=0.2.55",
     "google-genai>=1.8.0",
+    "rapidocr-onnxruntime>=1.4.4",
+    "rapidocr-onnxruntime>=1.4.4",
 ]
