@@ -260,6 +260,10 @@
     letter-spacing: 0.04em;
 }
 
+.fantastico-button {
+    background: #fff8e8;
+}
+
 .deal-card {
     display: grid;
     grid-template-columns: 64px 1fr;

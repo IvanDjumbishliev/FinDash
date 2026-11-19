@@ -1,7 +1,11 @@
 from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
-from .views.deals import KauflandDealsView, LidlDealsView
+from .views.deals import (
+    FantasticoDealsView,
+    KauflandDealsView,
+    LidlDealsView,
+)
 
 from .views.assistant import AssistantView
 from .views.leaflet_billa import BillaLeafletView
@@ -20,6 +24,7 @@ from .views.views import (
 urlpatterns = [
     path("deals/lidl/", LidlDealsView.as_view()),
     path("deals/kaufland/", KauflandDealsView.as_view()),
+    path("deals/fantastico/", FantasticoDealsView.as_view()),
     path("transactions/", TransactionListView.as_view()),
     path(
         "transaction/<int:pk>/",

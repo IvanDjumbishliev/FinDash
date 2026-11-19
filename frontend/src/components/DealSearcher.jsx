@@ -60,13 +60,17 @@ const Deals = () => {
     setItems([]);
     setIsLoading(true);
     try {
-      const [lidlResponse, kauflandResponse] = await Promise.all([
+      const [lidlResponse, kauflandResponse, fantasticoResponse] = await Promise.all([
         api.get("/api/deals/lidl/"),
         api.get("/api/deals/kaufland/"),
+        api.get("/api/deals/fantastico/"),
       ]);
       const combined = [
         ...(Array.isArray(lidlResponse.data) ? lidlResponse.data : []),
         ...(Array.isArray(kauflandResponse.data) ? kauflandResponse.data : []),
+        ...(Array.isArray(fantasticoResponse.data)
+          ? fantasticoResponse.data
+          : []),
       ];
       const query = searchQuery.trim().toLowerCase();
       setItems(
@@ -95,6 +99,11 @@ const Deals = () => {
                 type="text"
                 placeholder="Example: milk, bread..."
                 value={searchQuery}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    sendQuery();
+                  }
+                }}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
                   setHasSearched(false);

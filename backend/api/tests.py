@@ -204,6 +204,23 @@ class ScrapedDealsEndpointTests(TestCase):
         self.assertEqual(response.data[0]["name"], "Bread")
         self.assertEqual(response.data[0]["store"], "Kaufland")
 
+    def test_fantastico_endpoint_returns_real_brochure_cards(self):
+        with patch(
+            "api.views.deals.scrape_fantastico",
+            return_value=[
+                {
+                    "name": "Fantastico brochure 19.11.2026 - 25.11.2026",
+                    "price": "19.11.2026 - 25.11.2026",
+                    "image_url": "https://example.com/brochure.jpg",
+                    "store": "Fantastico",
+                }
+            ],
+        ):
+            response = self.client.get("/api/deals/fantastico/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]["store"], "Fantastico")
+
     def test_scrape_failure_returns_empty_list(self):
         with patch(
             "api.views.deals.requests.get",

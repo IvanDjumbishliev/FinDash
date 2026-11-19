@@ -247,6 +247,69 @@ def scrape_kaufland():
     return deals
 
 
+def scrape_fantastico():
+    cache_key = "scraped_deals_fantastico"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        response = requests.get(
+            "https://www.fantastico.bg/special-offers",
+            headers=HEADERS,
+            timeout=20,
+        )
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        deals = []
+
+        for switch in soup.select("div.brochure-switch[data-url]"):
+            text = re.sub(
+                r"\s+", " ",
+                switch.get_text(" ", strip=True),
+            ).strip()
+            name = re.sub(
+                r"\s*(Виж брошура)\s*$",
+                "",
+                text,
+                flags=re.IGNORECASE,
+            ).strip()
+            if not name:
+                name = "Fantastico brochure"
+
+            period_match = re.search(
+                r"(\d{2}[.]\d{2}[.]\d{4}).*?(до\s*)?(\d{2}[.]\d{2}[.]\d{4})",
+                name,
+                re.IGNORECASE,
+            )
+            price = ""
+            if period_match:
+                price = f"{period_match.group(1)} - {period_match.group(3)}"
+
+            image = switch.select_one("img[src]")
+            image_url = ""
+            if image:
+                image_url = absolute_image_url(
+                    image.get("src") or image.get("data-src")
+                )
+
+            deals.append(
+                {
+                    "name": name,
+                    "price": price,
+                    "image_url": image_url,
+                    "store": "Fantastico",
+                }
+            )
+            if len(deals) >= 10:
+                break
+    except Exception:
+        deals = []
+
+    cache.set(cache_key, deals, timeout=60 * 60)
+    return deals
+
+
 class LidlDealsView(APIView):
     permission_classes = [AllowAny]
 
@@ -259,3 +322,10 @@ class KauflandDealsView(APIView):
 
     def get(self, request, *args, **kwargs):
         return Response(scrape_kaufland(), status=200)
+
+
+class FantasticoDealsView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        return Response(scrape_fantastico(), status=200)

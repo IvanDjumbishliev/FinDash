@@ -49,7 +49,19 @@ const Deals = ({ isFetched }) => {
   const [activeStore, setActiveStore] = useState("lidl");
   const [kaudflandItems, setKauflandItems] = useState([]);
   const [lidlItems, setLidlItems] = useState([]);
+  const [fantasticoItems, setFantasticoItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const fetchFantasticoDeals = async () => {
+    try {
+      const response = await api.get("/api/deals/fantastico/");
+      if (response.status === 200) {
+        setFantasticoItems(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch {
+      setFantasticoItems([]);
+    }
+  };
 
   const fetchKauflandDeals = async () => {
     try {
@@ -77,11 +89,16 @@ const Deals = ({ isFetched }) => {
     const loadDeals = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([fetchKauflandDeals(), fetchLidlDeals()]);
+        await Promise.all([
+          fetchKauflandDeals(),
+          fetchLidlDeals(),
+          fetchFantasticoDeals(),
+        ]);
         isFetched?.();
       } catch {
         setKauflandItems([]);
         setLidlItems([]);
+        setFantasticoItems([]);
       } finally {
         setIsLoading(false);
       }
@@ -117,9 +134,14 @@ const Deals = ({ isFetched }) => {
               />
             </td>
             <td>
-              <div className="store-unavailable" aria-label="Фантастико">
+              <button
+                id="fantastico"
+                className={`button fantastico-button ${activeStore === "fantastico" ? "active" : ""}`}
+                onClick={() => handleClick("fantastico")}
+                aria-label="Fantastico"
+              >
                 <span className="fantastiko-logo">ФАНТАСТИКО</span>
-              </div>
+              </button>
             </td>
           </tr>
         </thead>
@@ -147,6 +169,13 @@ const Deals = ({ isFetched }) => {
                   }`}
                 >
                   <StoreItemGrid items={lidlItems} />
+                </div>
+                <div
+                  className={`deals-content ${
+                    activeStore === "fantastico" ? "active" : ""
+                  }`}
+                >
+                  <StoreItemGrid items={fantasticoItems} />
                 </div>
               </td>
             )}
