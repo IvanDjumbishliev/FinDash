@@ -72,54 +72,26 @@ def scrape_lidl():
                     continue
 
                 for page_data in flyer.get("pages", []):
-                    keywords = page_data.get("keyWords") or ""
-                    alt_text = page_data.get("altText") or ""
                     image = (
                         page_data.get("image")
                         or page_data.get("zoom")
                         or page_data.get("thumbnail")
                         or ""
                     )
-
-                    for price_match in re.finditer(
-                        r"(?<!\d)([1-9]\d{0,2}(?:[,.]\d{1,2})?)\s*(€|лв|lev)",
-                        keywords,
-                        re.IGNORECASE,
-                    ):
-                        before = keywords[max(0, price_match.start() - 90):price_match.start()]
-                        words = re.findall(
-                            r"[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9'’+&/.-]*",
-                            before,
-                        )
-                        words = [
-                            word
-                            for word in words[-10:]
-                            if len(word) > 1
-                            and word.lower()
-                            not in {
-                                "продукта",
-                                "цена",
-                                "cena",
-                                "проф",
-                                "от",
-                                "до",
-                                "lidl",
-                            }
-                        ]
-                        name = " ".join(words).strip(" ,-")
-                        if not name:
-                            name = alt_text.strip() or "Lidl weekly offer"
-                        name = re.sub(r"\s+", " ", name).strip()
+                    page_number = page_data.get("number")
+                    if image:
                         deals.append(
                             {
-                                "name": name,
-                                "price": f"{price_match.group(1)} {price_match.group(2)}",
+                                "name": (
+                                    f"Lidl weekly offer - page {page_number}"
+                                    if page_number
+                                    else "Lidl weekly offer"
+                                ),
+                                "price": "",
                                 "image_url": image,
                                 "store": "Lidl",
                             }
                         )
-                        if len(deals) >= 40:
-                            break
                     if len(deals) >= 40:
                         break
             except Exception:
@@ -329,13 +301,6 @@ def scrape_fantastico():
             else 40
         )
 
-        try:
-            from rapidocr_onnxruntime import RapidOCR
-
-            ocr = RapidOCR()
-        except Exception:
-            return []
-
         deals = []
         for page_number in range(2, min(page_count + 1, 31)):
             suffix = (
@@ -354,38 +319,6 @@ def scrape_fantastico():
             if page.status_code != 200:
                 continue
 
-            ocr_result, _ = ocr(page.content)
-            if not ocr_result:
-                continue
-
-            recognized = [
-                (text.strip(), score)
-                for _, text, score in ocr_result
-                if text and score >= 0.45
-            ]
-            price = ""
-            name_parts = []
-            for text, _ in recognized:
-                price_match = re.search(
-                    r"(?<!\d)(\d{1,3}(?:[,.]\d{1,2})?)",
-                    text,
-                )
-                if price_match and (
-                    "," in price_match.group(1)
-                    or "." in price_match.group(1)
-                ):
-                    price = f"{price_match.group(1).replace('.', ',')} лв"
-                    break
-
-                clean = re.sub(r"[^A-Za-zА-Яа-я0-9&+%-]+", " ", text)
-                clean = re.sub(r"\s+", " ", clean).strip()
-                if len(clean) >= 3:
-                    name_parts.append(clean)
-
-            name = " ".join(dict.fromkeys(name_parts[:4])).strip()
-            if not name:
-                name = f"Фантастико актуална оферта, стр. {page_number}"
-
             signed_image = content_root + suffix
             signed_image += (
                 "?" + requests.Request(
@@ -396,8 +329,8 @@ def scrape_fantastico():
             )
             deals.append(
                 {
-                    "name": name,
-                    "price": price,
+                    "name": f"Фантастико оферта - страница {page_number}",
+                    "price": "",
                     "image_url": signed_image,
                     "store": "Fantastico",
                 }

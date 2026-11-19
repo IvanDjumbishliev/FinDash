@@ -19,13 +19,7 @@ dependencies = [
     "black>=25.1.0",
     "redis>=5.2.1",
     "requests>=2.32.3",
-    "pillow",
-    "pytesseract",
-    "rapidocr-onnxruntime",
     "bs4>=0.0.2",
     "yfinance>=0.2.55",
     "google-genai>=1.8.0",
-    "pillow>=13.0.0",
-    "pytesseract>=0.3.13",
-    "rapidocr-onnxruntime>=1.4.4",
 ]

@@ -91,8 +91,8 @@
 }
 
 .deal-items-grid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
 }
 
@@ -271,23 +271,26 @@
 }
 
 .deal-card {
-    display: grid;
-    grid-template-columns: 64px 1fr;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     gap: 12px;
 }
 
 .deal-card-image {
-    width: 64px;
-    height: 64px;
+    width: 100%;
+    height: 180px;
     object-fit: contain;
-    border-radius: 8px;
+    border-radius: 10px;
     background: #fff;
 }
 
 .deal-card-copy {
     min-width: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     gap: 12px;
+    text-align: center;
 }
