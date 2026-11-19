@@ -1,12 +1,12 @@
 import io
 import json
 from django.conf import settings
+from rest_framework import status
 from .client import client
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework import status
 from ..models import Transaction
 
 
@@ -77,37 +77,50 @@ class UploadBankStatementView(APIView):
 
         file_bytes = uploaded_file.read()
 
-        ai_uploaded_file = client.files.upload(
-            # todo: add display name for file
-            file=(io.BytesIO(file_bytes)),
-            config={"mime_type": "application/pdf"},
-        )
+        try:
+            ai_uploaded_file = client.files.upload(
+                file=(io.BytesIO(file_bytes)),
+                config={"mime_type": "application/pdf"},
+            )
 
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
-                ai_uploaded_file,
-                "In the pdf file is provided a bank statement. Provide me with the statements as I described you. For debit transactions (money going out), represent the amount with a negative sign (e.g., -100.00).",
-                "Please extract the transactions from the bank statement and provide them in JSON format. The JSON should contain an array of transactions, each with the following fields: amount, timestamp, category, particulars, and currency. For debit transactions (payments, withdrawals, etc.), use negative amounts. For credit transactions (deposits, refunds, etc.), use positive amounts. For timestamps, make sure to use the YYYY-MM-DD format.",
-            ],
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": transactions_schema,
-            },
-        )
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[
+                    ai_uploaded_file,
+                    "In the PDF is a bank statement. Extract the transactions exactly as described.",
+                    "For debit transactions use negative amounts and for credit transactions use positive amounts.",
+                ],
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": transactions_schema,
+                },
+            )
+            parsed_transactions = json.loads(response.text)
+            if not isinstance(parsed_transactions, list):
+                raise ValueError("The AI response was not a transaction array.")
 
-        Transaction.objects.bulk_create(
-            [
-                Transaction(
-                    amount=transaction["amount"],
-                    timestamp=transaction["timestamp"],
-                    category=transaction["category"],
-                    particulars=transaction["particulars"],
-                    currency=transaction.get("currency", "USD"),
-                    user=request.user,
-                )
-                for transaction in json.loads(response.text)
-            ]
-        )
+            Transaction.objects.bulk_create(
+                [
+                    Transaction(
+                        amount=transaction["amount"],
+                        timestamp=transaction["timestamp"],
+                        category=transaction["category"],
+                        particulars=transaction["particulars"],
+                        currency=transaction.get("currency", "USD"),
+                        user=request.user,
+                    )
+                    for transaction in parsed_transactions
+                ]
+            )
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "The bank statement could not be parsed. "
+                        "Check the PDF or try again later."
+                    )
+                },
+                status=502,
+            )
 
-        return Response({"response": json.loads(response.text)}, status=201)
+        return Response({"response": parsed_transactions}, status=201)

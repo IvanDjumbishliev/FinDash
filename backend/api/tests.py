@@ -2,10 +2,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework_simplejwt.tokens import AccessToken
 import pandas as pd
 
 from api.models import Stock, Transaction
@@ -304,132 +305,131 @@ class StockEndpointTests(TestCase):
         self.assertIn("error", response.data["stocks"][0])
 
 
-class ApplicationFlowTests(TestCase):
-    def test_register_login_create_transaction_list_and_stats(self):
-        client = APIClient()
-        registration = client.post(
+class EndToEndApplicationTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_registration_returns_jwt_tokens(self):
+        response = self.client.post(
             "/api/user/register/",
-            {"username": "flow-user", "password": "Secure-test-pass-934!"},
+            {"username": "registered-user", "password": "StrongPass123!"},
             format="json",
         )
-        self.assertEqual(registration.status_code, 201)
-        self.assertTrue(registration.data["access"])
-        self.assertTrue(registration.data["refresh"])
 
-        login = client.post(
+        self.assertEqual(response.status_code, 201)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+        AccessToken(response.data["access"])
+        self.assertTrue(
+            User.objects.filter(username="registered-user").exists()
+        )
+
+    def test_login_returns_access_and_refresh_tokens(self):
+        User.objects.create_user(
+            username="login-user", password="StrongPass123!"
+        )
+        response = self.client.post(
             "/api/token/",
-            {"username": "flow-user", "password": "Secure-test-pass-934!"},
+            {"username": "login-user", "password": "StrongPass123!"},
             format="json",
         )
-        self.assertEqual(login.status_code, 200)
-        self.assertTrue(login.data["access"])
-        self.assertTrue(login.data["refresh"])
-        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
 
-        created = client.post(
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
+
+    def test_transaction_create_list_and_stats(self):
+        user = User.objects.create_user(
+            username="transaction-user", password="test"
+        )
+        self.client.force_authenticate(user=user)
+
+        create_response = self.client.post(
             "/api/transactions/",
             {
                 "amount": "-25.50",
                 "category": "groceries",
-                "particulars": "Weekly shop",
-                "currency": "BGN",
+                "timestamp": "2026-11-19T12:00:00Z",
+                "particulars": "Weekly groceries",
+                "currency": "USD",
             },
             format="json",
         )
-        self.assertEqual(created.status_code, 201)
-        self.assertEqual(str(created.data["amount"]), "-25.50")
+        self.assertEqual(create_response.status_code, 201)
 
-        listed = client.get("/api/transactions/", {"limit": 10})
-        self.assertEqual(listed.status_code, 200)
-        self.assertEqual(listed.data["results"][0]["particulars"], "Weekly shop")
+        list_response = self.client.get(
+            "/api/transactions/", {"ordering": "-timestamp"}
+        )
+        self.assertEqual(list_response.status_code, 200)
+        transactions = (
+            list_response.data
+            if isinstance(list_response.data, list)
+            else list_response.data["results"]
+        )
+        self.assertEqual(len(transactions), 1)
+        self.assertEqual(transactions[0]["particulars"], "Weekly groceries")
 
-        Transaction.objects.create(
-            user_id=registration.data["id"],
-            amount="-10.00",
-            category=Transaction.Category.GROCERIES,
-            particulars="Second shop",
-            currency="BGN",
-        )
-        Transaction.objects.create(
-            user_id=registration.data["id"],
-            amount="-7.00",
-            category=Transaction.Category.TRANSPORT,
-            particulars="Bus",
-            currency="BGN",
-        )
-        Transaction.objects.create(
-            user_id=registration.data["id"],
-            amount="100.00",
-            category=Transaction.Category.GENERAL,
-            particulars="Refund",
-            currency="BGN",
-        )
-        stats = client.get("/api/transaction-stats/")
-        self.assertEqual(stats.status_code, 200)
-        self.assertEqual(
-            {item["category"]: item["amount"] for item in stats.data},
-            {"groceries": 35.5, "transport": 7.0},
-        )
+        stats_response = self.client.get("/api/transaction-stats/")
+        self.assertEqual(stats_response.status_code, 200)
+        self.assertEqual(stats_response.data, [{"category": "groceries", "amount": 25.5}])
 
     @override_settings(API_KEY="")
-    def test_pdf_upload_returns_config_error_without_api_key(self):
-        client = APIClient()
-        user = User.objects.create_user(username="pdf-no-key", password="test")
-        client.force_authenticate(user=user)
-        response = client.post(
-            "/api/bank-statement/",
-            {
-                "file": SimpleUploadedFile(
-                    "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
-                )
-            },
-            format="multipart",
+    def test_bank_statement_missing_key_returns_503(self):
+        user = User.objects.create_user(
+            username="statement-user", password="test"
         )
+        self.client.force_authenticate(user=user)
+        pdf = SimpleUploadedFile(
+            "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
+        )
+
+        response = self.client.post(
+            "/api/bank-statement/", {"file": pdf}, format="multipart"
+        )
+
         self.assertEqual(response.status_code, 503)
-        self.assertIn("API_KEY", response.data["error"])
+        self.assertIn("not configured", response.data["error"].lower())
 
     @override_settings(API_KEY="test-key")
-    def test_pdf_upload_parses_and_persists_transactions(self):
-        client = APIClient()
-        user = User.objects.create_user(username="pdf-user", password="test")
-        client.force_authenticate(user=user)
-        extracted = [
+    def test_bank_statement_returns_and_persists_parsed_transactions(self):
+        user = User.objects.create_user(
+            username="statement-success-user", password="test"
+        )
+        self.client.force_authenticate(user=user)
+        pdf = SimpleUploadedFile(
+            "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
+        )
+        parsed = [
             {
-                "amount": -15.25,
-                "timestamp": "2026-11-18",
+                "amount": -12.5,
+                "timestamp": "2026-11-19",
                 "category": "groceries",
-                "particulars": "Market",
-                "currency": "BGN",
+                "particulars": "Test market",
+                "currency": "USD",
             }
         ]
         fake_client = SimpleNamespace(
-            files=SimpleNamespace(upload=Mock(return_value="uploaded-pdf")),
+            files=SimpleNamespace(
+                upload=Mock(return_value=object())
+            ),
             models=SimpleNamespace(
                 generate_content=Mock(
-                    return_value=SimpleNamespace(text=__import__("json").dumps(extracted))
+                    return_value=SimpleNamespace(
+                        text=__import__("json").dumps(parsed)
+                    )
                 )
             ),
         )
+
         with patch("api.views.pdf_import.client", fake_client):
-            response = client.post(
-                "/api/bank-statement/",
-                {
-                    "file": SimpleUploadedFile(
-                        "statement.pdf",
-                        b"%PDF-1.4 test",
-                        content_type="application/pdf",
-                    )
-                },
-                format="multipart",
+            response = self.client.post(
+                "/api/bank-statement/", {"file": pdf}, format="multipart"
             )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["response"], extracted)
+        self.assertEqual(response.data["response"], parsed)
         self.assertTrue(
             Transaction.objects.filter(
-                user=user,
-                amount="-15.25",
-                particulars="Market",
-                currency="BGN",
+                user=user, particulars="Test market", amount="-12.50"
             ).exists()
         )

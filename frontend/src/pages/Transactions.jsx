@@ -13,7 +13,11 @@ export default function Transactions() {
         params: { ordering: "-timestamp" },
       });
       if (response.status === 200) {
-        setTransactions(response.data);
+        setTransactions(
+          Array.isArray(response.data)
+            ? response.data
+            : response.data.results || []
+        );
       } else {
         alert("Failed to fetch transactions.");
       }

@@ -37,8 +37,8 @@ class CreateUserView(generics.CreateAPIView):
             {
                 "id": user.id,
                 "username": user.username,
-                "refresh": str(refresh),
                 "access": str(refresh.access_token),
+                "refresh": str(refresh),
             },
             status=201,
         )
@@ -98,3 +98,6 @@ class TransactionDeleteView(DestroyAPIView):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Transaction.objects.filter(user=self.request.user)

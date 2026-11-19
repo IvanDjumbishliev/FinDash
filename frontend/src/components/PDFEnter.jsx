@@ -49,14 +49,14 @@ export default function PDFenter() {
           setLoading(false);
         }
       } catch (error) {
-        console.error("Upload error:", error);
         setLoading(false);
-        toast.error(
+        const message =
           error.response?.status === 503
             ? "AI features are not set up yet. Add your Google GenAI key to backend/.env"
-            : error.response?.data?.error || "An error occurred during file upload.",
-          { id }
-        );
+            : error.response?.data?.error ||
+              "An error occurred during file upload.";
+        setError(message);
+        toast.error(message, { id });
       }
     };
   };
