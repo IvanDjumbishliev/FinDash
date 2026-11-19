@@ -163,6 +163,58 @@ class AIEndpointTests(TestCase):
         )
 
 
+class ScrapedDealsEndpointTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def test_lidl_endpoint_returns_list_without_api_key(self):
+        with patch(
+            "api.views.deals.scrape_lidl",
+            return_value=[
+                {
+                    "name": "Milk",
+                    "price": "2.49 €",
+                    "image_url": "https://example.com/milk.jpg",
+                    "store": "Lidl",
+                }
+            ],
+        ):
+            response = self.client.get("/api/deals/lidl/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]["name"], "Milk")
+        self.assertEqual(response.data[0]["store"], "Lidl")
+
+    def test_kaufland_endpoint_returns_list_without_api_key(self):
+        with patch(
+            "api.views.deals.scrape_kaufland",
+            return_value=[
+                {
+                    "name": "Bread",
+                    "price": "1.20 €",
+                    "image_url": "https://example.com/bread.jpg",
+                    "store": "Kaufland",
+                }
+            ],
+        ):
+            response = self.client.get("/api/deals/kaufland/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]["name"], "Bread")
+        self.assertEqual(response.data[0]["store"], "Kaufland")
+
+    def test_scrape_failure_returns_empty_list(self):
+        with patch(
+            "api.views.deals.requests.get",
+            side_effect=RuntimeError("network unavailable"),
+        ):
+            response = self.client.get("/api/deals/lidl/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
+
+
 class StockEndpointTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="stock-user", password="test")

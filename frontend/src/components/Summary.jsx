@@ -14,7 +14,6 @@ const fetchSummary = () => {
       }
     })
     .catch((error) => {
-      console.error("Error fetching summary:", error);
       throw error;
     });
 };

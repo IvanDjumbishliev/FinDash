@@ -248,3 +248,25 @@
     font-size: 0.75rem;
     font-weight: 700;
 }
+
+.deal-card {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 12px;
+}
+
+.deal-card-image {
+    width: 64px;
+    height: 64px;
+    object-fit: contain;
+    border-radius: 8px;
+    background: #fff;
+}
+
+.deal-card-copy {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}

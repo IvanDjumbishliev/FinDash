@@ -1,39 +1,25 @@
 import { useState } from "react";
 import "../styles/components/DealSearcher.css";
-import kaufland from "../assets/kaufland.png";
-import lidl from "../assets/lidl.png";
-import billa from "../assets/billa.png";
-import cross from "../assets/cross.png";
 import api from "../api";
 
-const OfferItem = ({ name, value, store }) => {
-  let isPromptValid = true;
-  const getStoreLogo = (storeName) => {
-    switch ((storeName || "").toLowerCase()) {
-      case "kaufland":
-        return kaufland;
-      case "lidl":
-        return lidl;
-      case "billa":
-        return billa;
-      case "x":
-        isPromptValid = false;
-        return cross;
-      default:
-        isPromptValid = false;
-        return cross;
-    }
-  };
+const OfferItem = ({ name, price, store, imageUrl }) => {
   return (
     <div className="offer-item">
-      <img
-        src={getStoreLogo(store)}
-        alt={`${store} logo`}
-        className="store-logo"
-      />
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={name}
+          className="store-logo"
+          loading="lazy"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      )}
       <div className="deal-item">
         <span className="deal-name">{name}</span>
-        {isPromptValid && <span className="deal-value">-{value}%</span>}
+        {price && <span className="deal-value">{price}</span>}
+        <span className="deal-store">{store}</span>
       </div>
     </div>
   );
@@ -44,9 +30,10 @@ const StoreItemGrid = ({ items, variant = "default" }) => {
     <div className={`deal-items-grid ${variant}`}>
       {items.map((item, index) => (
         <OfferItem
-          name={item.info}
-          value={item.discount}
-          store={item.supermarket}
+            name={item.name}
+            price={item.price}
+            store={item.store}
+            imageUrl={item.image_url}
           key={index}
         />
       ))}
@@ -73,17 +60,18 @@ const Deals = () => {
     setItems([]);
     setIsLoading(true);
     try {
-      const response = await api.post("/api/leaflet/user/", {
-        prompt: searchQuery,
-      });
-      const results = Array.isArray(response.data.response)
-        ? response.data.response
-        : [];
+      const [lidlResponse, kauflandResponse] = await Promise.all([
+        api.get("/api/deals/lidl/"),
+        api.get("/api/deals/kaufland/"),
+      ]);
+      const combined = [
+        ...(Array.isArray(lidlResponse.data) ? lidlResponse.data : []),
+        ...(Array.isArray(kauflandResponse.data) ? kauflandResponse.data : []),
+      ];
+      const query = searchQuery.trim().toLowerCase();
       setItems(
-        results.filter(
-          (item) =>
-            String(item?.info || "").toLowerCase() !== "no deals found" &&
-            String(item?.info || "").toLowerCase() !== "invalid request"
+        combined.filter((item) =>
+          String(item.name || "").toLowerCase().includes(query)
         )
       );
     } catch (error) {

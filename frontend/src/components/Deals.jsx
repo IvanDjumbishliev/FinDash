@@ -18,12 +18,28 @@ const StoreButton = ({ id, isActive, onClick, image }) => {
 };
 
 const StoreItemGrid = ({ items }) => {
+  if (!items.length) {
+    return <p className="deal-empty-state" role="status">No deals loaded yet</p>;
+  }
   return (
     <div className="deal-items-grid">
       {items.map((item, index) => (
-        <div className="deal-item" key={index}>
-          <span className="deal-name">{item.info}</span>
-          <span className="deal-value">-{item.discount}%</span>
+        <div className="deal-item deal-card" key={`${item.store}-${item.name}-${index}`}>
+          {item.image_url && (
+            <img
+              className="deal-card-image"
+              src={item.image_url}
+              alt={item.name}
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          )}
+          <div className="deal-card-copy">
+            <span className="deal-name">{item.name}</span>
+            {item.price && <span className="deal-value">{item.price}</span>}
+          </div>
         </div>
       ))}
     </div>
@@ -35,29 +51,26 @@ const Deals = ({ isFetched }) => {
   const [kaudflandItems, setKauflandItems] = useState([]);
   const [lidlItems, setLidlItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [notice, setNotice] = useState("");
 
   const fetchKauflandDeals = async () => {
     try {
-      const response = await api.get("/api/leaflet/kaufland/");
+      const response = await api.get("/api/deals/kaufland/");
       if (response.status === 200) {
-        setKauflandItems(response.data.response || []);
-        if (response.data.notice) setNotice(response.data.notice);
+        setKauflandItems(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      setNotice("Could not reach the deal service.");
+      setKauflandItems([]);
     }
   };
 
   const fetchLidlDeals = async () => {
     try {
-      const response = await api.get("/api/leaflet/lidl/");
+      const response = await api.get("/api/deals/lidl/");
       if (response.status === 200) {
-        setLidlItems(response.data.response || []);
-        if (response.data.notice) setNotice(response.data.notice);
+        setLidlItems(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
-      setNotice("Could not reach the deal service.");
+      setLidlItems([]);
     }
   };
 
@@ -84,11 +97,6 @@ const Deals = ({ isFetched }) => {
   return (
     <div className="deals-container">
       <h2>Best deals right now</h2>
-      {notice && (
-        <div className="deals-notice" role="status">
-          {notice}
-        </div>
-      )}
       <table className="deals-table">
         <thead>
           <tr>
