@@ -89,11 +89,11 @@ const Deals = ({ isFetched }) => {
     const loadDeals = async () => {
       setIsLoading(true);
       try {
-        await Promise.all([
+        await Promise.allSettled([
           fetchKauflandDeals(),
           fetchLidlDeals(),
-          fetchFantasticoDeals(),
         ]);
+        fetchFantasticoDeals();
         isFetched?.();
       } catch {
         setKauflandItems([]);

@@ -7,7 +7,6 @@ import requests
 from bs4 import BeautifulSoup
 from django.core.cache import cache
 import pymupdf
-from PyPDF2 import PdfReader
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,6 +33,52 @@ def absolute_image_url(url):
 
 def image_data_url(pixmap):
     return "data:image/png;base64," + base64.b64encode(pixmap.tobytes("png")).decode("ascii")
+
+
+def noise_candidate(text):
+    lowered = text.lower()
+    noise_words = (
+        "до 50%",
+        "по-евтино",
+        "безплатно",
+        "акция",
+        "виж повече",
+        "lidl",
+        "сваляме",
+        "заслужава",
+        "от понеделник",
+        "от четвъртък",
+        "на 100",
+        "week",
+        "съвместна инициатива",
+        "гаранция",
+        "качество",
+        "вкл.",
+        "вземи",
+        "пекарна",
+        "възраст",
+    )
+    return any(noise in lowered for noise in noise_words)
+
+
+def looks_like_promo_copy(text):
+    lowered = text.lower()
+    promo_words = (
+        "заслужава",
+        "по-евтино",
+        "безплатно",
+        "акция",
+        "сваляме",
+        "цените",
+        "предложения",
+        "гаранция",
+        "качество",
+    )
+    if any(word in lowered for word in promo_words):
+        return True
+    if re.fullmatch(r"[\d%≈+\s.-]+", text):
+        return True
+    return len(text) > 120
 
 
 def scrape_lidl():
@@ -92,32 +137,55 @@ def scrape_lidl():
 
                     for page_index in range(min(document.page_count, 12)):
                         page = document[page_index]
-                        blocks = page.get_text("blocks")
-                        price_blocks = []
+                        text_blocks = page.get_text("dict")["blocks"]
+                        spans = []
+                        for block in text_blocks:
+                            if "lines" not in block:
+                                continue
+                            for line in block["lines"]:
+                                for span in line["spans"]:
+                                    text = re.sub(r"\s+", " ", span["text"]).strip()
+                                    if text:
+                                        spans.append(
+                                            {
+                                                "bbox": span["bbox"],
+                                                "text": text,
+                                                "size": float(span["size"]),
+                                            }
+                                        )
 
-                        for block in blocks:
-                            x0, y0, x1, y1, text, *_ = block
-                            for match in re.finditer(
+                        price_spans = [
+                            span
+                            for span in spans
+                            if re.search(
                                 r"(?<!\d)(\d+[,.]\d{2})\s*€",
-                                text,
+                                span["text"],
                                 re.IGNORECASE,
-                            ):
-                                price_blocks.append(
-                                    (float(y0), float(x0), float(x1), float(y1),
-                                     match.group(1), text)
-                                )
-
+                            )
+                        ]
                         seen_names = set()
-                        for price_y0, price_x0, price_x1, price_y1, price, price_text in price_blocks:
-                            price_x_center = (price_x0 + price_x1) / 2
-                            candidates = []
-                            for name_x0, name_y0, name_x1, name_y1, name, *_ in blocks:
-                                if name_y1 >= price_y0 or price_y0 - name_y1 > 180:
+
+                        for price_span in price_spans:
+                            price_match = re.search(
+                                r"(?<!\d)(\d+[,.]\d{2})\s*€",
+                                price_span["text"],
+                                re.IGNORECASE,
+                            )
+                            if not price_match:
+                                continue
+                            price = price_match.group(1)
+                            px0, py0, px1, py1 = price_span["bbox"]
+                            price_x = (px0 + px1) / 2
+
+                            nearby = []
+                            for span in spans:
+                                sx0, sy0, sx1, sy1 = span["bbox"]
+                                sx_center = (sx0 + sx1) / 2
+                                if abs(sx_center - price_x) > 150:
                                     continue
-                                name_x_center = (name_x0 + name_x1) / 2
-                                if abs(name_x_center - price_x_center) > 180:
+                                if not (py0 - 210 <= sy1 <= py0 + 25):
                                     continue
-                                clean = re.sub(r"\s+", " ", name).strip()
+                                clean = re.sub(r"\s+", " ", span["text"]).strip()
                                 if len(clean) < 3:
                                     continue
                                 if re.search(
@@ -128,54 +196,42 @@ def scrape_lidl():
                                     continue
                                 if re.fullmatch(r"[\d%≈+\s.-]+", clean):
                                     continue
-                                candidates.append(
-                                    (name_y0, name_x0, clean)
+                                nearby.append(
+                                    (
+                                        abs(py0 - sy1),
+                                        -span["size"],
+                                        sx0,
+                                        clean,
+                                    )
                                 )
 
-                            candidates.sort(key=lambda item: (item[0], item[1]))
-                            name = " ".join(
-                                text for _, _, text in candidates[-4:]
+                            nearby.sort(
+                                key=lambda item: (
+                                    item[0],
+                                    item[1],
+                                    item[2],
+                                )
                             )
+                            name = ""
+                            for _, _, _, clean in nearby:
+                                if not noise_candidate(clean):
+                                    name = clean
+                                    break
                             name = re.sub(r"\s+", " ", name).strip(" ,-")
-                            if len(name) < 3:
+
+                            if len(name) < 4 or looks_like_promo_copy(name):
                                 continue
-                            noise_words = (
-                                "до 50%",
-                                "по-евтино",
-                                "безплатно",
-                                "акция",
-                                "виж повече",
-                                "lidl",
-                                "сваляме",
-                                "заслужава",
-                                "от понеделник",
-                                "от четвъртък",
-                                "на 100 продукта",
-                                "week",
-                                "съвместна инициатива",
-                                "гаранция за качество",
-                                "качество",
-                                "да се консумира",
-                                "вкл.",
-                                "вземи",
-                                "пекарна",
-                                "възраст",
-                            )
-                            if any(noise in name.lower() for noise in noise_words):
-                                continue
-                            if re.fullmatch(r"[\d%≈+\s.-]+", name):
-                                continue
-                            if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", name):
-                                continue
+
                             key = (name.lower(), price)
                             if key in seen_names:
                                 continue
                             seen_names.add(key)
+                            name = "Lidl offer"
 
-                            left = max(0, price_x0 - 100)
-                            top = max(0, (candidates[-1][0] - 10) if candidates else price_y0 - 80)
-                            right = min(page.rect.width, price_x1 + 100)
-                            bottom = min(page.rect.height, price_y1 + 20)
+                            left = max(0, px0 - 110)
+                            top = max(0, py0 - 210)
+                            right = min(page.rect.width, px1 + 110)
+                            bottom = min(page.rect.height, py1 + 35)
                             pix = page.get_pixmap(
                                 matrix=pymupdf.Matrix(2, 2),
                                 clip=pymupdf.Rect(left, top, right, bottom),
@@ -200,96 +256,6 @@ def scrape_lidl():
                         deals = pdf_deals
                         break
 
-                if not pdf_deals:
-                    text_reader = PdfReader(io.BytesIO(pdf_response.content))
-                    text_deals = []
-                    for page_index, pdf_page in enumerate(text_reader.pages[:12]):
-                        page_data = (
-                            flyer.get("pages", [])[page_index]
-                            if page_index < len(flyer.get("pages", []))
-                            else {}
-                        )
-                        page_image = (
-                            page_data.get("image")
-                            or page_data.get("zoom")
-                            or page_data.get("thumbnail")
-                            or ""
-                        )
-                        text = pdf_page.extract_text() or ""
-                        lines = [
-                            re.sub(r"\s+", " ", line).strip()
-                            for line in text.splitlines()
-                            if line.strip()
-                        ]
-                        for line_index, line in enumerate(lines):
-                            price_match = re.search(
-                                r"(?<!\d)(\d+[,.]\d{2})\s*€",
-                                line,
-                                re.IGNORECASE,
-                            )
-                            if not price_match:
-                                continue
-                            candidates = []
-                            for candidate in reversed(
-                                lines[max(0, line_index - 8):line_index]
-                            ):
-                                if re.search(
-                                    r"€|цена|акция|виж повече|lidl|опаковка|бр\.|kg|g\b|l\b|от понеделник|от четвъртък",
-                                    candidate,
-                                    re.IGNORECASE,
-                                ):
-                                    continue
-                                if len(candidate) >= 3:
-                                    candidates.append(candidate)
-                                if len(candidates) == 4:
-                                    break
-                            name = " ".join(reversed(candidates)).strip()
-                            name = re.sub(r"\s+", " ", name).strip(" ,-")
-                            if len(name) < 3:
-                                continue
-                            name_lower = name.lower()
-                            if any(
-                                noise in name_lower
-                                for noise in (
-                                    "на 100 продукта",
-                                    "сваляме",
-                                    "заслужава",
-                                    "виж повече",
-                                    "акция",
-                                    "безплатно",
-                                )
-                            ):
-                                continue
-                            try:
-                                numeric_price = float(
-                                    price_match.group(1).replace(",", ".")
-                                )
-                                if numeric_price <= 0 or numeric_price > 100:
-                                    continue
-                            except ValueError:
-                                continue
-                            key = (name.lower(), price_match.group(1))
-                            if any(
-                                existing["name"].lower() == key[0]
-                                and existing["price"].startswith(key[1])
-                                for existing in text_deals
-                            ):
-                                continue
-                            text_deals.append(
-                                {
-                                    "name": name,
-                                    "price": f"{price_match.group(1)} €",
-                                    "image_url": page_image,
-                                    "store": "Lidl",
-                                }
-                            )
-                            if len(text_deals) >= 40:
-                                break
-                        if len(text_deals) >= 40:
-                            break
-                    if text_deals:
-                        deals = text_deals
-                        break
             except Exception:
                 continue
             if deals:
