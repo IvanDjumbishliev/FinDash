@@ -254,54 +254,155 @@ def scrape_fantastico():
         return cached
 
     try:
-        response = requests.get(
+        offers_page = requests.get(
             "https://www.fantastico.bg/special-offers",
             headers=HEADERS,
             timeout=20,
         )
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        deals = []
+        offers_page.raise_for_status()
+        soup = BeautifulSoup(offers_page.text, "html.parser")
+        active_switch = soup.select_one(
+            "div.brochure-switch[data-url].active, div.brochure-switch[data-url]"
+        )
+        if active_switch is None:
+            return []
 
-        for switch in soup.select("div.brochure-switch[data-url]"):
-            text = re.sub(
-                r"\s+", " ",
-                switch.get_text(" ", strip=True),
-            ).strip()
-            name = re.sub(
-                r"\s*(Виж брошура)\s*$",
-                "",
-                text,
-                flags=re.IGNORECASE,
-            ).strip()
-            if not name:
-                name = "Fantastico brochure"
+        flipbook_url = (
+            active_switch.get("data-url")
+            or "https://online.flippingbook.com/view/883575965/"
+        )
+        flipbook = requests.get(
+            flipbook_url,
+            headers={
+                **HEADERS,
+                "Referer": "https://www.fantastico.bg/",
+            },
+            timeout=30,
+        )
+        flipbook.raise_for_status()
 
-            period_match = re.search(
-                r"(\d{2}[.]\d{2}[.]\d{4}).*?(до\s*)?(\d{2}[.]\d{2}[.]\d{4})",
-                name,
-                re.IGNORECASE,
-            )
-            price = ""
-            if period_match:
-                price = f"{period_match.group(1)} - {period_match.group(3)}"
+        policy_match = re.search(
+            r"var initialPolicies\s*=\s*(\[.*?\]);",
+            flipbook.text,
+            re.S,
+        )
+        content_match = re.search(
+            r"ContentRoot:\s*'([^']+)'",
+            flipbook.text,
+        )
+        if not policy_match or not content_match:
+            return []
 
-            image = switch.select_one("img[src]")
-            image_url = ""
-            if image:
-                image_url = absolute_image_url(
-                    image.get("src") or image.get("data-src")
+        policies = json.loads(policy_match.group(1))
+        content_root = content_match.group(1)
+        policy = next(
+            (
+                item
+                for item in policies
+                if item.get("PathPrefix", "").rstrip("/").endswith(
+                    content_root.split(".net", 1)[-1].rstrip("/")
                 )
+            ),
+            None,
+        )
+        if policy is None:
+            policy = next(
+                (
+                    item
+                    for item in policies
+                    if "00710E38" in item.get("PathPrefix", "")
+                ),
+                policies[0] if policies else None,
+            )
+        if policy is None:
+            return []
 
+        params = {
+            "Key-Pair-Id": policy["KeyId"],
+            "Policy": policy["Policy"],
+            "Signature": policy["Signature"],
+        }
+        page_count_match = re.search(r"TotalPages:\s*(\d+)", flipbook.text)
+        page_count = (
+            int(page_count_match.group(1))
+            if page_count_match
+            else 40
+        )
+
+        try:
+            from rapidocr_onnxruntime import RapidOCR
+
+            ocr = RapidOCR()
+        except Exception:
+            return []
+
+        deals = []
+        for page_number in range(2, min(page_count + 1, 31)):
+            suffix = (
+                f"common/pages/html5substrates/"
+                f"page{page_number:04d}_1.webp"
+            )
+            page = requests.get(
+                content_root + suffix,
+                params=params,
+                headers={
+                    **HEADERS,
+                    "Referer": "https://online.flippingbook.com/",
+                },
+                timeout=20,
+            )
+            if page.status_code != 200:
+                continue
+
+            ocr_result, _ = ocr(page.content)
+            if not ocr_result:
+                continue
+
+            recognized = [
+                (text.strip(), score)
+                for _, text, score in ocr_result
+                if text and score >= 0.45
+            ]
+            price = ""
+            name_parts = []
+            for text, _ in recognized:
+                price_match = re.search(
+                    r"(?<!\d)(\d{1,3}(?:[,.]\d{1,2})?)",
+                    text,
+                )
+                if price_match and (
+                    "," in price_match.group(1)
+                    or "." in price_match.group(1)
+                ):
+                    price = f"{price_match.group(1).replace('.', ',')} лв"
+                    break
+
+                clean = re.sub(r"[^A-Za-zА-Яа-я0-9&+%-]+", " ", text)
+                clean = re.sub(r"\s+", " ", clean).strip()
+                if len(clean) >= 3:
+                    name_parts.append(clean)
+
+            name = " ".join(dict.fromkeys(name_parts[:4])).strip()
+            if not name:
+                name = f"Фантастико актуална оферта, стр. {page_number}"
+
+            signed_image = content_root + suffix
+            signed_image += (
+                "?" + requests.Request(
+                    "GET",
+                    signed_image,
+                    params=params,
+                ).prepare().url.split("?", 1)[-1]
+            )
             deals.append(
                 {
                     "name": name,
                     "price": price,
-                    "image_url": image_url,
+                    "image_url": signed_image,
                     "store": "Fantastico",
                 }
             )
-            if len(deals) >= 10:
+            if len(deals) >= 20:
                 break
     except Exception:
         deals = []

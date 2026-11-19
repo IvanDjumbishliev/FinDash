@@ -264,6 +264,12 @@
     background: #fff8e8;
 }
 
+.fantastico-logo-image {
+    width: 120px;
+    height: 120px;
+    object-fit: contain;
+}
+
 .deal-card {
     display: grid;
     grid-template-columns: 64px 1fr;

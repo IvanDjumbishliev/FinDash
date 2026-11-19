@@ -140,7 +140,14 @@ const Deals = ({ isFetched }) => {
                 onClick={() => handleClick("fantastico")}
                 aria-label="Fantastico"
               >
-                <span className="fantastiko-logo">ФАНТАСТИКО</span>
+                <img
+                  src="https://www.fantastico.bg/images/f-logo-latest.png"
+                  alt="Fantastico"
+                  className="fantastico-logo-image"
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
               </button>
             </td>
           </tr>
