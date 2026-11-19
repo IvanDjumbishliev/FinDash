@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -301,3 +302,134 @@ class StockEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["stocks"][0]["history"], [])
         self.assertIn("error", response.data["stocks"][0])
+
+
+class ApplicationFlowTests(TestCase):
+    def test_register_login_create_transaction_list_and_stats(self):
+        client = APIClient()
+        registration = client.post(
+            "/api/user/register/",
+            {"username": "flow-user", "password": "Secure-test-pass-934!"},
+            format="json",
+        )
+        self.assertEqual(registration.status_code, 201)
+        self.assertTrue(registration.data["access"])
+        self.assertTrue(registration.data["refresh"])
+
+        login = client.post(
+            "/api/token/",
+            {"username": "flow-user", "password": "Secure-test-pass-934!"},
+            format="json",
+        )
+        self.assertEqual(login.status_code, 200)
+        self.assertTrue(login.data["access"])
+        self.assertTrue(login.data["refresh"])
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+        created = client.post(
+            "/api/transactions/",
+            {
+                "amount": "-25.50",
+                "category": "groceries",
+                "particulars": "Weekly shop",
+                "currency": "BGN",
+            },
+            format="json",
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(str(created.data["amount"]), "-25.50")
+
+        listed = client.get("/api/transactions/", {"limit": 10})
+        self.assertEqual(listed.status_code, 200)
+        self.assertEqual(listed.data["results"][0]["particulars"], "Weekly shop")
+
+        Transaction.objects.create(
+            user_id=registration.data["id"],
+            amount="-10.00",
+            category=Transaction.Category.GROCERIES,
+            particulars="Second shop",
+            currency="BGN",
+        )
+        Transaction.objects.create(
+            user_id=registration.data["id"],
+            amount="-7.00",
+            category=Transaction.Category.TRANSPORT,
+            particulars="Bus",
+            currency="BGN",
+        )
+        Transaction.objects.create(
+            user_id=registration.data["id"],
+            amount="100.00",
+            category=Transaction.Category.GENERAL,
+            particulars="Refund",
+            currency="BGN",
+        )
+        stats = client.get("/api/transaction-stats/")
+        self.assertEqual(stats.status_code, 200)
+        self.assertEqual(
+            {item["category"]: item["amount"] for item in stats.data},
+            {"groceries": 35.5, "transport": 7.0},
+        )
+
+    @override_settings(API_KEY="")
+    def test_pdf_upload_returns_config_error_without_api_key(self):
+        client = APIClient()
+        user = User.objects.create_user(username="pdf-no-key", password="test")
+        client.force_authenticate(user=user)
+        response = client.post(
+            "/api/bank-statement/",
+            {
+                "file": SimpleUploadedFile(
+                    "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
+                )
+            },
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("API_KEY", response.data["error"])
+
+    @override_settings(API_KEY="test-key")
+    def test_pdf_upload_parses_and_persists_transactions(self):
+        client = APIClient()
+        user = User.objects.create_user(username="pdf-user", password="test")
+        client.force_authenticate(user=user)
+        extracted = [
+            {
+                "amount": -15.25,
+                "timestamp": "2026-11-18",
+                "category": "groceries",
+                "particulars": "Market",
+                "currency": "BGN",
+            }
+        ]
+        fake_client = SimpleNamespace(
+            files=SimpleNamespace(upload=Mock(return_value="uploaded-pdf")),
+            models=SimpleNamespace(
+                generate_content=Mock(
+                    return_value=SimpleNamespace(text=__import__("json").dumps(extracted))
+                )
+            ),
+        )
+        with patch("api.views.pdf_import.client", fake_client):
+            response = client.post(
+                "/api/bank-statement/",
+                {
+                    "file": SimpleUploadedFile(
+                        "statement.pdf",
+                        b"%PDF-1.4 test",
+                        content_type="application/pdf",
+                    )
+                },
+                format="multipart",
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["response"], extracted)
+        self.assertTrue(
+            Transaction.objects.filter(
+                user=user,
+                amount="-15.25",
+                particulars="Market",
+                currency="BGN",
+            ).exists()
+        )

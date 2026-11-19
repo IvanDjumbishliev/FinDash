@@ -1,10 +1,12 @@
 import io
 import json
+from django.conf import settings
 from .client import client
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework import status
 from ..models import Transaction
 
 
@@ -55,6 +57,16 @@ class UploadBankStatementView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, *args, **kwargs):
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "error": (
+                        "AI features are not configured. Add API_KEY to backend/.env"
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         if "file" not in request.FILES:
             return Response({"error": "No file uploaded"}, status=400)
 

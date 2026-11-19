@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import filters
 from decimal import Decimal
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class GetProfileView(APIView):
@@ -27,11 +28,20 @@ class CreateUserView(generics.CreateAPIView):
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
-
-class CreateUserView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [AllowAny]
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "id": user.id,
+                "username": user.username,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            },
+            status=201,
+        )
 
 
 class TransactionCreateView(CreateAPIView):
