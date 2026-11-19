@@ -109,9 +109,9 @@ const Deals = ({ isFetched }) => {
               />
             </td>
             <td>
-              <div className="store-unavailable" title="Billa integration is not available">
-                <img src={billa} alt="Billa (not connected)" />
-                <span>Not connected</span>
+              <div className="store-unavailable" aria-label="Billa deals coming soon">
+                <img src={billa} alt="Billa" />
+                <span>Coming soon</span>
               </div>
             </td>
           </tr>

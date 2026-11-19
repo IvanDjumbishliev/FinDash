@@ -20,6 +20,13 @@ class DealEndpointTests(TestCase):
                 self.assertEqual(response.data["response"], [])
                 self.assertIn("not configured", response.data["notice"].lower())
 
+    def test_billa_endpoint_reports_unavailable_without_error(self):
+        response = self.client.get("/api/leaflet/billa/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["response"], [])
+        self.assertFalse(response.data["available"])
+        self.assertIn("not yet available", response.data["notice"].lower())
+
     @override_settings(API_KEY=None)
     def test_search_returns_helpful_response_when_not_configured(self):
         response = self.client.post(

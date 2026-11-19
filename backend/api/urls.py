@@ -2,6 +2,7 @@ from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
 from .views.assistant import AssistantView
+from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
 from .views.leaflet_lidl import LidlLeafletView
 from .views.leaflet_user import LeafletUserView
@@ -28,6 +29,7 @@ urlpatterns = [
     ),
     path("leaflet/lidl/", LidlLeafletView.as_view()),
     path("leaflet/kaufland/", LeafletKauflandView.as_view()),
+    path("leaflet/billa/", BillaLeafletView.as_view()),
     path("leaflet/user/", LeafletUserView.as_view()),
     path("user/profile/", GetProfileView.as_view()),
     path("chat/", AssistantView.as_view()),
