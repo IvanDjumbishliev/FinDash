@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import "../styles/components/Deals.css";
 import kaufland from "../assets/kaufland.png";
 import lidl from "../assets/lidl.png";
-import billa from "../assets/billa.png";
 import api from "../api";
 
 const StoreButton = ({ id, isActive, onClick, image }) => {
@@ -80,8 +79,9 @@ const Deals = ({ isFetched }) => {
       try {
         await Promise.all([fetchKauflandDeals(), fetchLidlDeals()]);
         isFetched?.();
-      } catch (error) {
-        console.error("Error loading deals:", error);
+      } catch {
+        setKauflandItems([]);
+        setLidlItems([]);
       } finally {
         setIsLoading(false);
       }
@@ -117,9 +117,8 @@ const Deals = ({ isFetched }) => {
               />
             </td>
             <td>
-              <div className="store-unavailable" aria-label="Billa deals coming soon">
-                <img src={billa} alt="Billa" />
-                <span>Coming soon</span>
+              <div className="store-unavailable" aria-label="Фантастико">
+                <span className="fantastiko-logo">ФАНТАСТИКО</span>
               </div>
             </td>
           </tr>
