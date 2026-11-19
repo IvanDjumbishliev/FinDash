@@ -13,13 +13,20 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from decouple import Config, RepositoryEnv
 
-API_KEY = os.getenv("API_KEY")
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+env_file = BASE_DIR / ".env"
+if os.getenv("API_KEY") is not None:
+    API_KEY = os.environ["API_KEY"]
+elif env_file.is_file():
+    API_KEY = Config(RepositoryEnv(str(env_file)))("API_KEY", default="")
+else:
+    API_KEY = ""
+API_KEY = API_KEY.strip()
 
 
 # Quick-start development settings - unsuitable for production

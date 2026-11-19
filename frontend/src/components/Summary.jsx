@@ -29,7 +29,18 @@ export default function Summary() {
       .catch((err) => setError(err));
   }, []);
 
-  if (error) return <div>Error loading summary</div>;
+  if (error) {
+    const message =
+      error.response?.status === 503
+        ? "AI features are not set up yet. Add your Google GenAI key to backend/.env"
+        : "Unable to load financial insights. Please try again later.";
+    return (
+      <div className="summary-container" role="status">
+        <h2 className="summary-title">Insights</h2>
+        <div className="summary-empty">{message}</div>
+      </div>
+    );
+  }
   if (!summary) return <div>Loading...</div>;
   if (summary.length === 0)
     return (

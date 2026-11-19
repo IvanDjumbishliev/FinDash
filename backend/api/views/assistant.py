@@ -1,10 +1,14 @@
-from rest_framework.views import APIView
+from django.conf import settings
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from ..models import Transaction
 from .client import client
-import csv, io
+import csv
+import io
 
 prompt = """
     You are an intelligent financial assistant chatbot analyzing personal transaction data. Your role is to:
@@ -56,6 +60,16 @@ class AssistantView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, *args, **kwargs):
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "error": (
+                        "AI features are not configured. Add API_KEY to backend/.env"
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         user_prompt = request.data.get("prompt")
         if not user_prompt:
             return Response({"error": "Prompt is required"}, status=400)

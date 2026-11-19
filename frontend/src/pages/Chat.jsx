@@ -28,7 +28,14 @@ export default function Chat() {
           { text: response.data, sender: "ai" },
         ]);
     } catch (err) {
-      console.error("Error: ", err);
+      const errorMessage =
+        err.response?.status === 503
+          ? "AI features are not set up yet. Add your Google GenAI key to backend/.env"
+          : "Sorry, your message could not be sent. Please try again.";
+      setMessages((latest) => [
+        ...latest,
+        { text: errorMessage, sender: "ai" },
+      ]);
     }
   };
 

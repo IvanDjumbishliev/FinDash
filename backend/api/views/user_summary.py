@@ -3,7 +3,9 @@ import io
 import json
 from datetime import datetime
 
+from django.conf import settings
 from django.core.cache import cache
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -77,6 +79,16 @@ class UserSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, *args, **kwargs):
+        if not settings.API_KEY:
+            return Response(
+                {
+                    "error": (
+                        "AI features are not configured. Add API_KEY to backend/.env"
+                    )
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         user_id = request.user.id
         transactions = Transaction.objects.filter(user=request.user)
 
