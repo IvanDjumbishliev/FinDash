@@ -1,10 +1,12 @@
 import json
 import re
 import io
+import base64
 
 import requests
 from bs4 import BeautifulSoup
 from django.core.cache import cache
+import pymupdf
 from PyPDF2 import PdfReader
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -28,6 +30,10 @@ def absolute_image_url(url):
     if url.startswith("/"):
         return "https://www.kaufland.bg" + url
     return url
+
+
+def image_data_url(pixmap):
+    return "data:image/png;base64," + base64.b64encode(pixmap.tobytes("png")).decode("ascii")
 
 
 def scrape_lidl():
@@ -81,122 +87,110 @@ def scrape_lidl():
                         timeout=60,
                     )
                     pdf_response.raise_for_status()
-                    reader = PdfReader(io.BytesIO(pdf_response.content))
-
+                    document = pymupdf.open(stream=pdf_response.content, filetype="pdf")
                     pdf_deals = []
-                    for pdf_page_index, pdf_page in enumerate(reader.pages[:12]):
-                        blocks = []
 
-                        def visitor(text, cm, tm, font, size):
-                            x = tm[4]
-                            y = tm[5]
-                            if text.strip():
-                                blocks.append(
-                                    (round(y, 1), round(x, 1), text.strip())
+                    for page_index in range(min(document.page_count, 12)):
+                        page = document[page_index]
+                        blocks = page.get_text("blocks")
+                        price_blocks = []
+
+                        for block in blocks:
+                            x0, y0, x1, y1, text, *_ = block
+                            for match in re.finditer(
+                                r"(?<!\d)(\d+[,.]\d{2})\s*€",
+                                text,
+                                re.IGNORECASE,
+                            ):
+                                price_blocks.append(
+                                    (float(y0), float(x0), float(x1), float(y1),
+                                     match.group(1), text)
                                 )
 
-                        pdf_page.extract_text(visitor_text=visitor)
-
-                        page_data = (
-                            flyer.get("pages", [])[pdf_page_index]
-                            if pdf_page_index < len(flyer.get("pages", []))
-                            else {}
-                        )
-                        page_image = (
-                            page_data.get("image")
-                            or page_data.get("zoom")
-                            or page_data.get("thumbnail")
-                            or ""
-                        )
-
-                        column_groups = []
-                        for column in sorted({round(x, -1) for _, x, _ in blocks}):
-                            column_blocks = [
-                                (y, x, text)
-                                for y, x, text in blocks
-                                if abs(x - column) <= 25
-                            ]
-                            if column_blocks:
-                                column_groups.append(column_blocks)
-
-                        for column_blocks in column_groups:
-                            column_blocks.sort(key=lambda item: (-item[0], item[1]))
-                            price_matches = []
-                            for y, x, text in column_blocks:
-                                match = re.search(
-                                    r"(?<!\d)(\d+[,.]\d{2})\s*€",
-                                    text,
+                        seen_names = set()
+                        for price_y0, price_x0, price_x1, price_y1, price, price_text in price_blocks:
+                            price_x_center = (price_x0 + price_x1) / 2
+                            candidates = []
+                            for name_x0, name_y0, name_x1, name_y1, name, *_ in blocks:
+                                if name_y1 >= price_y0 or price_y0 - name_y1 > 180:
+                                    continue
+                                name_x_center = (name_x0 + name_x1) / 2
+                                if abs(name_x_center - price_x_center) > 180:
+                                    continue
+                                clean = re.sub(r"\s+", " ", name).strip()
+                                if len(clean) < 3:
+                                    continue
+                                if re.search(
+                                    r"€|акция|цена|виж повече|lidl|опаковка|бр\.|kg|g\b|l\b",
+                                    clean,
+                                    re.IGNORECASE,
+                                ):
+                                    continue
+                                if re.fullmatch(r"[\d%≈+\s.-]+", clean):
+                                    continue
+                                candidates.append(
+                                    (name_y0, name_x0, clean)
                                 )
-                                if match:
-                                    price_matches.append((y, x, match.group(1)))
 
-                            for price_y, price_x, price in price_matches:
-                                name_candidates = [
-                                    text
-                                    for y, x, text in column_blocks
-                                    if 20 <= price_y - y <= 180
-                                    and abs(x - price_x) <= 130
-                                    and len(text) >= 3
-                                    and not re.search(
-                                        r"^\d|€|акция|цена|виж повече|lidl|опаковка|бр\.|kg|g\b|l\b",
-                                        text,
-                                        re.IGNORECASE,
-                                    )
-                                ]
-                                name_candidates = [
-                                    re.sub(r"\s+", " ", text).strip()
-                                    for text in name_candidates
-                                ]
-                                name_candidates = list(dict.fromkeys(name_candidates))
-                                name = " ".join(name_candidates[-4:])
-                                name = re.sub(r"^[-–\s]+|[-–\s]+$", "", name)
-                                if len(name) >= 3:
-                                    noise_words = (
-                                        "до 50%",
-                                        "по-евтино",
-                                        "безплатно",
-                                        "акция",
-                                        "виж повече",
-                                        "lidl",
-                                        "сваляме",
-                                        "умерено от лица",
-                                    )
-                                    if any(
-                                        noise in name.lower()
-                                        for noise in noise_words
-                                    ):
-                                        continue
-                                    if re.fullmatch(r"[\d%≈+\s.-]+", name):
-                                        continue
-                                    if "/uni" in name.lower():
-                                        continue
-                                    normalized_price = re.sub(
-                                        r"\s*[€лв]\s*", "",
-                                        price,
-                                    ).replace(",", ".")
-                                    deal_key = (name.lower(), normalized_price)
-                                    if deal_key in {
-                                        (
-                                            deal["name"].lower(),
-                                            re.sub(
-                                                r"\s*[€лв]\s*",
-                                                "",
-                                                deal["price"],
-                                            ).replace(",", "."),
-                                        )
-                                        for deal in pdf_deals
-                                    }:
-                                        continue
-                                    pdf_deals.append(
-                                        {
-                                            "name": name,
-                                            "price": f"{price} €",
-                                            "image_url": page_image,
-                                            "store": "Lidl",
-                                        }
-                                    )
-                                if len(pdf_deals) >= 40:
-                                    break
+                            candidates.sort(key=lambda item: (item[0], item[1]))
+                            name = " ".join(
+                                text for _, _, text in candidates[-4:]
+                            )
+                            name = re.sub(r"\s+", " ", name).strip(" ,-")
+                            if len(name) < 3:
+                                continue
+                            noise_words = (
+                                "до 50%",
+                                "по-евтино",
+                                "безплатно",
+                                "акция",
+                                "виж повече",
+                                "lidl",
+                                "сваляме",
+                                "заслужава",
+                                "от понеделник",
+                                "от четвъртък",
+                                "на 100 продукта",
+                                "week",
+                                "съвместна инициатива",
+                                "гаранция за качество",
+                                "качество",
+                                "да се консумира",
+                                "вкл.",
+                                "вземи",
+                                "пекарна",
+                                "възраст",
+                            )
+                            if any(noise in name.lower() for noise in noise_words):
+                                continue
+                            if re.fullmatch(r"[\d%≈+\s.-]+", name):
+                                continue
+                            if re.search(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", name):
+                                continue
+                            key = (name.lower(), price)
+                            if key in seen_names:
+                                continue
+                            seen_names.add(key)
+
+                            left = max(0, price_x0 - 100)
+                            top = max(0, (candidates[-1][0] - 10) if candidates else price_y0 - 80)
+                            right = min(page.rect.width, price_x1 + 100)
+                            bottom = min(page.rect.height, price_y1 + 20)
+                            pix = page.get_pixmap(
+                                matrix=pymupdf.Matrix(2, 2),
+                                clip=pymupdf.Rect(left, top, right, bottom),
+                                alpha=False,
+                            )
+                            crop_url = image_data_url(pix)
+
+                            pdf_deals.append(
+                                {
+                                    "name": name,
+                                    "price": f"{price} €",
+                                    "image_url": crop_url,
+                                    "store": "Lidl",
+                                }
+                            )
                             if len(pdf_deals) >= 40:
                                 break
                         if len(pdf_deals) >= 40:
@@ -206,28 +200,95 @@ def scrape_lidl():
                         deals = pdf_deals
                         break
 
-                for page_data in flyer.get("pages", []):
-                    image = (
-                        page_data.get("image")
-                        or page_data.get("zoom")
-                        or page_data.get("thumbnail")
-                        or ""
-                    )
-                    page_number = page_data.get("number")
-                    if image:
-                        deals.append(
-                            {
-                                "name": (
-                                    f"Lidl weekly offer - page {page_number}"
-                                    if page_number
-                                    else "Lidl weekly offer"
-                                ),
-                                "price": "",
-                                "image_url": image,
-                                "store": "Lidl",
-                            }
+                if not pdf_deals:
+                    text_reader = PdfReader(io.BytesIO(pdf_response.content))
+                    text_deals = []
+                    for page_index, pdf_page in enumerate(text_reader.pages[:12]):
+                        page_data = (
+                            flyer.get("pages", [])[page_index]
+                            if page_index < len(flyer.get("pages", []))
+                            else {}
                         )
-                    if len(deals) >= 40:
+                        page_image = (
+                            page_data.get("image")
+                            or page_data.get("zoom")
+                            or page_data.get("thumbnail")
+                            or ""
+                        )
+                        text = pdf_page.extract_text() or ""
+                        lines = [
+                            re.sub(r"\s+", " ", line).strip()
+                            for line in text.splitlines()
+                            if line.strip()
+                        ]
+                        for line_index, line in enumerate(lines):
+                            price_match = re.search(
+                                r"(?<!\d)(\d+[,.]\d{2})\s*€",
+                                line,
+                                re.IGNORECASE,
+                            )
+                            if not price_match:
+                                continue
+                            candidates = []
+                            for candidate in reversed(
+                                lines[max(0, line_index - 8):line_index]
+                            ):
+                                if re.search(
+                                    r"€|цена|акция|виж повече|lidl|опаковка|бр\.|kg|g\b|l\b|от понеделник|от четвъртък",
+                                    candidate,
+                                    re.IGNORECASE,
+                                ):
+                                    continue
+                                if len(candidate) >= 3:
+                                    candidates.append(candidate)
+                                if len(candidates) == 4:
+                                    break
+                            name = " ".join(reversed(candidates)).strip()
+                            name = re.sub(r"\s+", " ", name).strip(" ,-")
+                            if len(name) < 3:
+                                continue
+                            name_lower = name.lower()
+                            if any(
+                                noise in name_lower
+                                for noise in (
+                                    "на 100 продукта",
+                                    "сваляме",
+                                    "заслужава",
+                                    "виж повече",
+                                    "акция",
+                                    "безплатно",
+                                )
+                            ):
+                                continue
+                            try:
+                                numeric_price = float(
+                                    price_match.group(1).replace(",", ".")
+                                )
+                                if numeric_price <= 0 or numeric_price > 100:
+                                    continue
+                            except ValueError:
+                                continue
+                            key = (name.lower(), price_match.group(1))
+                            if any(
+                                existing["name"].lower() == key[0]
+                                and existing["price"].startswith(key[1])
+                                for existing in text_deals
+                            ):
+                                continue
+                            text_deals.append(
+                                {
+                                    "name": name,
+                                    "price": f"{price_match.group(1)} €",
+                                    "image_url": page_image,
+                                    "store": "Lidl",
+                                }
+                            )
+                            if len(text_deals) >= 40:
+                                break
+                        if len(text_deals) >= 40:
+                            break
+                    if text_deals:
+                        deals = text_deals
                         break
             except Exception:
                 continue
@@ -361,23 +422,23 @@ def scrape_fantastico():
         return cached
 
     try:
-        offers_page = requests.get(
-            "https://www.fantastico.bg/special-offers",
-            headers=HEADERS,
-            timeout=20,
-        )
-        offers_page.raise_for_status()
-        soup = BeautifulSoup(offers_page.text, "html.parser")
-        active_switch = soup.select_one(
-            "div.brochure-switch[data-url].active, div.brochure-switch[data-url]"
-        )
-        if active_switch is None:
-            return []
-
-        flipbook_url = (
-            active_switch.get("data-url")
-            or "https://online.flippingbook.com/view/883575965/"
-        )
+        flipbook_url = "https://online.flippingbook.com/view/883575965/"
+        try:
+            offers_page = requests.get(
+                "https://www.fantastico.bg/special-offers",
+                headers=HEADERS,
+                timeout=20,
+            )
+            if offers_page.status_code == 200:
+                soup = BeautifulSoup(offers_page.text, "html.parser")
+                active_switch = soup.select_one(
+                    "div.brochure-switch[data-url].active, "
+                    "div.brochure-switch[data-url]"
+                )
+                if active_switch and active_switch.get("data-url"):
+                    flipbook_url = active_switch["data-url"]
+        except Exception:
+            pass
         flipbook = requests.get(
             flipbook_url,
             headers={
@@ -469,55 +530,72 @@ def scrape_fantastico():
                     params=params,
                 ).prepare().url.split("?", 1)[-1]
             )
-            name = f"Фантастико оферта - страница {page_number}"
-            price = ""
             if ocr is not None:
                 ocr_result, _ = ocr(page.content)
-                name_parts = []
                 if ocr_result:
-                    for _, text, score in ocr_result:
+                    from PIL import Image
+                    from io import BytesIO
+
+                    image = Image.open(BytesIO(page.content)).convert("RGB")
+                    width, height = image.size
+                    seen = set()
+
+                    for box, text, score in ocr_result:
                         if score < 0.45:
                             continue
                         price_match = re.search(
-                            r"(?<!\d)(\d{1,3}(?:[,.]\d{1,2})?)",
+                            r"(?<!\d)(\d{1,3}[,.]\d{1,2})",
                             text,
                         )
-                        if price_match and (
-                            "," in price_match.group(1)
-                            or "." in price_match.group(1)
-                        ):
-                            price = f"{price_match.group(1).replace('.', ',')} лв"
+                        if not price_match:
                             continue
-                        clean = re.sub(
-                            r"[^A-Za-zА-Яа-я0-9&+%-]+",
-                            " ",
-                            text,
+
+                        price = price_match.group(1).replace(".", ",")
+                        box_x = [point[0] for point in box]
+                        box_y = [point[1] for point in box]
+                        price_x = sum(box_x) / 4
+                        price_y = min(box_y)
+                        name = "Фантастико оферта"
+
+                        left = max(
+                            0,
+                            int(price_x - width * 0.28),
                         )
-                        clean = re.sub(r"\s+", " ", clean).strip()
-                        noise = (
-                            "google",
-                            "appstore",
-                            "play",
-                            "kaye",
-                            "точка",
+                        top = max(
+                            0,
+                            int(price_y - height * 0.16),
                         )
-                        if len(clean) >= 4 and not any(
-                            item in clean.lower() for item in noise
-                        ):
-                            name_parts.append(clean)
-                name_parts = list(dict.fromkeys(name_parts))
-                if name_parts:
-                    name = " ".join(name_parts[:5]).strip()
-                    if len(name) > 120:
-                        name = name[:117].rstrip() + "..."
-            deals.append(
-                {
-                    "name": name,
-                    "price": price,
-                    "image_url": signed_image,
-                    "store": "Fantastico",
-                }
-            )
+                        right = min(
+                            width,
+                            int(price_x + width * 0.28),
+                        )
+                        bottom = min(
+                            height,
+                            int(max(box_y) + height * 0.08),
+                        )
+                        crop = image.crop((left, top, right, bottom))
+                        crop.thumbnail((500, 320))
+                        encoded = io.BytesIO()
+                        crop.save(encoded, format="JPEG", quality=82)
+                        data_url = (
+                            "data:image/jpeg;base64,"
+                            + base64.b64encode(encoded.getvalue()).decode("ascii")
+                        )
+
+                        key = (name.lower(), price)
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        deals.append(
+                            {
+                                "name": name,
+                                "price": f"{price} лв",
+                                "image_url": data_url,
+                                "store": "Fantastico",
+                            }
+                        )
+                        if len(deals) >= 20:
+                            break
             if len(deals) >= 20:
                 break
     except Exception:

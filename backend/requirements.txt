@@ -14,4 +14,4 @@ google-genai
 yfinance
 requests
 rapidocr-onnxruntime
-rapidocr-onnxruntime
+pymupdf
