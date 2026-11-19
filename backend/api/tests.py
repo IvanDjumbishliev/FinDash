@@ -5,8 +5,9 @@ from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
+import pandas as pd
 
-from api.models import Transaction
+from api.models import Stock, Transaction
 
 
 class DealEndpointTests(TestCase):
@@ -158,3 +159,145 @@ class AIEndpointTests(TestCase):
             "response_schema",
             call["config"],
         )
+
+
+class StockEndpointTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="stock-user", password="test")
+        self.other_user = User.objects.create_user(
+            username="other-stock-user", password="test"
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_search_returns_common_ticker_results(self):
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.info = {
+                "symbol": "AAPL",
+                "longName": "Apple Inc.",
+                "exchange": "NMS",
+            }
+            for symbol in ("AAPL", "MSFT", "TSLA"):
+                with self.subTest(symbol=symbol):
+                    ticker_factory.return_value.info["symbol"] = symbol
+                    response = self.client.get(
+                        "/api/stocks/search/", {"query": symbol.lower()}
+                    )
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response.data[0]["symbol"], symbol)
+
+    def test_search_returns_clean_error_for_missing_ticker_data(self):
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.info = {}
+            response = self.client.get("/api/stocks/search/", {"query": "INVALID"})
+
+        self.assertEqual(response.status_code, 404)
+        self.assertIn("error", response.data)
+
+    def test_search_returns_clean_error_for_yfinance_failure(self):
+        with patch("api.views.stocks.yf.Ticker", side_effect=RuntimeError("offline")):
+            response = self.client.get("/api/stocks/search/", {"query": "AAPL"})
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn("error", response.data)
+
+    def test_adding_stock_persists_uppercase_ticker_for_current_user(self):
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.info = {
+                "symbol": "AAPL",
+                "longName": "Apple Inc.",
+            }
+            response = self.client.post(
+                "/api/stocks/watchlist/", {"symbol": " aapl "}, format="json"
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["symbols"], ["AAPL"])
+        self.assertTrue(
+            Stock.objects.filter(
+                user=self.user, ticker="AAPL", name="Apple Inc."
+            ).exists()
+        )
+        self.assertFalse(Stock.objects.filter(user=self.other_user).exists())
+
+    def test_invalid_ticker_is_not_saved(self):
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.info = {}
+            response = self.client.post(
+                "/api/stocks/watchlist/", {"symbol": "INVALID"}, format="json"
+            )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Stock.objects.filter(user=self.user).exists())
+
+    def test_watchlist_returns_one_month_history_for_current_user_only(self):
+        Stock.objects.create(
+            user=self.user,
+            ticker="AAPL",
+            name="Apple Inc.",
+            quantity=0,
+            price_per_share=0,
+        )
+        Stock.objects.create(
+            user=self.other_user,
+            ticker="MSFT",
+            name="Microsoft",
+            quantity=0,
+            price_per_share=0,
+        )
+        history = pd.DataFrame(
+            {"Close": [190.25, 191.5]},
+            index=pd.to_datetime(["2026-11-17", "2026-11-18"]),
+        )
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.history.return_value = history
+            response = self.client.get("/api/stocks/watchlist/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["symbol"] for item in response.data["stocks"]], ["AAPL"])
+        self.assertEqual(
+            response.data["stocks"][0]["history"],
+            [
+                {"date": "2026-11-17", "price": 190.25},
+                {"date": "2026-11-18", "price": 191.5},
+            ],
+        )
+        ticker_factory.return_value.history.assert_called_once_with(
+            period="1mo", interval="1d", actions=False
+        )
+
+    def test_watchlist_marks_missing_history_without_dropping_stock(self):
+        Stock.objects.create(
+            user=self.user,
+            ticker="AAPL",
+            name="Apple Inc.",
+            quantity=0,
+            price_per_share=0,
+        )
+        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
+            ticker_factory.return_value.history.return_value = pd.DataFrame()
+            response = self.client.get("/api/stocks/watchlist/")
+
+        self.assertEqual(response.status_code, 200)
+        stock = response.data["stocks"][0]
+        self.assertEqual(stock["symbol"], "AAPL")
+        self.assertEqual(stock["history"], [])
+        self.assertIn("error", stock)
+
+    def test_watchlist_marks_network_failure_without_crashing(self):
+        Stock.objects.create(
+            user=self.user,
+            ticker="AAPL",
+            name="Apple Inc.",
+            quantity=0,
+            price_per_share=0,
+        )
+        with patch(
+            "api.views.stocks.yf.Ticker",
+            side_effect=RuntimeError("offline"),
+        ):
+            response = self.client.get("/api/stocks/watchlist/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["stocks"][0]["history"], [])
+        self.assertIn("error", response.data["stocks"][0])
