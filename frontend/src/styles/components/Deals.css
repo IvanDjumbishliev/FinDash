@@ -213,7 +213,8 @@
 }
 
 .deals-notice,
-.deal-search-error {
+.deal-search-error,
+.deal-empty-state {
     margin: 1rem 0;
     padding: 0.9rem 1rem;
     border: 1px solid #d9ddf6;

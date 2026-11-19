@@ -9,7 +9,7 @@ import api from "../api";
 const OfferItem = ({ name, value, store }) => {
   let isPromptValid = true;
   const getStoreLogo = (storeName) => {
-    switch (storeName.toLowerCase()) {
+    switch ((storeName || "").toLowerCase()) {
       case "kaufland":
         return kaufland;
       case "lidl":
@@ -61,6 +61,7 @@ const Deals = () => {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
 
   const sendQuery = async () => {
     if (!searchQuery.trim()) {
@@ -68,23 +69,27 @@ const Deals = () => {
       return;
     }
     setError("");
+    setHasSearched(true);
+    setItems([]);
     setIsLoading(true);
     try {
       const response = await api.post("/api/leaflet/user/", {
         prompt: searchQuery,
       });
-      if (response.status === 201) {
-        setItems(response.data.response);
-      } else if (response.status === 401) {
-        alert("Page will be refreshed for relogging purposes.");
-        location.reload();
-      } else {
-        alert("Failed to find user requested deals.");
-      }
+      const results = Array.isArray(response.data.response)
+        ? response.data.response
+        : [];
+      setItems(
+        results.filter(
+          (item) =>
+            String(item?.info || "").toLowerCase() !== "no deals found" &&
+            String(item?.info || "").toLowerCase() !== "invalid request"
+        )
+      );
     } catch (error) {
       setError(
         error.response?.data?.error ||
-        "Deal search is unavailable. Configure API_KEY in backend/.env and restart the backend."
+        "Deal search is unavailable. Check that the backend is running and configured."
       );
     } finally {
       setIsLoading(false);
@@ -102,7 +107,10 @@ const Deals = () => {
                 type="text"
                 placeholder="Example: milk, bread..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setHasSearched(false);
+                }}
                 className="search-input"
               />
               <button className="search-button" onClick={sendQuery}>
@@ -123,7 +131,18 @@ const Deals = () => {
                       <div className="loading-spinner spinner-scn"></div>
                     </div>
                   )}
-                  {!isLoading && <StoreItemGrid items={items} />}
+                  {!isLoading &&
+                    (items.length > 0 ? (
+                      <StoreItemGrid items={items} />
+                    ) : (
+                      <p className="deal-empty-state" role="status">
+                        {error
+                          ? "Search could not be completed."
+                          : hasSearched
+                            ? "No matching deals found."
+                            : "Search for a product to see matching deals."}
+                      </p>
+                    ))}
                 </div>
               </div>
             </td>

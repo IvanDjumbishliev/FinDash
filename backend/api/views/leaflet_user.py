@@ -94,7 +94,10 @@ class LeafletUserView(APIView):
         if not settings.API_KEY:
             return Response(
                 {
-                    "error": "Live deal search needs an API_KEY.",
+                    "error": (
+                        "Deal search is not configured. Add API_KEY to "
+                        "backend/.env to enable it."
+                    ),
                     "response": [],
                 },
                 status=503,
@@ -107,7 +110,16 @@ class LeafletUserView(APIView):
         lidl_files = cache.get(f"{lidl_fetch_date}_lidl")
 
         if not kaufland_files or not lidl_files:
-            return Response({"error": "Leaflet files not available"}, status=400)
+            return Response(
+                {
+                    "error": (
+                        "Deal leaflets are not available yet. Try again after "
+                        "the store deals have loaded."
+                    ),
+                    "response": [],
+                },
+                status=400,
+            )
 
         if not user_prompt:
             return Response({"error": "Search prompt is required"}, status=400)
@@ -132,4 +144,14 @@ class LeafletUserView(APIView):
             },
         )
 
-        return Response({"response": json.loads(response.text)}, status=201)
+        deals = json.loads(response.text)
+        if not isinstance(deals, list):
+            deals = []
+        if deals and all(
+            isinstance(deal, dict)
+            and isinstance(deal.get("info"), str)
+            and deal["info"].lower() in {"no deals found", "invalid request"}
+            for deal in deals
+        ):
+            deals = []
+        return Response({"response": deals}, status=201)

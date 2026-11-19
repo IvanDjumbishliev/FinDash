@@ -1,11 +1,12 @@
 import Deals from "../components/Deals";
 import DealSearcher from "../components/DealSearcher";
 import "../styles/pages/Promotion.css";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Suspense } from "react";
 
 function Promotions() {
   const [dealsFetched, setDealsFetched] = useState(false);
+  const markDealsFetched = useCallback(() => setDealsFetched(true), []);
   return (
     <div className="promotions-container fade-in">
       <div style={{ minHeight: "90vh" }}>
@@ -17,7 +18,7 @@ function Promotions() {
             </div>
           }
         >
-          <Deals isFetched={() => setDealsFetched(true)} />
+          <Deals isFetched={markDealsFetched} />
         </Suspense>
       </div>
       <div style={{ minHeight: "90vh" }}>

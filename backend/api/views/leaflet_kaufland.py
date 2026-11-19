@@ -74,7 +74,10 @@ class LeafletKauflandView(APIView):
             return Response(
                 {
                     "response": [],
-                    "notice": "Live deal discovery needs an API_KEY.",
+                    "notice": (
+                        "Deal discovery is not configured. Add API_KEY to "
+                        "backend/.env to enable it."
+                    ),
                 },
                 status=200,
             )

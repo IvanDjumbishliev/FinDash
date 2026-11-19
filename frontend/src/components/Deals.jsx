@@ -86,7 +86,7 @@ const Deals = ({ isFetched }) => {
       <h2>Best deals right now</h2>
       {notice && (
         <div className="deals-notice" role="status">
-          {notice} Set <code>API_KEY</code> in <code>backend/.env</code>, then restart the backend.
+          {notice}
         </div>
       )}
       <table className="deals-table">
