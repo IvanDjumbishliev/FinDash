@@ -8,6 +8,7 @@ from decimal import Decimal
 from difflib import SequenceMatcher
 from statistics import median
 
+from django.db.models import Q
 from django.utils import timezone
 
 from api.models import Subscription, Transaction
@@ -124,27 +125,36 @@ def estimate(run, frequency):
     )
     return {
         "merchant": run[-1].merchant,
+        "billing_anchor_day": anchor,
         "estimated_amount": amount.quantize(Decimal("0.01")),
         "next_expected_payment": expected_date(days[0], frequency, len(days), anchor),
         "detection_confidence": Decimal(str(round(confidence, 2))),
     }
 
 
-def detect_subscriptions(owner):
+def payment_groups(owner, today, merchant_keys=None, since=None):
     groups = defaultdict(list)
-    today = timezone.localdate()
     transactions = (
         Transaction.objects.filter(user=owner, amount__lt=0)
         .order_by("timestamp", "pk")
-        .values_list("timestamp", "amount", "particulars", "currency")
     )
-    for timestamp, amount, description, currency in transactions.iterator():
+    if since is not None:
+        transactions = transactions.filter(timestamp__date__gte=since)
+    for timestamp, amount, description, currency in transactions.values_list(
+        "timestamp", "amount", "particulars", "currency"
+    ).iterator():
         day = timezone.localdate(timestamp)
         merchant, normalized = merchant_names(description)
         currency = currency.strip().upper()
         if day <= today and normalized and re.fullmatch(r"[A-Z]{3}", currency):
-            groups[normalized, currency].append(Payment(day, -amount, merchant))
+            key = normalized, currency
+            if merchant_keys is None or key in merchant_keys:
+                groups[key].append(Payment(day, -amount, merchant))
+    return groups
 
+
+def detect_subscriptions(owner):
+    groups = payment_groups(owner, timezone.localdate())
     detected = []
     for (normalized, currency), payments in groups.items():
         bands = amount_bands(payments)
@@ -165,7 +175,8 @@ def detect_subscriptions(owner):
             )
             if not created:
                 candidates = Subscription.objects.filter(
-                    pk=subscription.pk, status=Subscription.Status.CANDIDATE
+                    Q(tracking_status__isnull=True) | Q(tracking_status=Subscription.TrackingStatus.ACTIVE),
+                    pk=subscription.pk, status=Subscription.Status.CANDIDATE,
                 )
                 if any(
                     getattr(subscription, key) != value for key, value in values.items()

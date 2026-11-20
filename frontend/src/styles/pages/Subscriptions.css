@@ -226,3 +226,98 @@
 .subscription-fields :is(input, select) {
     width: 100%;
 }
+
+.subscriptions-page .renewal-calendar-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+@media (min-width: 860px) {
+    .subscriptions-page .renewal-calendar-content {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.renewal-calendar-content > div {
+    min-width: 0;
+}
+
+.subscriptions-page .renewal-days {
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.25rem;
+    margin-top: 0.6rem;
+}
+
+.renewal-days :is(button, span) {
+    display: grid;
+    place-content: center;
+    min-height: 42px;
+    padding: 0.15rem;
+    text-align: center;
+}
+
+.renewal-weekday,
+.renewal-days > span {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.renewal-days small {
+    color: var(--violet);
+    line-height: 1;
+}
+
+.renewal-days button,
+.renewal-calendar button[aria-pressed="true"] {
+    background: var(--accent-surface);
+}
+
+.renewal-calendar button[aria-pressed="true"] {
+    border-color: var(--violet);
+    color: var(--violet);
+    font-weight: 650;
+}
+
+.reminder-settings {
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: 0.65rem;
+}
+
+.reminder-settings fieldset {
+    display: grid;
+    gap: 0.5rem;
+    border: 0;
+}
+
+.reminder-settings label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reminder-settings input[type="number"] {
+    width: 4.5rem;
+    min-height: 42px;
+    padding: 0.35rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--field-surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.reminder-settings input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--primary-color);
+}
+
+.subscription-planning-options {
+    margin-top: 0;
+}

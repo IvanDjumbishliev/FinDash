@@ -18,6 +18,8 @@ from .views.subscriptions import (
     SubscriptionDetailView,
     SubscriptionDetectView,
     SubscriptionListView,
+    SubscriptionPlanningView,
+    SubscriptionPreferencesView,
 )
 from .views.user_summary import UserSummaryView
 from .views.views import (
@@ -51,6 +53,8 @@ urlpatterns = [
     path("news/", NewsView.as_view(), name="news"),
     path("subscriptions/", SubscriptionListView.as_view(), name="subscription-list"),
     path("subscriptions/detect/", SubscriptionDetectView.as_view(), name="subscription-detect"),
+    path("subscriptions/planning/", SubscriptionPlanningView.as_view(), name="subscription-planning"),
+    path("subscriptions/preferences/", SubscriptionPreferencesView.as_view(), name="subscription-preferences"),
     path("subscriptions/<int:pk>/", SubscriptionDetailView.as_view(), name="subscription-detail"),
     path("stocks/watchlist/", WatchlistView.as_view(), name="watchlist"),
     path("stocks/search/", StockSearchView.as_view(), name="search_stocks"),

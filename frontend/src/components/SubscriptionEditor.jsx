@@ -51,13 +51,11 @@ export default function SubscriptionEditor({ record, onSave, onClose, busy, erro
             {categories.map((category) => <option key={category}>{category}</option>)}
           </select>
         </label>
-        {record?.status !== "candidate" && (
-          <label>Tracking status
-            <select name="tracking_status" value={draft.tracking_status} onChange={change}>
-              {["active", "paused", "canceled"].map((status) => <option key={status} value={status}>{statuses[status]}</option>)}
-            </select>
-          </label>
-        )}
+        <label>Tracking status
+          <select name="tracking_status" value={draft.tracking_status} onChange={change}>
+            {["active", "paused", "canceled"].map((status) => <option key={status} value={status}>{statuses[status]}</option>)}
+          </select>
+        </label>
       </fieldset>
       {(validation || error) && <p role="alert">{validation || error}</p>}
       <div className="subscription-actions">

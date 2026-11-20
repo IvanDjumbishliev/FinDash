@@ -33,17 +33,6 @@ test("monthly and annual estimates use all billing cycles and keep currencies se
   ]);
 });
 
-test("renewals include predictions, exclude inactive and overdue entries, and sort by date", () => {
-  const overview = subscriptionOverview([
-    record(1),
-    record(2, { status: "candidate", next_expected_payment: "2026-11-21" }),
-    record(3, { tracking_status: "paused" }),
-    record(4, { next_expected_payment: "2026-11-20" }),
-    record(5, { next_expected_payment: "2026-12-22" }),
-  ], new Date(2026, 10, 21));
-  assert.deepEqual(overview.upcoming.map(({ id }) => id), [2, 1]);
-});
-
 test("status filters and price ordering work across local and server entries", () => {
   const records = combineSubscriptions(
     [record(1), record(2), record(3, { status: "candidate" }), record(4)],

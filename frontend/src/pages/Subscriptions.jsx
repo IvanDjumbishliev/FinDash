@@ -3,6 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import api from "../api";
 import SubscriptionEditor from "../components/SubscriptionEditor";
+import SubscriptionPlanning from "../components/SubscriptionPlanning";
 import { ACCESS_TOKEN } from "../constants";
 import {
   billingCycles, combineSubscriptions, filterSubscriptions, formatDate, formatMoney,
@@ -152,17 +153,24 @@ export default function Subscriptions() {
           manual: [...local.manual.filter(({ id }) => id !== edit.manual.id), edit.manual],
         });
       } else {
-        const fieldsChanged = Object.entries(edit.patch).some(
-          ([field, value]) => record[field] !== value
-        );
-        const preferencesChanged = edit.preferences.category !== (record.category || "Uncategorized")
-          || edit.preferences.tracking_status !== (record.tracking_status || "active");
-        if (fieldsChanged) {
-          const { data } = await api.patch(`${endpoint}${record.id}/`, edit.patch);
+        const original = server.find(({ id }) => id === record.id);
+        const patch = Object.fromEntries(Object.entries(edit.patch).filter(
+          ([field, value]) => original[field] !== value
+        ));
+        if (edit.preferences.tracking_status !== (original.tracking_status || "active")
+            || (!original.tracking_status && local.preferences[record.id]?.tracking_status)) {
+          patch.tracking_status = edit.preferences.tracking_status;
+        }
+        if (Object.keys(patch).length) {
+          const { data } = await api.patch(`${endpoint}${record.id}/`, patch);
           replaceServer(data);
         }
-        if (preferencesChanged) {
-          saveLocal({ ...local, preferences: { ...local.preferences, [record.id]: edit.preferences } });
+        if (edit.preferences.category !== (record.category || "Uncategorized")
+            || local.preferences[record.id]?.tracking_status) {
+          saveLocal({
+            ...local,
+            preferences: { ...local.preferences, [record.id]: { category: edit.preferences.category } },
+          });
         }
       }
       closeEditor();
@@ -211,7 +219,7 @@ export default function Subscriptions() {
         </div>
       </header>
 
-      <p className="subscription-note">Manual entries, categories, and pause or cancel labels are saved in this browser. These labels only affect tracking in FinDash.</p>
+      <p className="subscription-note">Manual entries and categories are saved in this browser. Pause and cancel only change tracking in FinDash.</p>
       {loading && <p role="status" className="subscription-message">Loading subscriptions…</p>}
       {loadError && (
         <div className="subscription-message">
@@ -264,27 +272,6 @@ export default function Subscriptions() {
             <p className="subscription-note">Estimates include active, confirmed and manually added subscriptions. Amounts are grouped by currency.</p>
 
             <div className="subscription-overview">
-              <section className="subscription-panel" aria-labelledby="subscription-upcoming">
-                <h2 id="subscription-upcoming">Upcoming renewals</h2>
-                <p className="subscription-note">Next 30 days</p>
-                {overview.upcoming.length ? (
-                  <ul className="subscription-renewals">
-                    {overview.upcoming.map((record) => (
-                      <li key={record.id}>
-                        <div>
-                          <strong>{record.merchant}</strong>
-                          <div className="subscription-note">{record.status === "candidate" ? "Predicted" : "Confirmed"}</div>
-                        </div>
-                        <div>
-                          <time dateTime={record.next_expected_payment}>{formatDate(record.next_expected_payment)}</time>
-                          <div>{formatMoney(record.estimated_amount, record.currency)}</div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p>No renewals expected in the next 30 days.</p>}
-              </section>
-
               <section className="subscription-panel" aria-labelledby="subscription-category-chart">
                 <h2 id="subscription-category-chart">Monthly spending by category</h2>
                 {currency ? (
@@ -323,6 +310,8 @@ export default function Subscriptions() {
           </>
         )}
       </section>
+
+      {!loading && !loadError && <SubscriptionPlanning records={records} serverRecords={server} />}
 
       <section aria-labelledby="subscription-list-title">
         <div className="subscription-heading subscription-list-heading">
@@ -367,7 +356,7 @@ export default function Subscriptions() {
                   <strong>{formatMoney(record.estimated_amount, record.currency)}</strong>
                   <span>{billingCycles[record.billing_frequency].label}</span>
                 </p>
-                <p>Next payment <time dateTime={record.next_expected_payment}>{formatDate(record.next_expected_payment)}</time></p>
+                <p>Estimated next payment <time dateTime={record.next_expected_payment}>{formatDate(record.next_expected_payment)}</time></p>
                 <p className="subscription-note">
                   {predicted ? `Predicted · ${Math.round(Number(record.detection_confidence) * 100)}% confidence`
                     : record.local ? "Manual · This browser" : "Confirmed"}

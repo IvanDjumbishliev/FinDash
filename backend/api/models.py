@@ -70,6 +70,11 @@ class Subscription(models.Model):
         CANDIDATE = "candidate", "Candidate"
         CONFIRMED = "confirmed", "Confirmed"
 
+    class TrackingStatus(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PAUSED = "paused", "Paused"
+        CANCELED = "canceled", "Canceled"
+
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="subscriptions")
     merchant = models.CharField(max_length=255)
     normalized_merchant = models.CharField(max_length=255)
@@ -79,6 +84,9 @@ class Subscription(models.Model):
     next_expected_payment = models.DateField()
     detection_confidence = models.DecimalField(max_digits=3, decimal_places=2)
     status = models.CharField(max_length=9, choices=Status.choices, default=Status.CANDIDATE)
+    # Null preserves device-only tracking choices from Stage 2 until the user saves them.
+    tracking_status = models.CharField(max_length=8, choices=TrackingStatus.choices, null=True, blank=True)
+    billing_anchor_day = models.PositiveSmallIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -90,3 +98,10 @@ class Subscription(models.Model):
                 name="unique_subscription_schedule",
             ),
         ]
+
+
+class SubscriptionPreferences(models.Model):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="subscription_preferences")
+    renewal_reminders = models.BooleanField(default=False)
+    reminder_lead_days = models.PositiveSmallIntegerField(default=3)
+    monthly_summary = models.BooleanField(default=False)

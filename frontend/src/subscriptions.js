@@ -27,18 +27,13 @@ export function formatMoney(value, currency) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(value);
 }
 
-function dateKey(date) {
-  return [date.getFullYear(), date.getMonth() + 1, date.getDate()]
-    .map((part, index) => String(part).padStart(index === 0 ? 4 : 2, "0"))
-    .join("-");
-}
-
 export function subscriptionStatus(record) {
+  if (["paused", "canceled"].includes(record.tracking_status)) return record.tracking_status;
   if (record.status === "candidate") return "unconfirmed";
   return record.tracking_status || "active";
 }
 
-export function subscriptionOverview(records, today = new Date()) {
+export function subscriptionOverview(records) {
   const active = records.filter((record) => subscriptionStatus(record) === "active");
   const totals = {};
   const breakdown = {};
@@ -53,11 +48,6 @@ export function subscriptionOverview(records, today = new Date()) {
     breakdown[currency][category] = (breakdown[currency][category] ?? 0) + annualCents;
   }
 
-  const horizon = new Date(today);
-  horizon.setDate(horizon.getDate() + 30);
-  const first = dateKey(today);
-  const last = dateKey(horizon);
-
   return {
     activeCount: active.length,
     totals: Object.entries(totals).sort().map(([currency, cents]) => ({
@@ -68,10 +58,7 @@ export function subscriptionOverview(records, today = new Date()) {
       Object.entries(values).map(([category, cents]) => ({ category, monthly: cents / 1200 }))
         .sort((a, b) => b.monthly - a.monthly),
     ])),
-    upcoming: filterSubscriptions(records.filter((record) =>
-      ["active", "unconfirmed"].includes(subscriptionStatus(record))
-      && record.next_expected_payment >= first && record.next_expected_payment <= last
-    ), "all", "renewal"),
+
   };
 }
 
@@ -90,7 +77,10 @@ export function filterSubscriptions(records, filter, sort) {
 
 export function combineSubscriptions(records, local) {
   return [
-    ...records.map((record) => ({ ...record, ...local.preferences[record.id] })),
+    ...records.map((record) => ({
+      ...record, ...local.preferences[record.id],
+      tracking_status: record.tracking_status ?? local.preferences[record.id]?.tracking_status,
+    })),
     ...local.manual,
   ];
 }
