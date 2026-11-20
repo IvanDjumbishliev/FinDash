@@ -7,7 +7,7 @@ from django.core.cache import cache
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
 
-from api.views.news import load_feed
+from api.views.news import load_feed, read_feed
 
 
 def rss(*stories):
@@ -27,8 +27,6 @@ class NewsTests(SimpleTestCase):
     @patch("api.views.news.now", return_value=datetime(2026, 11, 21, tzinfo=timezone.utc))
     @patch("api.views.news.load_feed")
     def test_feed_merges_topics_and_returns_recent_articles_newest_first(self, load, current):
-        from api.views.news import read_feed
-
         stories = rss(
             ("Market update", "https://example.com/update", "Fri, 20 Nov 2026 15:00:00 GMT"),
             ("Older story", "https://example.com/older", "Fri, 20 Nov 2026 09:00:00 +0200"),
@@ -62,6 +60,23 @@ class NewsTests(SimpleTestCase):
         self.assertEqual(load_feed(feed), (first, False))
         get.assert_called_once()
 
-        cache.delete("financial-news:test")
+        cache.delete("financial-news-previews:test")
         get.side_effect = requests.ConnectionError("offline")
         self.assertEqual(load_feed(feed), (first, True))
+
+    def test_previews_pick_a_publisher_photo_and_clean_the_description(self):
+        stories = read_feed(b"""
+            <rss xmlns:media="http://search.yahoo.com/mrss/"><channel><item>
+                <title>Market closes higher</title>
+                <link>https://example.com/story</link>
+                <pubDate>Fri, 20 Nov 2026 15:00:00 GMT</pubDate>
+                <description><![CDATA[<p>Shares rose after the <b>rate decision</b>.</p>
+                    <p>More in the original article.</p>]]></description>
+                <media:content url="https://example.com/small.jpg" width="140"/>
+                <media:content url="https://example.com/large.jpg" width="700"/>
+                <media:content url="https://example.com/video.mp4" medium="video" width="900"/>
+            </item></channel></rss>
+        """, "Markets", "Example")
+
+        self.assertEqual(stories[0]["summary"], "Shares rose after the rate decision.")
+        self.assertEqual(stories[0]["image_url"], "https://example.com/large.jpg")

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { FiArrowUpRight, FiRefreshCw } from "react-icons/fi";
 import api from "../api";
+import newsIllustration from "../assets/financial-news-illustration.webp";
 import "../styles/pages/News.css";
 
 const categories = [
@@ -39,6 +41,30 @@ const formatPublished = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+function NewsPhoto({ imageUrl, alt }) {
+  const [failed, setFailed] = useState(false);
+  const illustrated = !imageUrl || failed;
+
+  return (
+    <figure className="news-photo">
+      <img
+        src={illustrated ? newsIllustration : imageUrl}
+        alt={illustrated ? "" : alt || ""}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy="no-referrer"
+        onError={illustrated ? undefined : () => setFailed(true)}
+      />
+      {illustrated && <figcaption>Illustrative image</figcaption>}
+    </figure>
+  );
+}
+
+NewsPhoto.propTypes = {
+  imageUrl: PropTypes.string,
+  alt: PropTypes.string,
+};
 
 export default function News() {
   const [category, setCategory] = useState("All");
@@ -142,21 +168,26 @@ export default function News() {
         {articles.map((article) => (
           <li key={article.url}>
             <article className="news-card">
-              <p className="news-category">
-                {category === "All" ? article.categories.join(" · ") : category}
-              </p>
-              <h2>
-                <a href={article.url} target="_blank" rel="noopener noreferrer">
-                  {article.title}
-                  <FiArrowUpRight aria-hidden="true" />
-                </a>
-              </h2>
-              <p className="news-source">
-                <span>{article.source}</span>
-                <time dateTime={article.published_at}>
-                  {formatPublished.format(new Date(article.published_at))}
-                </time>
-              </p>
+              <NewsPhoto key={article.image_url} imageUrl={article.image_url} alt={article.image_alt} />
+              <div className="news-card-body">
+                <p className="news-category">
+                  {category === "All" ? article.categories.join(" · ") : category}
+                </p>
+                <h2>{article.title}</h2>
+                {article.summary && <p className="news-summary">{article.summary}</p>}
+                <div className="news-card-footer">
+                  <p className="news-source">
+                    <span>{article.source}</span>
+                    <time dateTime={article.published_at}>
+                      {formatPublished.format(new Date(article.published_at))}
+                    </time>
+                  </p>
+                  <a href={article.url} target="_blank" rel="noopener noreferrer" aria-label={`Read full story: ${article.title}`}>
+                    Read full story
+                    <FiArrowUpRight aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
             </article>
           </li>
         ))}

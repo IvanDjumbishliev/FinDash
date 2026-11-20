@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from xml.etree import ElementTree
 
 import requests
+from bs4 import BeautifulSoup
 from django.core.cache import cache
 from django.utils.timezone import now
 from rest_framework.permissions import AllowAny
@@ -32,6 +33,45 @@ FEEDS = (
 )
 
 
+MEDIA = "{http://search.yahoo.com/mrss/}"
+
+
+def preview_details(item, title):
+    description = BeautifulSoup(item.findtext("description", ""), "html.parser")
+    for node in description.select("script, style, ul, ol"):
+        node.decompose()
+    paragraph = description.find("p")
+    text = paragraph.get_text() if paragraph else description.get_text(" ")
+    summary = " ".join(text.split())
+    words = summary.split()
+    if summary.casefold().rstrip(".") == title.casefold().rstrip("."):
+        summary = ""
+    elif len(words) > 25:
+        summary = " ".join(words[:25]).rstrip(" ,;:") + "…"
+
+    photos = []
+    for tag in item.iter():
+        image_type = tag.get("type", "")
+        if tag.tag in {f"{MEDIA}content", f"{MEDIA}thumbnail", "enclosure"} and (
+            image_type.startswith("image/")
+            or (tag.tag != "enclosure" and not image_type and tag.get("medium", "image") == "image")
+        ):
+            width = tag.get("width", "")
+            photos.append((int(width) if width.isdecimal() else 0, tag.get("url", ""), ""))
+
+    for image in description.find_all("img"):
+        photos.append((0, image.get("src", ""), image.get("alt", "")))
+
+    for _, image_url, alt in sorted(photos, key=lambda photo: photo[0], reverse=True):
+        try:
+            url = urlsplit(image_url)
+        except ValueError:
+            continue
+        if url.scheme == "https" and url.hostname:
+            return summary, image_url, alt
+    return summary, "", ""
+
+
 def read_feed(content, category, source):
     channel = ElementTree.fromstring(content).find("channel")
     if channel is None:
@@ -48,19 +88,23 @@ def read_feed(content, category, source):
             continue
         if not title or url.scheme != "https" or not url.hostname or published.tzinfo is None:
             continue
+        summary, image_url, image_alt = preview_details(item, title)
         stories.append({
             "title": title,
             "url": link,
             "source": source,
             "categories": [category],
             "published_at": published.astimezone(timezone.utc).isoformat(),
+            "summary": summary,
+            "image_url": image_url,
+            "image_alt": image_alt,
         })
     return stories
 
 
 def load_feed(feed):
     identifier, category, source, url = feed
-    key = f"financial-news:{identifier}"
+    key = f"financial-news-previews:{identifier}"
     fresh = cache.get(key)
     if fresh is not None:
         return fresh, False
