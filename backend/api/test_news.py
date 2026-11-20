@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from xml.sax.saxutils import escape
 
 import requests
@@ -41,8 +41,7 @@ class NewsTests(SimpleTestCase):
             feed[0] == "money",
         )
         client = APIClient()
-        client.force_authenticate(user=Mock(is_authenticated=True))
-        response = client.get("/api/news/")
+        response = client.get("/api/news/", HTTP_AUTHORIZATION="Bearer expired-token")
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["partial"])

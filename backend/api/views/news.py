@@ -8,7 +8,7 @@ from xml.etree import ElementTree
 import requests
 from django.core.cache import cache
 from django.utils.timezone import now
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,6 +19,16 @@ FEEDS = (
     ("money", "Personal finance", "The Guardian", "https://www.theguardian.com/money/rss"),
     ("business", "Business & economy", "BBC News", "https://feeds.bbci.co.uk/news/business/rss.xml"),
     ("ecb", "Banking", "European Central Bank", "https://www.ecb.europa.eu/rss/press.html"),
+    ("fed", "Banking", "Federal Reserve", "https://www.federalreserve.gov/feeds/press_monetary.xml"),
+    ("bta", "Business & economy", "БТА", "https://www.bta.bg/bg/news/economy/rss"),
+    ("asia", "Markets", "Business Standard", "https://www.business-standard.com/rss/markets-106.rss"),
+    ("canada", "Business & economy", "CBC News", "https://www.cbc.ca/webfeed/rss/rss-business"),
+    (
+        "cost-of-living",
+        "Cost of living",
+        "The Guardian",
+        "https://www.theguardian.com/business/cost-of-living-crisis/rss",
+    ),
 )
 
 
@@ -69,21 +79,25 @@ def load_feed(feed):
 
 
 class NewsView(APIView):
-    permission_classes = [IsAuthenticated]
+    # The same public headlines are available to every user.
+    authentication_classes = []
+    permission_classes = [AllowAny]
 
     def get(self, request):
         with ThreadPoolExecutor(max_workers=len(FEEDS)) as pool:
             reports = list(pool.map(load_feed, FEEDS))
 
-        current = now()
+        current = now().astimezone(timezone.utc).replace(microsecond=0)
         oldest = (current - timedelta(days=7)).isoformat()
         latest = current.isoformat()
         by_url = {}
         for stories, _ in reports:
-            recent = sorted(stories, key=lambda story: story["published_at"], reverse=True)
+            recent = sorted(
+                (story for story in stories if oldest <= story["published_at"] <= latest),
+                key=lambda story: story["published_at"],
+                reverse=True,
+            )
             for story in recent[:20]:
-                if not oldest <= story["published_at"] <= latest:
-                    continue
                 url = urlsplit(story["url"])
                 identifier = (url.hostname, url.path.rstrip("/"))
                 existing = by_url.get(identifier)
