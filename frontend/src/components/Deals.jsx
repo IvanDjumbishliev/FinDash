@@ -1,195 +1,109 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import "../styles/components/Deals.css";
 import kaufland from "../assets/kaufland.png";
 import lidl from "../assets/lidl.png";
 import api from "../api";
 
-const StoreButton = ({ id, isActive, onClick, image }) => {
-  return (
-    <button
-      id={id}
-      className={`button ${isActive ? "active" : ""}`}
-      onClick={onClick}
-    >
-      <img src={image} alt={id} />
-    </button>
-  );
-};
+const stores = [
+  { id: "kaufland", name: "Kaufland", image: kaufland },
+  { id: "lidl", name: "Lidl", image: lidl },
+  { id: "fantastico", name: "Fantastico" },
+];
 
-const StoreItemGrid = ({ items }) => {
-  if (!items.length) {
-    return <p className="deal-empty-state" role="status">No deals loaded yet</p>;
-  }
-  return (
-    <div className="deal-items-grid">
-      {items.map((item, index) => (
-        <div className="deal-item deal-card" key={`${item.store}-${item.name}-${index}`}>
-          {item.image_url && (
-            <img
-              className="deal-card-image"
-              src={item.image_url}
-              alt={item.name}
-              loading="lazy"
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
-            />
-          )}
-          <div className="deal-card-copy">
-            <span className="deal-name">{item.name}</span>
+const StoreItemGrid = ({ items }) => (
+  <div className="deal-items-grid">
+    {items.map((item, index) => (
+      <article className="deal-item deal-card" key={`${item.name}-${item.price}-${index}`}>
+        {item.image_url && (
+          <img
+            className="deal-card-image"
+            src={item.image_url}
+            alt=""
+            loading="lazy"
+            onError={(event) => {
+              event.currentTarget.hidden = true;
+            }}
+          />
+        )}
+        <div className="deal-card-copy">
+          <span className="deal-name">{item.name}</span>
+          <div className="deal-card-prices">
             {item.price && <span className="deal-value">{item.price}</span>}
+            {item.discount_percent > 0 && (
+              <span className="deal-savings">−{item.discount_percent}%</span>
+            )}
           </div>
         </div>
-      ))}
-    </div>
-  );
-};
+      </article>
+    ))}
+  </div>
+);
 
 const Deals = ({ isFetched }) => {
-  const [activeStore, setActiveStore] = useState("lidl");
-  const [kaudflandItems, setKauflandItems] = useState([]);
-  const [lidlItems, setLidlItems] = useState([]);
-  const [fantasticoItems, setFantasticoItems] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchFantasticoDeals = async () => {
-    try {
-      const response = await api.get("/api/deals/fantastico/");
-      if (response.status === 200) {
-        setFantasticoItems(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch {
-      setFantasticoItems([]);
-    }
-  };
-
-  const fetchKauflandDeals = async () => {
-    try {
-      const response = await api.get("/api/deals/kaufland/");
-      if (response.status === 200) {
-        setKauflandItems(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch (error) {
-      setKauflandItems([]);
-    }
-  };
-
-  const fetchLidlDeals = async () => {
-    try {
-      const response = await api.get("/api/deals/lidl/");
-      if (response.status === 200) {
-        setLidlItems(Array.isArray(response.data) ? response.data : []);
-      }
-    } catch (error) {
-      setLidlItems([]);
-    }
-  };
+  const [activeStore, setActiveStore] = useState(stores[0]);
+  const [results, setResults] = useState({});
+  const result = results[activeStore.id];
 
   useEffect(() => {
-    const loadDeals = async () => {
-      setIsLoading(true);
+    const controller = new AbortController();
+    const requests = stores.map(async ({ id }) => {
+      let storeResult;
       try {
-        await Promise.allSettled([
-          fetchKauflandDeals(),
-          fetchLidlDeals(),
-        ]);
-        fetchFantasticoDeals();
-        isFetched?.();
+        const { data } = await api.get(`/api/deals/${id}/`, {
+          signal: controller.signal,
+        });
+        storeResult = Array.isArray(data) ? { items: data } : { error: true };
       } catch {
-        setKauflandItems([]);
-        setLidlItems([]);
-        setFantasticoItems([]);
-      } finally {
-        setIsLoading(false);
+        storeResult = { error: true };
       }
-    };
+      if (!controller.signal.aborted) {
+        setResults((previous) => ({ ...previous, [id]: storeResult }));
+      }
+    });
 
-    loadDeals();
+    Promise.all(requests).then(() => {
+      if (!controller.signal.aborted) {
+        isFetched?.();
+      }
+    });
+    return () => controller.abort();
   }, [isFetched]);
 
-  const handleClick = (store) => {
-    setActiveStore(store);
-  };
-
   return (
-    <div className="deals-container">
-      <h2>Best deals right now</h2>
-      <table className="deals-table">
-        <thead>
-          <tr>
-            <td>
-              <StoreButton
-                id="kaufland"
-                isActive={activeStore === "kaufland"}
-                onClick={() => handleClick("kaufland")}
-                image={kaufland}
-              />
-            </td>
-            <td>
-              <StoreButton
-                id="lidl"
-                isActive={activeStore === "lidl"}
-                onClick={() => handleClick("lidl")}
-                image={lidl}
-              />
-            </td>
-            <td>
-              <button
-                id="fantastico"
-                className={`button fantastico-button ${activeStore === "fantastico" ? "active" : ""}`}
-                onClick={() => handleClick("fantastico")}
-                aria-label="Fantastico"
-              >
-                <img
-                  src="https://www.fantastico.bg/images/f-logo-latest.png"
-                  alt="Fantastico"
-                  className="fantastico-logo-image"
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
-                  }}
-                />
-              </button>
-            </td>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {isLoading ? (
-              <td colSpan="3">
-                <div className="spinner-container">
-                  <div className="loading-spinner spinner-fst"></div>
-                  <div className="loading-spinner spinner-scn"></div>
-                </div>
-              </td>
+    <section className="deals-container" aria-labelledby="deals-title">
+      <h2 id="deals-title">Best deals right now</h2>
+      <div className="deal-store-picker" role="group" aria-label="Choose a store">
+        {stores.map((store) => (
+          <button
+            key={store.id}
+            type="button"
+            className={`button ${activeStore.id === store.id ? "active" : ""}`}
+            aria-label={store.name}
+            aria-pressed={activeStore.id === store.id}
+            onClick={() => setActiveStore(store)}
+          >
+            {store.image ? (
+              <img src={store.image} alt="" />
             ) : (
-              <td colSpan="3">
-                <div
-                  className={`deals-content ${
-                    activeStore === "kaufland" ? "active" : ""
-                  }`}
-                >
-                  <StoreItemGrid items={kaudflandItems} />
-                </div>
-                <div
-                  className={`deals-content ${
-                    activeStore === "lidl" ? "active" : ""
-                  }`}
-                >
-                  <StoreItemGrid items={lidlItems} />
-                </div>
-                <div
-                  className={`deals-content ${
-                    activeStore === "fantastico" ? "active" : ""
-                  }`}
-                >
-                  <StoreItemGrid items={fantasticoItems} />
-                </div>
-              </td>
+              <span className="fantastiko-logo">Fantastico</span>
             )}
-          </tr>
-        </tbody>
-      </table>
-    </div>
+          </button>
+        ))}
+      </div>
+      <div className="deals-content active" aria-busy={!result}>
+        {!result || !result.items?.length ? (
+          <p className="deal-empty-state" role="status">
+            {!result
+              ? `Loading deals from ${activeStore.name}…`
+              : result.error
+                ? `Could not load deals from ${activeStore.name}.`
+                : `No current offers could be loaded for ${activeStore.name}.`}
+          </p>
+        ) : (
+          <StoreItemGrid key={activeStore.id} items={result.items} />
+        )}
+      </div>
+    </section>
   );
 };
 

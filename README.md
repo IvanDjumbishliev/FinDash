@@ -69,6 +69,17 @@ DB_PORT=
 
 Without database environment variables, Django automatically uses SQLite.
 
+### Live store deals
+
+The Deals page reads the public Kaufland, Lidl, and Fantastico offers. The backend
+needs HTTPS access to the retailers and the brochure hosts they link to. It
+reads Lidl product text from its brochure PDF and uses Tesseract 5 with Bulgarian
+and English language data to read Fantastico brochure images.
+
+On Debian or Ubuntu, install the OCR runtime with
+`sudo apt-get install tesseract-ocr tesseract-ocr-bul tesseract-ocr-eng`.
+Use `tesseract --list-langs` to confirm `bul` and `eng` are installed.
+
 ## Useful commands
 
 ```bash

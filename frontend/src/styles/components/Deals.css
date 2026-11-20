@@ -1,9 +1,8 @@
 .deals-container {
-    max-width: 30vw;
-    min-width: fit-content;
-    height: 95%;
+    box-sizing: border-box;
+    width: min(100%, 1050px);
     margin: 2rem auto;
-    padding: 2rem;
+    padding: clamp(1rem, 4vw, 2rem);
     background: var(--background-color);
     border-radius: 20px;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
@@ -16,23 +15,6 @@
     margin-bottom: 2rem;
     text-transform: uppercase;
     letter-spacing: 2px;
-}
-
-.deals-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 2px;
-    margin: 0 auto;
-}
-
-.deals-table thead tr {
-    display: flex;
-    justify-content: space-between;
-    padding: 1rem;
-}
-
-.deals-table td {
-    padding: 0;
 }
 
 .button {
@@ -78,16 +60,6 @@
 
 .deals-content.active {
     display: block;
-}
-
-.kauland,
-.lidl,
-.billa {
-    margin-top: 2rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    padding: 1rem;
 }
 
 .deal-items-grid {
@@ -224,31 +196,6 @@
     line-height: 1.5;
 }
 
-.store-unavailable {
-    width: 150px;
-    height: 150px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    border: 1px solid #edf0f5;
-    border-radius: 15px;
-    background: #f8f9fb;
-    opacity: 0.58;
-}
-
-.store-unavailable img {
-    width: 96px;
-    height: 96px;
-    object-fit: contain;
-}
-
-.store-unavailable span {
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
 .fantastiko-logo {
     display: grid;
     place-items: center;
@@ -258,16 +205,6 @@
     font-size: 1.15rem;
     font-weight: 900;
     letter-spacing: 0.04em;
-}
-
-.fantastico-button {
-    background: #fff8e8;
-}
-
-.fantastico-logo-image {
-    width: 120px;
-    height: 120px;
-    object-fit: contain;
 }
 
 .deal-card {
@@ -293,4 +230,45 @@
     justify-content: center;
     gap: 12px;
     text-align: center;
+}
+.deal-store-picker {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: center;
+    gap: clamp(0.5rem, 2vw, 1.5rem);
+}
+
+.deal-store-picker .button {
+    width: min(100%, 150px);
+    height: auto;
+    aspect-ratio: 1;
+    padding: clamp(0.25rem, 2vw, 1rem);
+}
+
+.deal-store-picker img {
+    width: 100%;
+    height: 100%;
+}
+
+.deal-store-picker .fantastiko-logo {
+    font-size: clamp(0.65rem, 2.6vw, 1.15rem);
+    letter-spacing: 0;
+}
+
+.deals-container .deal-items-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 195px), 1fr));
+}
+
+.deal-card-prices {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.deal-savings {
+    color: #9b2034;
+    font-size: 0.9rem;
+    font-weight: 700;
 }
