@@ -1,0 +1,117 @@
+.news-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.news-heading h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.045em;
+}
+
+.news-heading p,
+.news-source {
+    color: var(--muted);
+}
+
+.news-heading p {
+    margin-top: 0.5rem;
+}
+
+.news-refresh,
+.news-filters button {
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.news-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.news-refresh:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.news-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.news-filters button[aria-pressed="true"] {
+    color: var(--violet);
+    background: var(--accent-surface);
+    border-color: var(--violet);
+}
+
+.news-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+    gap: 1rem;
+    list-style: none;
+}
+
+.news-card,
+.news-status {
+    padding: clamp(1rem, 2vw, 1.4rem);
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+}
+
+.news-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    height: 100%;
+}
+
+.news-category {
+    color: var(--violet);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.news-card h2 {
+    font-size: 1.18rem;
+    line-height: 1.4;
+}
+
+.news-card a:hover {
+    color: var(--violet);
+    text-decoration: underline;
+}
+
+.news-card a svg {
+    display: inline;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+    color: var(--violet);
+}
+
+.news-source {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+    margin-top: auto;
+    font-size: 0.8rem;
+}
+
+.news-status {
+    margin-bottom: 1rem;
+    color: var(--muted);
+}

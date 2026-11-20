@@ -26,6 +26,7 @@ export default function Footer() {
                             <Link to="/chat" className="footer-btn">Chat</Link>
                             <Link to="/promotions" className="footer-btn">Promotions</Link>
                             <Link to="/stocks" className="footer-btn">Stocks</Link>
+                            <Link to="/news" className="footer-btn">News</Link>
                         </div>
                     </div>
                     <div className="footer-section">

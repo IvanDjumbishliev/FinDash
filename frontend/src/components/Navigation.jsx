@@ -19,6 +19,7 @@ function Navigation() {
           <li><NavLink to="/chat">AI Advisor</NavLink></li>
           <li><NavLink to="/promotions">Deals</NavLink></li>
           <li><NavLink to="/stocks">Stock watchlist</NavLink></li>
+          <li><NavLink to="/news">News</NavLink></li>
         </ul>
       )}
       <div className="nav-actions">

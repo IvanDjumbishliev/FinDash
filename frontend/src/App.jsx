@@ -9,6 +9,7 @@ import Transactions from "./pages/Transactions";
 import Footer from "./components/Loyout";
 import Promotions from "./pages/Promotions";
 import Stocks from "./pages/Stocks";
+import News from "./pages/News";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 function Logout() {
@@ -65,6 +66,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Stocks />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/news"
+            element={
+              <ProtectedRoute>
+                <News />
               </ProtectedRoute>
             }
           />
