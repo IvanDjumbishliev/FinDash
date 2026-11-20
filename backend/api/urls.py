@@ -14,6 +14,11 @@ from .views.leaflet_lidl import LidlLeafletView
 from .views.leaflet_user import LeafletUserView
 from .views.news import NewsView
 from .views.pdf_import import UploadBankStatementView
+from .views.subscriptions import (
+    SubscriptionDetailView,
+    SubscriptionDetectView,
+    SubscriptionListView,
+)
 from .views.user_summary import UserSummaryView
 from .views.views import (
     GetProfileView,
@@ -44,6 +49,9 @@ urlpatterns = [
     path("user/profile/", GetProfileView.as_view()),
     path("chat/", AssistantView.as_view()),
     path("news/", NewsView.as_view(), name="news"),
+    path("subscriptions/", SubscriptionListView.as_view(), name="subscription-list"),
+    path("subscriptions/detect/", SubscriptionDetectView.as_view(), name="subscription-detect"),
+    path("subscriptions/<int:pk>/", SubscriptionDetailView.as_view(), name="subscription-detail"),
     path("stocks/watchlist/", WatchlistView.as_view(), name="watchlist"),
     path("stocks/search/", StockSearchView.as_view(), name="search_stocks"),
 ]
