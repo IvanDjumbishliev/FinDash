@@ -1,22 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "../styles/components/Deals.css";
-import kaufland from "../assets/kaufland.png";
-import lidl from "../assets/lidl.png";
-import api from "../api";
 
-const stores = [
-  { id: "kaufland", name: "Kaufland", image: kaufland },
-  { id: "lidl", name: "Lidl", image: lidl },
-  { id: "fantastico", name: "Fantastico" },
-];
-
-const StoreItemGrid = ({ items }) => (
+export const StoreItemGrid = ({ items }) => (
   <div className="deal-items-grid">
     {items.map((item, index) => (
       <article className="deal-item deal-card" key={`${item.name}-${item.price}-${index}`}>
         {item.image_url && (
           <img
             className="deal-card-image"
+            key={item.image_url}
             src={item.image_url}
             alt=""
             loading="lazy"
@@ -27,8 +19,10 @@ const StoreItemGrid = ({ items }) => (
         )}
         <div className="deal-card-copy">
           <span className="deal-name">{item.name}</span>
+          {item.storeName && <span className="deal-store">{item.storeName}</span>}
           <div className="deal-card-prices">
             {item.price && <span className="deal-value">{item.price}</span>}
+            {item.price_note && <span className="deal-store">{item.price_note}</span>}
             {item.discount_percent > 0 && (
               <span className="deal-savings">−{item.discount_percent}%</span>
             )}
@@ -39,35 +33,9 @@ const StoreItemGrid = ({ items }) => (
   </div>
 );
 
-const Deals = ({ isFetched }) => {
+const Deals = ({ stores, results }) => {
   const [activeStore, setActiveStore] = useState(stores[0]);
-  const [results, setResults] = useState({});
   const result = results[activeStore.id];
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const requests = stores.map(async ({ id }) => {
-      let storeResult;
-      try {
-        const { data } = await api.get(`/api/deals/${id}/`, {
-          signal: controller.signal,
-        });
-        storeResult = Array.isArray(data) ? { items: data } : { error: true };
-      } catch {
-        storeResult = { error: true };
-      }
-      if (!controller.signal.aborted) {
-        setResults((previous) => ({ ...previous, [id]: storeResult }));
-      }
-    });
-
-    Promise.all(requests).then(() => {
-      if (!controller.signal.aborted) {
-        isFetched?.();
-      }
-    });
-    return () => controller.abort();
-  }, [isFetched]);
 
   return (
     <section className="deals-container" aria-labelledby="deals-title">
@@ -85,12 +53,19 @@ const Deals = ({ isFetched }) => {
             {store.image ? (
               <img src={store.image} alt="" />
             ) : (
-              <span className="fantastiko-logo">Fantastico</span>
+              <span className="fantastiko-logo">{store.name}</span>
             )}
           </button>
         ))}
       </div>
-      <div className="deals-content active" aria-busy={!result}>
+      <div
+        key={activeStore.id}
+        className="deals-content"
+        role="region"
+        aria-label={`${activeStore.name} offers`}
+        aria-busy={!result}
+        tabIndex={0}
+      >
         {!result || !result.items?.length ? (
           <p className="deal-empty-state" role="status">
             {!result
@@ -100,7 +75,7 @@ const Deals = ({ isFetched }) => {
                 : `No current offers could be loaded for ${activeStore.name}.`}
           </p>
         ) : (
-          <StoreItemGrid key={activeStore.id} items={result.items} />
+          <StoreItemGrid items={result.items} />
         )}
       </div>
     </section>
