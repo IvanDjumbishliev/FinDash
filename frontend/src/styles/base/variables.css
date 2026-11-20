@@ -1,7 +1,24 @@
 :root {
+  color-scheme: light;
+  --ink: #101828;
+  --muted: #667085;
+  --violet: #5b49de;
+  --surface: #ffffff;
+  --field-surface: #fafbfc;
+  --accent-surface: #f5f6ff;
+  --panel: rgba(255, 255, 255, 0.92);
+  --page: #f4f7fb;
+  --header-surface: rgba(244, 247, 251, 0.82);
+  --footer-surface: rgba(255, 255, 255, 0.72);
+  --border-subtle: #e6e8ef;
+  --link-color: #1c5b9b;
+  --link-hover: #2069a5;
+  --price-surface: #fff0f2;
+  --price-text: #a82135;
+
   /* Colors */
-  --primary-color: #6d5dfc;
-  --hover-primary-color: #8275ff;
+  --primary-color: #5b49de;
+  --hover-primary-color: #5141c7;
   --secondary-color: #6c757d;
   --background-color: #f8f9fa;
   --text-color: #212529;
@@ -38,4 +55,29 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #ebeff7;
+  --muted: #aeb9ce;
+  --violet: #b2a7ff;
+  --surface: #1c2436;
+  --field-surface: #131b2c;
+  --accent-surface: #272747;
+  --panel: rgba(28, 36, 54, 0.92);
+  --page: #101625;
+  --header-surface: rgba(16, 22, 37, 0.88);
+  --footer-surface: rgba(22, 30, 47, 0.88);
+  --border-subtle: #303a51;
+  --border-color: #49556e;
+  --background-color: #151d2e;
+  --text-color: var(--ink);
+  --secondary-color: var(--muted);
+  --link-color: #9acaff;
+  --link-hover: #c1ddff;
+  --success-color: #75d99a;
+  --error-color: #ff8f9a;
+  --price-surface: #422736;
+  --price-text: #ffb2bd;
 }

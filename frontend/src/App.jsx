@@ -1,4 +1,3 @@
-import react from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -6,19 +5,21 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
-import TransactionList from "./components/TransactionList";
 import Transactions from "./pages/Transactions";
 import Footer from "./components/Loyout";
 import Promotions from "./pages/Promotions";
 import Stocks from "./pages/Stocks";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 function Logout() {
-  localStorage.clear();
+  localStorage.removeItem(ACCESS_TOKEN);
+  localStorage.removeItem(REFRESH_TOKEN);
   return <Navigate to="/login" />;
 }
 
 function RegisterAndLogout() {
-  localStorage.clear();
+  localStorage.removeItem(ACCESS_TOKEN);
+  localStorage.removeItem(REFRESH_TOKEN);
   return <Register />;
 }
 

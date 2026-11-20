@@ -3,7 +3,7 @@
     top: 0;
     z-index: 10;
     justify-self: baseline;
-    background-color: white;
+    background-color: var(--surface);
     box-shadow: 0px 0px 3px rgb(0, 0, 0, 0.1);
     min-height: 100px;
     min-width: 14vw;
@@ -55,9 +55,9 @@
 
 .stock-status {
     padding: 0.75rem 1rem;
-    color: #667085;
-    background: #f5f6ff;
-    border: 1px solid #d9ddf6;
+    color: var(--muted);
+    background: var(--accent-surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
 }
 

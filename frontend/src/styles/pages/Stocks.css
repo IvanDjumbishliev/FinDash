@@ -1,6 +1,6 @@
 .user-stocks-container {
     padding: 20px;
-    background-color: #f5f5f5;
+    background-color: var(--page);
 }
 
 .stocks-grid {
@@ -12,7 +12,7 @@
 }
 
 .stock-card {
-    background-color: white;
+    background-color: var(--surface);
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -28,7 +28,7 @@
 .stock-header h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #333;
+    color: var(--ink);
 }
 
 .stock-price {
@@ -39,11 +39,11 @@
     display: block;
     font-size: 1.5rem;
     font-weight: bold;
-    color: #2196F3;
+    color: var(--link-color);
 }
 
 .stock-price small {
-    color: #666;
+    color: var(--muted);
 }
 
 .stock-chart {

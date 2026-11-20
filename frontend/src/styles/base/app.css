@@ -1,12 +1,3 @@
-:root {
-  --ink: #101828;
-  --muted: #667085;
-  --panel: rgba(255, 255, 255, 0.92);
-  --page: #f4f7fb;
-  --violet: #6d5dfc;
-  --cyan: #16c7b7;
-}
-
 html {
   background: var(--page);
   scroll-behavior: smooth;
@@ -29,7 +20,7 @@ body {
   top: 0;
   z-index: 50;
   backdrop-filter: blur(18px);
-  background: rgba(244, 247, 251, 0.82);
+  background: var(--header-surface);
 }
 
 .nav-container {
@@ -39,7 +30,7 @@ body {
   padding: 0 24px;
   background: transparent;
   box-shadow: none;
-  border-bottom: 1px solid rgba(16, 24, 40, 0.06);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .brand {
@@ -60,7 +51,7 @@ body {
   height: 38px;
   color: white;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--violet), #9e8cff);
+  background: linear-gradient(135deg, var(--primary-color), #7355d2);
   box-shadow: 0 8px 20px rgba(109, 93, 252, 0.28);
 }
 
@@ -78,8 +69,8 @@ body {
 .nav-links li a:hover,
 .nav-links li a.active {
   color: var(--ink);
-  background: white;
-  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.07);
+  background: var(--surface);
+  box-shadow: 0 4px 16px var(--border-subtle);
 }
 
 .nav-actions {
@@ -101,8 +92,8 @@ body {
 
 .btn-outline {
   color: var(--ink);
-  border: 1px solid #dfe4ec;
-  background: white;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
 }
 
 .dashboard-shell {
@@ -149,7 +140,7 @@ body {
 
 .dashboard-card,
 .summary-container {
-  border: 1px solid rgba(16, 24, 40, 0.07);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   background: var(--panel);
   box-shadow: 0 12px 36px rgba(71, 78, 104, 0.08);
@@ -169,9 +160,9 @@ body {
 
 .chart-container,
 .transactions-wrapper {
-  border: 1px solid #edf0f5;
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  background: white;
+  background: var(--surface);
   box-shadow: none;
 }
 
@@ -199,14 +190,14 @@ body {
 }
 
 .summary-item {
-  border: 1px solid #edf0f5;
+  border: 1px solid var(--border-subtle);
   border-radius: 14px;
-  background: white;
+  background: var(--surface);
 }
 
 .footer {
-  border-top: 1px solid rgba(16, 24, 40, 0.06);
-  background: rgba(255,255,255,.72);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--footer-surface);
   box-shadow: none;
 }
 
@@ -215,28 +206,28 @@ body {
 }
 
 .card {
-  border: 1px solid rgba(16, 24, 40, 0.07);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   box-shadow: 0 24px 60px rgba(71, 78, 104, 0.12);
 }
 
 .form-control {
   min-height: 48px;
-  border: 1px solid #dde3ec;
+  border: 1px solid var(--border-color);
   border-radius: 12px;
-  background: #fafbfc;
+  background: var(--field-surface);
 }
 
 .form-control:focus {
   border-color: var(--violet);
   box-shadow: 0 0 0 4px rgba(109, 93, 252, 0.09);
-  background: white;
+  background: var(--surface);
 }
 
 .btn {
   min-height: 48px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--violet), #7a69ff);
+  background: linear-gradient(135deg, var(--primary-color), #6650e2);
   box-shadow: 0 10px 24px rgba(109, 93, 252, 0.20);
 }
 
@@ -250,7 +241,7 @@ body {
 
 .transactions-main,
 .form-sidebar {
-  border: 1px solid rgba(16, 24, 40, 0.07);
+  border: 1px solid var(--border-subtle);
   border-radius: 20px;
   background: var(--panel);
   box-shadow: 0 12px 36px rgba(71, 78, 104, 0.07);
@@ -292,4 +283,32 @@ body {
   .dashboard-hero { padding: 22px 20px; }
   .dashboard-card { padding: 10px; }
   .brand-mark { width: 34px; height: 34px; }
+}
+
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1.15rem;
+}
+
+.theme-toggle:hover {
+  background: var(--accent-surface);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 3px;
+}
+
+.auth-theme-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
 }

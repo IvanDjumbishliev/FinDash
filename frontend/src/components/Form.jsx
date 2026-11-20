@@ -1,3 +1,4 @@
+import ThemeToggle from "./ThemeToggle";
 import { useState } from "react";
 import PropTypes from "prop-types";
 import api from "../api";
@@ -44,6 +45,7 @@ function Form({ route, method }) {
 
   return (
     <div className="fade-in main-container">
+      <div className="auth-theme-toggle"><ThemeToggle /></div>
       <form onSubmit={handleSubmit} className="card p-2">
         <h1 className="text-center mb-2">{name}</h1>
         <div className="form-group">

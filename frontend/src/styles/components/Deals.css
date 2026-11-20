@@ -5,7 +5,7 @@
     min-width: 0;
     height: clamp(25rem, 76vh, 48rem);
     padding: clamp(0.75rem, 2vw, 1.5rem);
-    border: 1px solid #e6e8ef;
+    border: 1px solid var(--border-subtle);
     border-radius: 20px;
     background: var(--panel, white);
     box-shadow: 0 12px 36px rgba(71, 78, 104, 0.08);
@@ -29,25 +29,27 @@
     min-width: 0;
     height: 3.75rem;
     padding: 0.35rem;
-    background: white;
-    border: 1px solid #e6e8ef;
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
 }
 
 .deal-store-picker .button.active {
     border-color: var(--violet, #6d5dfc);
-    background: #f6f4ff;
+    background: var(--accent-surface);
     box-shadow: inset 0 0 0 1px var(--violet, #6d5dfc);
 }
 
 .deal-store-picker img {
+    background: var(--white);
+    border-radius: 6px;
     width: 100%;
     height: 2.85rem;
     object-fit: contain;
 }
 
 .fantastiko-logo {
-    color: #6e2f7a;
+    color: var(--violet);
     font-size: clamp(0.7rem, 2vw, 1.05rem);
     font-weight: 800;
 }
@@ -71,14 +73,15 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: white;
-    border: 1px solid #e6e8ef;
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
     border-radius: 12px;
 }
 
 .deal-card-image {
     width: 100%;
     height: 8.5rem;
+    background: var(--white);
     padding: 0.5rem;
     object-fit: contain;
 }
@@ -94,7 +97,7 @@
 }
 
 .deal-name {
-    color: #2c3e50;
+    color: var(--ink);
     font-weight: 650;
     line-height: 1.35;
 }
@@ -108,15 +111,15 @@
 }
 
 .deal-value {
-    color: #a82135;
-    background: #fff0f2;
+    color: var(--price-text);
+    background: var(--price-surface);
     border-radius: 8px;
     padding: 0.25rem 0.5rem;
     font-weight: 800;
 }
 
 .deal-savings {
-    color: #9b2034;
+    color: var(--price-text);
     font-size: 0.85rem;
     font-weight: 700;
 }
@@ -124,6 +127,6 @@
 .deal-empty-state {
     padding: 0.75rem;
     border-radius: 10px;
-    background: #f5f6ff;
-    color: #505776;
+    background: var(--accent-surface);
+    color: var(--muted);
 }

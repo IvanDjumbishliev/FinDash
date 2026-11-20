@@ -1,3 +1,4 @@
+import ThemeToggle from "./ThemeToggle";
 import { NavLink, Link } from "react-router-dom";
 import { ACCESS_TOKEN } from "../constants";
 import "../styles/components/Navigation.css";
@@ -21,6 +22,7 @@ function Navigation() {
         </ul>
       )}
       <div className="nav-actions">
+        <ThemeToggle />
         {isLoggedIn ? (
           <Link className="btn-nav btn-outline" to="/logout">Log out</Link>
         ) : (

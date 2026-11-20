@@ -10,7 +10,7 @@
 }
 
 .dashboard-card {
-  background-color: var(--white);
+  background-color: var(--surface);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-md);
   padding: var(--spacing-xl);

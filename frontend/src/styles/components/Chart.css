@@ -1,5 +1,5 @@
 .chart-container {
-  background: var(--white);
+  background: var(--surface);
   padding: var(--spacing-md);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-sm);

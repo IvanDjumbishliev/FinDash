@@ -7,9 +7,9 @@
     flex: 1;
     min-width: 0;
     padding: 0.6rem;
-    border: 1px solid #d9dce7;
+    border: 1px solid var(--border-color);
     border-radius: 10px;
-    background: #fafbfc;
+    background: var(--field-surface);
     font-size: 1rem;
 }
 
@@ -24,11 +24,11 @@
 
 .deal-search-status {
     margin-bottom: 0.75rem;
-    color: var(--muted, #667085);
+    color: var(--muted);
 }
 
 .deal-store {
-    color: var(--muted, #667085);
+    color: var(--muted);
     font-size: 0.8rem;
     font-weight: 600;
 }

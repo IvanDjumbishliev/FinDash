@@ -3,7 +3,7 @@
     min-height: calc(100vh - 200px);
     display: flex;
     flex-direction: column;
-    background: #f5f5f5;
+    background: var(--page);
     margin-bottom: 0;
 
 }
@@ -23,7 +23,7 @@
     left: 0;
     right: 0;
     padding: 20px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface);
     backdrop-filter: blur(10px);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
     display: flex;
@@ -35,11 +35,11 @@
 .message-input {
     flex: 1;
     padding: 15px 20px;
-    border: 2px solid #e0e0e0;
+    border: 2px solid var(--border-color);
     border-radius: 25px;
     font-size: 16px;
     transition: all 0.3s ease;
-    background: white;
+    background: var(--surface);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
 
@@ -54,7 +54,7 @@
     height: 50px;
     border: none;
     border-radius: 50%;
-    background: #2196f3;
+    background: #1766b3;
     color: white;
     cursor: pointer;
     transition: all 0.3s ease;

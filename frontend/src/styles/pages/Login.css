@@ -21,11 +21,11 @@
 
 /* Login-specific link styles */
 .text-center a {
-  color: var(--primary-color);
+  color: var(--violet);
   text-decoration: underline;
   transition: color var(--transition-fast);
 }
 
 .text-center a:hover {
-  color: #1557b0;
+  color: var(--link-hover);
 }

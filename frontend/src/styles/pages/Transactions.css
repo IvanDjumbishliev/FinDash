@@ -20,7 +20,7 @@
 
 .transactions-main {
   padding: var(--spacing-lg);
-  background-color: var(--white);
+  background-color: var(--surface);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-sm);
 }

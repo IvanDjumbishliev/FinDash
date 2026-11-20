@@ -1,9 +1,12 @@
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import Chart from "./Chart";
+import { useTheme } from "../theme";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const PieChart = ({ transactions }) => {
+  // The canvas needs resolved colors and a redraw when the theme changes.
+  useTheme();
   if (!transactions || transactions.length === 0) {
     return (
       <div className="chart-container">
@@ -55,13 +58,17 @@ const PieChart = ({ transactions }) => {
     (transaction) => backgroundColors[transaction.category]
   );
 
+  const palette = getComputedStyle(document.documentElement);
+  const labelColor = palette.getPropertyValue("--ink").trim();
+  const surfaceColor = palette.getPropertyValue("--surface").trim();
+
   const chartData = {
     labels: [...transactions.map((transaction) => transaction.category)],
     datasets: [
       {
         data: [...transactions.map((transaction) => transaction.amount)],
         backgroundColor: x,
-        borderColor: "rgb(255, 255, 255)",
+        borderColor: surfaceColor,
         borderWidth: 1,
       },
     ],
@@ -77,7 +84,7 @@ const PieChart = ({ transactions }) => {
             size: 14,
             family: "Arial",
           },
-          color: "#333",
+          color: labelColor,
           padding: 20,
           usePointStyle: true,
           generateLabels: function (chart) {
@@ -91,6 +98,7 @@ const PieChart = ({ transactions }) => {
                   uniqueLabels.add(label);
                   result.push({
                     text: `${label}: $${data.datasets[0].data[i]}`,
+                  fontColor: labelColor,
                     fillStyle: data.datasets[0].backgroundColor[i],
                     hidden: false,
                     lineCap: "round",
@@ -113,6 +121,7 @@ const PieChart = ({ transactions }) => {
       title: {
         display: true,
         text: "Expense Distribution",
+        color: labelColor,
         font: {
           size: 16,
         },

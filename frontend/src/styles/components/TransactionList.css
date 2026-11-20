@@ -12,7 +12,7 @@
 }
 
 .transaction-item strong {
-  color: var(--primary-color);
+  color: var(--violet);
   margin-right: var(--spacing-xs);
 }
 
@@ -20,7 +20,7 @@
   position: absolute;
   top: var(--spacing-sm);
   right: var(--spacing-sm);
-  background-color: var(--error-color);
+  background-color: #c52c40;
   color: var(--white);
   border: none;
   border-radius: var(--border-radius-sm);

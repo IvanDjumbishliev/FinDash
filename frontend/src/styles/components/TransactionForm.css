@@ -1,12 +1,12 @@
 .transaction-form {
-  background-color: var(--white);
+  background-color: var(--surface);
   padding: var(--spacing-xl);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-md);
 }
 
 .transaction-form h1 {
-  color: var(--primary-color);
+  color: var(--violet);
   margin-bottom: var(--spacing-xl);
 }
 
@@ -37,7 +37,7 @@
 .transaction-form select:focus,
 .transaction-form textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--violet);
 }
 
 .transaction-form textarea {
@@ -58,7 +58,7 @@
 }
 
 .invisi-btn:hover {
-  background-color: #1557b0;
+  background-color: var(--link-hover);
 }
 
 .invisi-btn:active{

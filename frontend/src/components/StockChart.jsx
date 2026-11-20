@@ -38,19 +38,22 @@ const StockChart = ({ symbol }) => {
   if (data.length === 0) return <div>No data available</div>;
 
   const isPositive = data[data.length - 1].price > data[0].price;
-  const lineColor = isPositive ? "#4CAF50" : "#f44336";
+  const lineColor = isPositive ? "var(--success-color)" : "var(--error-color)";
 
   return (
     <ResponsiveContainer width="100%" height={200}>
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" />
+        <CartesianGrid stroke="var(--border-color)" strokeDasharray="3 3" />
         <XAxis
           dataKey="date"
-          tick={{ fontSize: 12 }}
+          tick={{ fontSize: 12, fill: "var(--muted)" }}
           interval="preserveStartEnd"
         />
-        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
-        <Tooltip />
+        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12, fill: "var(--muted)" }} />
+        <Tooltip
+          contentStyle={{ background: "var(--surface)", borderColor: "var(--border-color)" }}
+          labelStyle={{ color: "var(--ink)" }}
+        />
         <Line
           type="monotone"
           dataKey="price"
