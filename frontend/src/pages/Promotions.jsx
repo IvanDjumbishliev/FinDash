@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import api from "../api";
 import Deals from "../components/Deals";
 import DealSearcher from "../components/DealSearcher";
-import kaufland from "../assets/kaufland.png";
-import lidl from "../assets/lidl.png";
+import kauflandLogo from "../assets/kaufland-logo.svg";
+import lidlLogo from "../assets/lidl-logo.svg";
+import fantasticoLogo from "../assets/fantastico-logo.png";
 import "../styles/pages/Promotion.css";
 
 const stores = [
-  { id: "kaufland", name: "Kaufland", image: kaufland },
-  { id: "lidl", name: "Lidl", image: lidl },
-  { id: "fantastico", name: "Фантастико" },
+  { id: "kaufland", name: "Kaufland", image: kauflandLogo },
+  { id: "lidl", name: "Lidl", image: lidlLogo },
+  { id: "fantastico", name: "Фантастико", image: fantasticoLogo },
 ];
 
 export default function Promotions() {

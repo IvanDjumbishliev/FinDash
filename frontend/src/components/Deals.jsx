@@ -50,11 +50,7 @@ const Deals = ({ stores, results }) => {
             aria-pressed={activeStore.id === store.id}
             onClick={() => setActiveStore(store)}
           >
-            {store.image ? (
-              <img src={store.image} alt="" />
-            ) : (
-              <span className="fantastiko-logo">{store.name}</span>
-            )}
+            <img src={store.image} alt="" />
           </button>
         ))}
       </div>
