@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -7,7 +8,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework_simplejwt.tokens import AccessToken
-import pandas as pd
+import requests
 
 from api.models import Stock, Transaction
 
@@ -234,6 +235,8 @@ class ScrapedDealsEndpointTests(TestCase):
 
 class StockEndpointTests(TestCase):
     def setUp(self):
+        cache.clear()
+        self.addCleanup(cache.clear)
         self.user = User.objects.create_user(username="stock-user", password="test")
         self.other_user = User.objects.create_user(
             username="other-stock-user", password="test"
@@ -241,63 +244,58 @@ class StockEndpointTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
 
-    def test_search_returns_common_ticker_results(self):
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.info = {
-                "symbol": "AAPL",
-                "longName": "Apple Inc.",
-                "exchange": "NMS",
-            }
-            for symbol in ("AAPL", "MSFT", "TSLA"):
-                with self.subTest(symbol=symbol):
-                    ticker_factory.return_value.info["symbol"] = symbol
-                    response = self.client.get(
-                        "/api/stocks/search/", {"query": symbol.lower()}
-                    )
-                    self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.data[0]["symbol"], symbol)
+    @patch("api.views.stocks._finance_data")
+    def test_search_matches_company_names_and_prioritizes_exact_tickers(self, finance):
+        finance.return_value = {
+            "quotes": [
+                {"symbol": "APC.DE", "shortname": "Apple", "quoteType": "EQUITY"},
+                {"symbol": "AAPL", "longname": "Apple Inc.", "quoteType": "EQUITY"},
+                {"symbol": "AAPL-USD", "shortname": "Apple Coin", "quoteType": "CRYPTO"},
+            ],
+        }
+        response = self.client.get("/api/stocks/search/", {"query": "Apple"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([stock["symbol"] for stock in response.data], ["APC.DE", "AAPL"])
+        finance.assert_called_once_with(
+            "/v1/finance/search", q="Apple", quotesCount=12, newsCount=0
+        )
 
-    def test_search_returns_clean_error_for_missing_ticker_data(self):
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.info = {}
-            response = self.client.get("/api/stocks/search/", {"query": "INVALID"})
+        response = self.client.get("/api/stocks/search/", {"query": "aapl"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data[0]["symbol"], "AAPL")
 
+    @patch("api.views.stocks._finance_data", return_value={"quotes": []})
+    def test_search_returns_clean_error_for_missing_ticker_data(self, finance):
+        response = self.client.get("/api/stocks/search/", {"query": "INVALID"})
         self.assertEqual(response.status_code, 404)
         self.assertIn("error", response.data)
 
-    def test_search_returns_clean_error_for_yfinance_failure(self):
-        with patch("api.views.stocks.yf.Ticker", side_effect=RuntimeError("offline")):
-            response = self.client.get("/api/stocks/search/", {"query": "AAPL"})
-
+    @patch("api.views.stocks._finance_data", side_effect=requests.ConnectionError("offline"))
+    def test_search_returns_clean_error_for_provider_failure(self, finance):
+        response = self.client.get("/api/stocks/search/", {"query": "AAPL"})
         self.assertEqual(response.status_code, 502)
         self.assertIn("error", response.data)
 
-    def test_adding_stock_persists_uppercase_ticker_for_current_user(self):
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.info = {
-                "symbol": "AAPL",
-                "longName": "Apple Inc.",
-            }
+    @patch("api.views.stocks._finance_data")
+    def test_adding_stock_uses_search_metadata_and_persists_for_current_user(self, finance):
+        finance.return_value = {
+            "quotes": [{"symbol": "AAPL", "shortname": "Apple Inc.", "quoteType": "EQUITY"}]
+        }
+        self.client.get("/api/stocks/search/", {"query": "Apple"})
+        for _ in range(2):
             response = self.client.post(
                 "/api/stocks/watchlist/", {"symbol": " aapl "}, format="json"
             )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data["symbols"], ["AAPL"])
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["symbols"], ["AAPL"])
-        self.assertTrue(
-            Stock.objects.filter(
-                user=self.user, ticker="AAPL", name="Apple Inc."
-            ).exists()
-        )
+        self.assertEqual(finance.call_count, 1)
+        self.assertTrue(Stock.objects.filter(user=self.user, ticker="AAPL", name="Apple Inc.").exists())
         self.assertFalse(Stock.objects.filter(user=self.other_user).exists())
 
-    def test_invalid_ticker_is_not_saved(self):
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.info = {}
-            response = self.client.post(
-                "/api/stocks/watchlist/", {"symbol": "INVALID"}, format="json"
-            )
-
+    @patch("api.views.stocks._finance_data", return_value={"quotes": []})
+    def test_invalid_ticker_is_not_saved(self, finance):
+        response = self.client.post("/api/stocks/watchlist/", {"symbol": "INVALID"}, format="json")
         self.assertEqual(response.status_code, 404)
         self.assertFalse(Stock.objects.filter(user=self.user).exists())
 
@@ -316,12 +314,15 @@ class StockEndpointTests(TestCase):
             quantity=0,
             price_per_share=0,
         )
-        history = pd.DataFrame(
-            {"Close": [190.25, 191.5]},
-            index=pd.to_datetime(["2026-11-17", "2026-11-18"]),
-        )
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.history.return_value = history
+        history = {"chart": {"result": [{
+            "meta": {"exchangeTimezoneName": "America/New_York"},
+            "timestamp": [
+                int(datetime(2026, 11, day, 1, tzinfo=timezone.utc).timestamp())
+                for day in (18, 19, 20)
+            ],
+            "indicators": {"quote": [{"close": [190.25, 191.5, None]}]},
+        }]}}
+        with patch("api.views.stocks._finance_data", return_value=history) as finance:
             response = self.client.get("/api/stocks/watchlist/")
 
         self.assertEqual(response.status_code, 200)
@@ -333,8 +334,8 @@ class StockEndpointTests(TestCase):
                 {"date": "2026-11-18", "price": 191.5},
             ],
         )
-        ticker_factory.return_value.history.assert_called_once_with(
-            period="1mo", interval="1d", actions=False
+        finance.assert_called_once_with(
+            "/v8/finance/chart/AAPL", range="1mo", interval="1d"
         )
 
     def test_watchlist_marks_missing_history_without_dropping_stock(self):
@@ -345,8 +346,7 @@ class StockEndpointTests(TestCase):
             quantity=0,
             price_per_share=0,
         )
-        with patch("api.views.stocks.yf.Ticker") as ticker_factory:
-            ticker_factory.return_value.history.return_value = pd.DataFrame()
+        with patch("api.views.stocks._finance_data", return_value={"chart": {"result": []}}):
             response = self.client.get("/api/stocks/watchlist/")
 
         self.assertEqual(response.status_code, 200)
@@ -364,8 +364,8 @@ class StockEndpointTests(TestCase):
             price_per_share=0,
         )
         with patch(
-            "api.views.stocks.yf.Ticker",
-            side_effect=RuntimeError("offline"),
+            "api.views.stocks._finance_data",
+            side_effect=requests.ConnectionError("offline"),
         ):
             response = self.client.get("/api/stocks/watchlist/")
 
