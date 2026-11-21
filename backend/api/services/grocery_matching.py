@@ -252,7 +252,10 @@ def describe(offer):
 
 
 def rule_match(left, right):
-    a, b = describe(left), describe(right)
+    return compare_products(describe(left), describe(right))
+
+
+def compare_products(a, b):
 
     def result(relation, reason, method="rules", confidence=None):
         return Match(relation, method, confidence, (reason,), a, b)

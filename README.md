@@ -299,6 +299,39 @@ Passing `ai_assist=True` optionally requests a Gemini suggestion for an
 eligible unresolved pair. The provider sees catalog descriptions, and validated
 suggestions are cached for 24 hours. AI suggestions leave the pair in review.
 
+#### Grocery basket optimization
+
+`POST /api/grocery/optimize/` accepts an authenticated JSON shopping list.
+For example, `{"items":[{"name":"Rice","quantity":1300,"unit":"g"}],
+"max_stores":2,"overhead_per_store":"1.50"}`. Each item accepts `name`,
+`quantity`, optional `unit` (kg, g, l, ml, or item), `preferred_brand`, and
+`allow_substitutions` (default true). A package unit in the name or a known
+product family can supply the canonical unit (kg, l, or item) when it is omitted.
+The requested quantity is the total needed in that unit. Use whole numbers for item counts, and
+combine duplicate lines first.
+
+Set `currency` to EUR (default) or BGN. `allow_multi_store` defaults to true
+with a `max_stores` of three. Overhead defaults to zero and is charged once
+per store used. With substitutions enabled, price takes priority and a
+preferred brand breaks equal-price ties. With substitutions disabled,
+the optimizer requires an exact name match, the preferred brand if
+specified, and the package size if specified in the title.
+
+The solver enumerates store combinations and finds the minimum-cost
+whole-package combination for each line. It returns per-retailer plans,
+the best plan across the allowed stores, and a partial plan if a complete
+basket is unavailable. The multi-store option may choose one store when
+that plan costs less. Incomplete plans include a matched-items subtotal
+and have a null estimated total. Diagnostic counts cover related
+observations from the last 30 days, and the first 15 excluded
+offers per item are shown. The API returns 422 when the catalog or exact
+comparison exceeds a processing limit.
+
+Savings, when present, compare against the lowest estimated complete
+single-retailer basket in the observed catalog with the same shopping
+list, currency, and overhead. These are estimates from advertised offers
+with limited coverage and unverified store-level stock.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`
