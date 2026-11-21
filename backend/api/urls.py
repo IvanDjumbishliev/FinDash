@@ -20,6 +20,7 @@ from .views.forecast_scenarios import (
     CashFlowScenarioDetailView, CashFlowScenarioListView, CashFlowScenarioPreviewView,
 )
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
+from .views.goals import GoalContributionView, GoalDetailView, GoalListView, GoalProjectionView
 from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
@@ -101,6 +102,10 @@ urlpatterns = [
     path("notifications/<int:pk>/", NotificationDetailView.as_view(), name="notification-detail"),
     path("notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification-mark-all-read"),
     path("notifications/preferences/", NotificationPreferencesView.as_view(), name="notification-preferences"),
+    path("goals/", GoalListView.as_view(), name="goal-list"),
+    path("goals/<int:pk>/", GoalDetailView.as_view(), name="goal-detail"),
+    path("goals/<int:pk>/contributions/", GoalContributionView.as_view(), name="goal-contributions"),
+    path("goals/<int:pk>/projection/", GoalProjectionView.as_view(), name="goal-projection"),
     path("budgets/", BudgetListView.as_view(), name="budget-list"),
     path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
     path("budgets/history/", BudgetHistoryView.as_view(), name="budget-history"),

@@ -442,3 +442,52 @@ class NotificationStockAlert(models.Model):
             models.UniqueConstraint(fields=["owner", "ticker", "currency", "direction", "target"], name="notification_stock_rule_once"),
             models.CheckConstraint(condition=models.Q(target__gt=0), name="notification_stock_positive_target"),
         ]
+
+
+class FinancialGoal(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="financial_goals")
+    name = models.CharField(max_length=120)
+    target_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    target_date = models.DateField(null=True, blank=True)
+    monthly_contribution = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    current_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0, editable=False)
+    archived = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["archived", "-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(target_amount__gt=0), name="goal_positive_target"),
+            models.CheckConstraint(condition=models.Q(current_amount__gte=0), name="goal_nonnegative_balance"),
+            models.CheckConstraint(
+                condition=models.Q(monthly_contribution__isnull=True) | models.Q(monthly_contribution__gte=0),
+                name="goal_nonnegative_monthly_rate",
+            ),
+        ]
+
+
+class GoalContribution(models.Model):
+    class Kind(models.TextChoices):
+        CONTRIBUTION = "contribution", "Contribution"
+        WITHDRAWAL = "withdrawal", "Withdrawal"
+
+    goal = models.ForeignKey(FinancialGoal, on_delete=models.CASCADE, related_name="contributions")
+    kind = models.CharField(max_length=12, choices=Kind.choices)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=14, decimal_places=2)
+    note = models.CharField(max_length=255, blank=True)
+    request_id = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(kind__in=["contribution", "withdrawal"]), name="goal_entry_valid_kind",
+            ),
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="goal_entry_positive_amount"),
+            models.CheckConstraint(condition=models.Q(balance_after__gte=0), name="goal_entry_nonnegative_balance"),
+            models.UniqueConstraint(fields=["goal", "request_id"], name="goal_entry_unique_request"),
+        ]

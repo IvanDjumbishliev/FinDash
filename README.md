@@ -119,6 +119,22 @@ Major endpoints are served below `/api/`:
 - `POST /api/chat/`
 - `GET|POST /api/stocks/watchlist/`
 
+### Financial goals
+
+Goals are private to the authenticated account. Each goal has one currency, set at creation. Amounts use two decimal places. Contributions and withdrawals affect only the goal’s ledger.
+
+| Endpoint | Behavior |
+| --- | --- |
+| GET /api/goals/ | Lists active and archived goals with current amount, remaining amount, percent funded, and completion status. |
+| POST /api/goals/ | Creates a goal with `name`, `target_amount`, and `currency`. Optionally accepts `target_date` (YYYY-MM-DD) and `monthly_contribution`. |
+| GET/PATCH /api/goals/{id}/ | Reads or edits goal details. Set `archived` to `true` to archive a goal or `false` to restore it. |
+| DELETE /api/goals/{id}/ | Deletes an unused goal. A goal with ledger entries must be archived to preserve its history. |
+| GET /api/goals/{id}/contributions/ | Lists the immutable contribution and withdrawal ledger. Accepts `limit` and `offset`. |
+| POST /api/goals/{id}/contributions/ | Records a positive `amount` with `kind` set to `contribution` or `withdrawal`. Optional fields include matching `currency`, `note`, and an idempotency UUID in `request_id`. |
+| GET /api/goals/{id}/projection/ | Estimates completion using the saved rate or a temporary `monthly_contribution` query override. |
+
+An archived goal remains readable, and recording more entries requires restoring it first. Withdrawals cannot exceed the current balance. To correct a ledger entry, record a separate offsetting entry. Projections assume one contribution per calendar month, beginning one month after the current date in the account’s timezone. The estimate accounts for shorter months, excludes interest, and indicates whether the estimated completion date meets the optional deadline.
+
 ### Virtual portfolios
 
 Open **Simulator** from navigation, or choose **Simulate trade** on a watchlist
