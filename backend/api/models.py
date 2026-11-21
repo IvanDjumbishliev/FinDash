@@ -377,3 +377,68 @@ class VirtualTrade(models.Model):
                 name="virtual_trade_unique_order",
             ),
         ]
+
+
+class NotificationCategory(models.TextChoices):
+    BUDGET_THRESHOLD = "budget_threshold", "Budget threshold"
+    SUBSCRIPTION_RENEWAL = "subscription_renewal", "Subscription renewal"
+    UNUSUAL_SPENDING = "unusual_spending", "Unusual spending"
+    STATEMENT_IMPORT = "statement_import", "Statement import"
+    FINANCIAL_REPORT = "financial_report", "Financial report"
+    STOCK_THRESHOLD = "stock_threshold", "Stock threshold"
+
+
+def default_notification_categories():
+    return {value: True for value in NotificationCategory.values}
+
+
+class NotificationPreference(models.Model):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="notification_preference")
+    categories = models.JSONField(default=default_notification_categories)
+
+
+class NotificationEvent(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.CharField(max_length=24, choices=NotificationCategory.choices)
+    digest = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "category", "digest"], name="notification_event_once"),
+        ]
+
+
+class Notification(models.Model):
+    event = models.OneToOneField(NotificationEvent, on_delete=models.CASCADE, related_name="notification")
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    category = models.CharField(max_length=24, choices=NotificationCategory.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True)
+    dismissed_at = models.DateTimeField(null=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(fields=["owner", "-created_at"], name="notification_owner_created"),
+            models.Index(fields=["created_at"], name="notification_retention_idx"),
+        ]
+
+
+class NotificationStockAlert(models.Model):
+    class Direction(models.TextChoices):
+        ABOVE = "above", "At or above"
+        BELOW = "below", "At or below"
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notification_stock_alerts")
+    ticker = models.CharField(max_length=10)
+    currency = models.CharField(max_length=3)
+    direction = models.CharField(max_length=5, choices=Direction.choices)
+    target = models.DecimalField(max_digits=18, decimal_places=8)
+    last_quote_at = models.DateTimeField(null=True)
+    was_met = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "ticker", "currency", "direction", "target"], name="notification_stock_rule_once"),
+            models.CheckConstraint(condition=models.Q(target__gt=0), name="notification_stock_positive_target"),
+        ]

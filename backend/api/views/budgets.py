@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from api.models import Budget
 from api.serializers import BudgetSerializer
 from api.services.budgets import parse_month, spending_by_budget
+from api.services.notification_events import check_budgets
+from api.services.notifications import after_commit
 
 DUPLICATE_BUDGET = "An active budget already exists for this category and month."
 
@@ -57,6 +59,8 @@ class BudgetView(generics.GenericAPIView):
                 raise serializers.ValidationError({"non_field_errors": [DUPLICATE_BUDGET]}) from error
             raise
         serializer.context["spending"] = spending_by_budget(self.request.user, [serializer.instance])
+        if not serializer.instance.archived:
+            after_commit(check_budgets, self.request.user.pk, {serializer.instance.period})
 
 
 class BudgetListView(generics.ListCreateAPIView, BudgetView):

@@ -10,6 +10,8 @@ from rest_framework.response import Response
 
 from api.services.budgets import parse_month
 from api.services.copilot_tools import DataLimitExceeded, currency_code
+from api.services.notification_events import report_generated
+from api.services.notifications import after_commit
 from api.services.report_explanation import explain_report
 from api.services.report_pdf import render_report_pdf
 from api.services.reports import generate_report, report_tools
@@ -70,6 +72,7 @@ class FinancialReportView(PrivateCopilotView):
         except DatabaseError:
             return Response({"error": "Financial records are temporarily unavailable."}, status=503)
         token = signing.dumps({"owner": request.user.pk, "digest": report_digest(report)}, salt=EXPORT_SALT)
+        after_commit(report_generated, request.user.pk, month.isoformat(), currency, tools.today)
         return Response({"report": report, "export_token": token})
 
 

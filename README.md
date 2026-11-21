@@ -505,6 +505,25 @@ Budget endpoints require a JWT access token. Create a budget with `POST /api/bud
 - Gemini only receives category/currency labels, estimates, and aggregate statistics after opt-in for that request. The statistical explanation remains available on provider failure. The model can be overridden with `BUDGET_GEMINI_MODEL` in the process environment.
 - `POST /api/budgets/recommendations/apply/` requires `review_id`, selected `categories`, and `confirmed: true`. It applies the selection as one transaction and consumes the review. If a selected budget changed after generation, the request returns `409` and applies nothing.
 
+### In-app notifications
+
+All endpoints require authentication and operate on the signed-in user's inbox.
+
+| Endpoint | Behavior |
+| --- | --- |
+| GET /api/notifications/ | Lists retained notifications. Supports `unread`, `category`, `include_dismissed`, `limit`, and `offset`. Returns the inbox unread count. |
+| PATCH /api/notifications/{id}/ | Set `read` or `dismissed` to a JSON boolean. |
+| POST /api/notifications/mark-all-read/ | Marks visible, unread notifications as read. |
+| GET/PATCH /api/notifications/preferences/ | Reads or updates category switches and stock alert rules. |
+
+The `categories` object accepts boolean switches for `budget_threshold`, `subscription_renewal`, `unusual_spending`, `statement_import`, `financial_report`, and `stock_threshold`. All default to enabled. Subscription renewals also honor the existing renewal opt-in and lead time.
+
+An optional `stock_alerts` array replaces the saved rules. Each rule uses a watchlisted ticker, a currency, a direction (`above` or `below`), and a positive target price. For example, `{"stock_alerts":[{"ticker":"AAPL","currency":"USD","direction":"above","target":"200.00"}]}`. Alerts use matching-currency quotes with timestamps no older than 36 hours.
+
+Budget, spending, import, and report events run after successful writes. Spending alerts require sufficient recent history in the same category and currency. Reports generated again for the same period and currency on the same local date share an event.
+
+Run `python manage.py process_notifications` from the backend directory to check subscription renewals and stock prices and purge expired inbox entries. Schedule this command through the deployment scheduler. Use `--owner-id ID` for a single account. Set `NOTIFICATION_RETENTION_DAYS` to control how long inbox entries remain visible and stored. The default is 90 days. Deduplication records retain an event hash without message content so an expired alert cannot reappear. This feature delivers generic messages through the in-app inbox.
+
 ## License
 
 See [LICENSE](LICENSE).

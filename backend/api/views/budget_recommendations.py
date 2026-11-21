@@ -9,6 +9,8 @@ from api.models import Budget, BudgetSuggestionReview, Transaction
 from api.services.budget_explanations import explain_recommendations
 from api.services.budget_recommendations import generate_recommendations
 from api.services.budgets import parse_month
+from api.services.notification_events import check_budgets
+from api.services.notifications import after_commit
 
 from .budgets import BudgetView
 
@@ -137,6 +139,7 @@ class BudgetRecommendationApplyView(BudgetView):
                             raise StaleReview
                     applied.append({"id": budget_id, "category": category})
                 review.delete()
+                after_commit(check_budgets, request.user.pk, {review.period})
         except (StaleReview, IntegrityError):
             return Response(
                 {"detail": "A budget changed after this review. Generate new suggestions before applying."},

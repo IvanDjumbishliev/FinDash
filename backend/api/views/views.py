@@ -5,8 +5,11 @@ from django.core.paginator import Paginator
 from ..serializers import UserSerializer, TransactionSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from ..models import Transaction, UserProfile
+from api.services.notification_events import check_budgets, transaction_recorded
+from api.services.notifications import after_commit
 from rest_framework.generics import CreateAPIView, ListCreateAPIView, DestroyAPIView
 from django.db.models import Sum
+from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import filters
@@ -62,7 +65,8 @@ class TransactionListView(ListCreateAPIView):
         return Transaction.objects.filter(user=user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        item = serializer.save(user=self.request.user)
+        after_commit(transaction_recorded, item.user_id, item.pk)
 
 
 class TransactionStatsView(APIView):
@@ -101,3 +105,9 @@ class TransactionDeleteView(DestroyAPIView):
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        period = timezone.localtime(instance.timestamp).date().replace(day=1)
+        owner_id = instance.user_id
+        super().perform_destroy(instance)
+        after_commit(check_budgets, owner_id, {period})

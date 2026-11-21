@@ -6,6 +6,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from api.models import StatementImport, Transaction
+from api.services.notification_events import statement_imported
+from api.services.notifications import after_commit
 
 from .intelligence import assign_category, category_rules, flag_duplicates, merchant_identity, prepare_rows
 from .normalization import StatementError
@@ -131,5 +133,6 @@ def confirm_import(record, revision=None):
             status=StatementImport.Status.IMPORTED, parsed_rows=[], imported_count=len(approved),
             updated_at=timezone.now(),
         )
+        after_commit(statement_imported, record.owner_id, record.pk)
     record.refresh_from_db()
     return record

@@ -191,3 +191,5 @@ CORS_ALLOW_HEADERS = (*default_headers, "x-starting-balance")
 GROCERY_CATALOG_RETAILERS = frozenset(
     value.strip() for value in os.getenv("GROCERY_CATALOG_RETAILERS", "").split(",") if value.strip()
 )
+
+NOTIFICATION_RETENTION_DAYS = max(1, int(os.getenv("NOTIFICATION_RETENTION_DAYS", "90")))

@@ -26,6 +26,9 @@ from .views.leaflet_kaufland import LeafletKauflandView
 from .views.leaflet_lidl import LidlLeafletView
 from .views.leaflet_user import LeafletUserView
 from .views.news import NewsView
+from .views.notifications import (
+    NotificationDetailView, NotificationListView, NotificationMarkAllReadView, NotificationPreferencesView,
+)
 from .views.pdf_import import (
     StatementConfirmView,
     StatementHistoryView,
@@ -94,6 +97,10 @@ urlpatterns = [
     path("chat/settings/", CopilotSettingsView.as_view()),
     path("chat/history/", CopilotHistoryView.as_view()),
     path("news/", NewsView.as_view(), name="news"),
+    path("notifications/", NotificationListView.as_view(), name="notifications"),
+    path("notifications/<int:pk>/", NotificationDetailView.as_view(), name="notification-detail"),
+    path("notifications/mark-all-read/", NotificationMarkAllReadView.as_view(), name="notification-mark-all-read"),
+    path("notifications/preferences/", NotificationPreferencesView.as_view(), name="notification-preferences"),
     path("budgets/", BudgetListView.as_view(), name="budget-list"),
     path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
     path("budgets/history/", BudgetHistoryView.as_view(), name="budget-history"),
