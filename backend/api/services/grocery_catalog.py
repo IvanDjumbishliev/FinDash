@@ -25,7 +25,7 @@ REFRESH_INTERVAL = timedelta(hours=1)
 AMOUNT = r"\d+(?:[.,]\d+)?"
 MASS = ("kg", "кг", "килограм", "килограма", "g", "г", "гр", "грам", "грама")
 VOLUME = ("ml", "мл", "милилитра", "l", "л", "литър", "литра")
-COUNT = ("pcs", "pc", "бр", "броя")
+COUNT = ("pieces", "piece", "pcs", "pc", "бр", "брой", "броя")
 UNIT = "|".join(sorted((*MASS, *VOLUME, *COUNT), key=len, reverse=True))
 PACKAGE = re.compile(
     rf"(?<![\w.,/+\-])(?:(?P<prefix>\d+)\s*[x×х*]\s*)?"
@@ -140,11 +140,12 @@ def normalize_offer(row, observed_at):
     package = parse_package(quantity_text or name)
     quantity, unit, count = package[:3] if package else (None, "", None)
     # A structured quantity may already appear at the end of the display name.
-    name_package = parse_package(name) if package else None
+    package_name = unicodedata.normalize("NFKC", name)
+    name_package = parse_package(package_name) if package else None
     normalized_name = normalized(name)
     if name_package and name_package[:3] == package[:3]:
         match = name_package[3]
-        normalized_name = normalized(name[:match.start()] + " " + name[match.end():]) or normalized_name
+        normalized_name = normalized(package_name[:match.start()] + " " + package_name[match.end():]) or normalized_name
     if not normalized_name:
         return None
 

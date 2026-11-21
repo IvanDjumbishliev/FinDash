@@ -276,6 +276,29 @@ adapter has no reliable per-offer dates or separate product image URLs.
 Its brochure offers can be retained as source observations and are excluded
 from current comparisons until reliable dates are available.
 
+#### Grocery product matching
+
+`api.services.grocery_matching.match_offers(left, right)` classifies two
+catalog offers as identical, comparable, incompatible, or needing review.
+Identity is inferred from the catalog brand, normalized title, and package
+details. Category and variant rules cover common Bulgarian and English
+grocery names. Unsupported or ambiguous terms stay unresolved. Fuzzy scores
+measure title similarity and carry no probability of product equivalence.
+
+`Match.comparable_prices` provides per-kg, per-liter, or per-item prices
+when both prices are known in the same currency. Use
+`GroceryOffer.objects.comparable()` for current offers. A pair match supplies
+no retailer-wide or market-wide price ranking.
+
+Catalog staff can resolve eligible uncertain pairs through
+`review_match(left, right, reviewer=staff_user, decision="approve")` or
+`decision="reject"`. Approval yields a comparable alternative. Decisions are
+bound to the pair's reviewed product details. Missing measurements and hard
+compatibility conflicts cannot be approved through this service.
+Passing `ai_assist=True` optionally requests a Gemini suggestion for an
+eligible unresolved pair. The provider sees catalog descriptions, and validated
+suggestions are cached for 24 hours. AI suggestions leave the pair in review.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`

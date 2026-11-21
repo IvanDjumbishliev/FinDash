@@ -302,3 +302,22 @@ class GroceryOffer(models.Model):
         indexes = [
             models.Index(fields=["retailer", "expires_on", "last_successful_update"], name="grocery_offer_activity_idx"),
         ]
+
+
+class GroceryMatchReview(models.Model):
+    class Decision(models.TextChoices):
+        APPROVE = "approve", "Comparable"
+        REJECT = "reject", "Incompatible"
+
+    left = models.ForeignKey(GroceryOffer, on_delete=models.CASCADE, related_name="match_reviews_as_left")
+    right = models.ForeignKey(GroceryOffer, on_delete=models.CASCADE, related_name="match_reviews_as_right")
+    signature = models.CharField(max_length=64)
+    decision = models.CharField(max_length=7, choices=Decision.choices)
+    reviewer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    reviewed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["left", "right"], name="grocery_review_unique_pair"),
+            models.CheckConstraint(condition=models.Q(left_id__lt=models.F("right_id")), name="grocery_review_ordered_pair"),
+        ]
