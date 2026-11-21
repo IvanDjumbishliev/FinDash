@@ -88,3 +88,82 @@
     color: var(--ink);
     background: var(--surface);
 }
+
+.statement-wizard { width: min(calc(100% - 1.5rem), 62rem); }
+.statement-wizard, .statement-wizard section { grid-template-columns: minmax(0, 1fr); }
+.statement-wizard h3:focus { outline: none; }
+.statement-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    list-style: none;
+    padding: 0;
+}
+
+.statement-steps li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.statement-steps li[aria-current="step"] {
+    background: var(--accent-surface);
+    border-color: var(--violet);
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.statement-steps li[data-completed] { color: var(--ink); }
+
+.statement-drop {
+    display: grid;
+    gap: 0.35rem;
+    padding: 1rem;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    overflow-wrap: anywhere;
+}
+
+.statement-drop[data-dragging="true"] {
+    background: var(--accent-surface);
+    border-color: var(--violet);
+}
+
+.statement-drop input { display: block; max-width: 100%; }
+.statement-drop small { color: var(--muted); }
+.statement-wizard progress { width: 100%; accent-color: var(--primary-color); }
+.statement-wizard .statement-table { max-width: 100%; }
+.statement-wizard .statement-table table { min-width: 47rem; }
+.statement-wizard .statement-table :is(th, td) { vertical-align: top; }
+.statement-wizard .statement-table td { white-space: normal; }
+.statement-wizard .statement-table td:nth-child(2) { width: 24%; max-width: 18rem; }
+.statement-wizard .statement-table input:not([type="checkbox"]) { width: 100%; min-width: 8rem; }
+
+.statement-totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    gap: 0.55rem;
+}
+
+.statement-totals div {
+    padding: 0.65rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 9px;
+    background: var(--field-surface);
+}
+
+.statement-totals dt { color: var(--muted); }
+.statement-totals dd { font-size: 1.35rem; font-weight: 750; }
+.statement-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}

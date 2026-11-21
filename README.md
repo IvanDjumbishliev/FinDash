@@ -121,7 +121,7 @@ Major endpoints are served below `/api/`:
 
 ### Bank statement imports
 
-From the dashboard, select **Upload statement**, choose a PDF or CSV, review the preview, and confirm to save. Files are limited to 10 MiB and 2,000 rows. CSV is parsed locally, with automatic mapping for common English and Bulgarian headers. You can override the mapping, choose day-first or month-first dates, and enter a default currency. The default category is `general` when the statement supplies none.
+From the dashboard, select **Upload statement**. The wizard walks through **Upload**, **Parse**, **Review**, **Confirm**, and **Complete**. Drop a PDF or CSV onto the uploader or use its file picker. Review edits and approvals, check expected imported and skipped counts, then confirm to save. The completion receipt shows the result and refreshes dashboard spending and recent activity. Files are limited to 10 MiB and 2,000 rows. CSV is parsed locally, with automatic mapping for common English and Bulgarian headers. You can override the mapping, choose day-first or month-first dates, and enter a default currency. The default category is `general` when the statement supplies none.
 
 - `POST /api/bank-statement/preview/` accepts multipart `file`, optional `mapping` (a JSON object mapping transaction fields to header names), `date_order` (`DMY` or `MDY`), `default_currency`, and `allow_external_processing` (`true` for this PDF only). It returns an owner-scoped import ID, status, and either normalized transactions, mapping information, or sanitized errors. No transactions are saved by this endpoint.
 - `GET /api/bank-statement/imports/{id}/` returns the preview or final status. `DELETE` discards a pending import. `POST /api/bank-statement/imports/{id}/confirm/` saves all validated rows atomically. Retrying confirmation for the same ID does not add them again.
@@ -135,6 +135,16 @@ From the dashboard, select **Upload statement**, choose a PDF or CSV, review the
 - User rules match normalized merchant names and take precedence over built-in rules. Manage them at `/api/bank-statement/rules/` and `/api/bank-statement/rules/{id}/`. These endpoints are owner-scoped.
 - Optional `allow_ai_categorization=true` on the preview sends cleaned merchant names for uncertain rows to Gemini. Suggestions must pass category validation and be approved in review. PDF parsing consent is separate.
 - `GET /api/bank-statement/imports/` lists import batches and statuses. `GET /api/bank-statement/imports/{id}/transactions/` lists transactions linked to that import. Both endpoints support limit/offset pagination. Earlier imports retain their batch counts but have no linked rows because provenance was not stored at the time.
+
+#### Browser workflow test
+
+With the backend and frontend dependencies installed, run the statement wizard test from the repository root:
+
+```bash
+backend/.venv/bin/python frontend/tests/e2e/statement_wizard.py
+```
+
+The test requires Firefox and geckodriver on `PATH` or the `FIREFOX_BIN` and `GECKODRIVER_BIN` overrides. It starts local servers with a temporary database and synthetic statements. External AI processing is disabled in the test server.
 
 ### Monthly budgets
 
