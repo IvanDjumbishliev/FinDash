@@ -69,7 +69,20 @@ CACHES["throttles"] = (
     else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "findash-throttles"}
 )
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "FinDash API",
+    "DESCRIPTION": "FinDash REST API. Protected operations use a JWT access token in the Authorization header.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.35.1",
+    "SWAGGER_UI_FAVICON_HREF": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.35.1/favicon-32x32.png",
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": False},
+    "ENUM_NAME_OVERRIDES": {"TransactionCategoryEnum": "api.models.Transaction.Category"},
+}
+
 REST_FRAMEWORK = {
+    "DEFAULT_SCHEMA_CLASS": "backend.schema.FinDashSchema",
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
@@ -112,6 +125,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "api",
     "rest_framework",
+    "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 ]

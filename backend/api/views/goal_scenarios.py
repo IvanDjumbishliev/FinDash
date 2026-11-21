@@ -34,7 +34,7 @@ class PreviewInput(serializers.Serializer):
     changes = ScenarioChanges()
 
 
-class SavedScenarioInput(PreviewInput):
+class SavedGoalScenarioInput(PreviewInput):
     name = serializers.CharField(max_length=80)
 
     def validate_changes(self, changes):
@@ -43,7 +43,7 @@ class SavedScenarioInput(PreviewInput):
         return changes
 
 
-class SavedScenarioOutput(serializers.ModelSerializer):
+class SavedGoalScenarioOutput(serializers.ModelSerializer):
     class Meta:
         model = GoalScenario
         fields = ("id", "name", "changes", "created_at")
@@ -61,12 +61,12 @@ class GoalScenarioPreviewView(GoalView):
 class GoalScenarioListView(GoalView):
     def get(self, request, pk):
         goal = self.get_goal(pk)
-        return Response(SavedScenarioOutput(goal.scenarios.all(), many=True).data)
+        return Response(SavedGoalScenarioOutput(goal.scenarios.all(), many=True).data)
 
     @transaction.atomic
     def post(self, request, pk):
         goal = self.get_goal(pk, lock=True)
-        serializer = SavedScenarioInput(data=request.data)
+        serializer = SavedGoalScenarioInput(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if goal.scenarios.filter(name=data["name"]).exists():
@@ -76,7 +76,7 @@ class GoalScenarioListView(GoalView):
         rendered = ScenarioChanges(instance=data["changes"]).data
         changes = {key: rendered[key] for key in data["changes"]}
         scenario = goal.scenarios.create(name=data["name"], changes=changes)
-        return Response(SavedScenarioOutput(scenario).data, status=status.HTTP_201_CREATED)
+        return Response(SavedGoalScenarioOutput(scenario).data, status=status.HTTP_201_CREATED)
 
 
 class GoalScenarioDetailView(GoalView):

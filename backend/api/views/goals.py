@@ -43,13 +43,13 @@ class GoalSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A goal’s currency cannot be changed after creation.")
         return currency
 
-    def get_remaining_amount(self, goal):
+    def get_remaining_amount(self, goal) -> str:
         return format(remaining_amount(goal), ".2f")
 
-    def get_progress_percent(self, goal):
+    def get_progress_percent(self, goal) -> str:
         return format(goal.current_amount * 100 / goal.target_amount, ".2f")
 
-    def get_completed(self, goal):
+    def get_completed(self, goal) -> bool:
         return goal.current_amount >= goal.target_amount
 
 

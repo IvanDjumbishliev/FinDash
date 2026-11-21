@@ -72,6 +72,9 @@ jobs:
       - name: Apply migrations to temporary PostgreSQL
         run: uv run --locked python manage.py migrate --noinput
 
+      - name: Validate OpenAPI schema
+        run: uv run --locked python manage.py spectacular --validate --fail-on-warn --file "$RUNNER_TEMP/openapi.yaml"
+
       - name: Run backend tests
         run: uv run --locked python manage.py test --noinput
 

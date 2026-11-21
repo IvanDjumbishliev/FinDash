@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, browser_test_password, main, serve, wait_for
+from browser_harness import Browser, browser_test_password, main, serve, wait_for
 
 
 def configure_provider():

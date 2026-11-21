@@ -29,16 +29,16 @@ class NotificationOutput(serializers.ModelSerializer):
         model = Notification
         fields = ("id", "category", "title", "message", "created_at", "read_at", "dismissed_at", "read", "dismissed")
 
-    def get_read(self, item):
+    def get_read(self, item) -> bool:
         return item.read_at is not None
 
-    def get_dismissed(self, item):
+    def get_dismissed(self, item) -> bool:
         return item.dismissed_at is not None
 
-    def get_title(self, item):
+    def get_title(self, item) -> str:
         return MESSAGES[item.category][0]
 
-    def get_message(self, item):
+    def get_message(self, item) -> str:
         return MESSAGES[item.category][1]
 
 

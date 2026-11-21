@@ -23,6 +23,13 @@ FinDash brings transactions, expense insights, document imports, shopping deals,
 | Chart.js, Recharts | SQLite locally / PostgreSQL in production |
 | Axios | Google GenAI integration |
 
+## Developer guide
+
+- [Architecture and code map](docs/architecture.md)
+- [Environment variables](docs/environment.md)
+- [Backend, frontend, and browser tests](docs/testing.md)
+- [Screenshot placeholders](docs/screenshots/README.md)
+
 ## Quick start
 
 ### Docker Compose development
@@ -105,7 +112,7 @@ python manage.py migrate
 
 ## Continuous integration
 
-The [CI workflow](.github/workflows/ci.yml) runs on pull requests and pushes to `main`. **Backend checks** installs from `uv.lock`, runs Django checks, checks for missing migration files, applies migrations to disposable PostgreSQL, and runs the backend suite. **Frontend checks** runs `npm ci`, ESLint, the frontend tests, and the production build. To diagnose a failure, open the job under **Actions → CI** and expand the failed step. The Django migration job and the test runner use separate temporary databases in the same PostgreSQL service.
+The [CI workflow](.github/workflows/ci.yml) runs on pull requests and pushes to `main`. **Backend checks** installs from `uv.lock`, runs Django checks, checks for missing migration files, applies migrations to disposable PostgreSQL, validates OpenAPI, and runs the backend suite. **Frontend checks** runs `npm ci`, ESLint, the frontend tests, and the production build. To diagnose a failure, open the job under **Actions → CI** and expand the failed step. The Django migration job and the test runner use separate temporary databases in the same PostgreSQL service.
 
 ### Required GitHub settings
 
@@ -132,10 +139,14 @@ backend/
 
 ## API
 
-Major endpoints are served below `/api/`:
+In development, open Swagger UI at `http://localhost:8000/api/docs/` or download the OpenAPI document from `http://localhost:8000/api/schema/`. Sign in through `POST /api/token/` and paste the returned access token into **Authorize** to try protected operations. Swagger UI loads a pinned bundle from jsDelivr in development. The documentation routes are disabled in production.
+
+To export and validate the schema from `backend/`, run `uv run --locked python manage.py spectacular --validate --fail-on-warn --file /tmp/findash-openapi.yaml`. Computed responses that have flexible structures are documented as JSON objects. The endpoint notes below describe how to use them.
+
+Common endpoints are served below `/api/`:
 
 - `POST /api/user/register/`
-- `POST /api/token/` and `POST /api/token/refresh/`
+- `POST /api/token/`, `POST /api/token/refresh/` and `POST /api/token/logout/`
 - `GET|POST /api/transactions/`
 - `GET /api/transaction-stats/`
 - `POST /api/bank-statement/`

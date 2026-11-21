@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, browser_test_password, main, wait_for
+from browser_harness import Browser, browser_test_password, main, wait_for
 
 
 def run(api, site, driver, firefox, _temporary):

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { build } from "esbuild";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  budgetPayload, budgetStatus, budgetTotals, historicalBudgetTotals, spendingHistory, shiftMonth,
+  budgetError, budgetPayload, budgetStatus, budgetTotals, historicalBudgetTotals, spendingHistory, shiftMonth,
 } from "../src/budgets.js";
 
 const record = (attributes = {}) => ({
@@ -54,6 +54,14 @@ test("editor converts valid input and rejects negative amounts and duplicate thr
   });
   assert.throws(() => budgetPayload({ ...draft, thresholds: "50, 050" }));
   assert.throws(() => budgetPayload({ ...draft, amount: "-1" }));
+});
+
+test("budget errors preserve helpful validation and use a fallback for invalid API responses", () => {
+  const fallback = "Could not load this month’s budgets.";
+  assert.equal(budgetError({ response: { data: { amount: ["Enter a positive amount."] } } }, fallback),
+    "Enter a positive amount.");
+  assert.equal(budgetError({ response: { data: "<html>Proxy error</html>" } }, fallback), fallback);
+  assert.equal(budgetError(new Error("socket closed"), fallback), fallback);
 });
 
 test("budget card communicates overspending and delegates the two actions to the supplied budget", async () => {
