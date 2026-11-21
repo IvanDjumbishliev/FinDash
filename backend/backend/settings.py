@@ -14,6 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+from corsheaders.defaults import default_headers
 from decouple import Config, RepositoryEnv
 from django.core.management.utils import get_random_secret_key
 
@@ -185,3 +186,4 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = (*default_headers, "x-starting-balance")

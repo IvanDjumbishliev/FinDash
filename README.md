@@ -157,6 +157,41 @@ Set `COPILOT_GEMINI_MODEL` to override the server's default model.
 `GET /api/summary/` computes dashboard insights locally, using the last 30 days
 by default. An optional `from-date=YYYY-MM-DD` can cover up to 366 days through today.
 
+### Cash flow forecast
+
+`GET /api/forecast/cash-flow/?horizon=60&currency=EUR` returns the authenticated
+account's daily estimates beginning tomorrow in its configured timezone.
+Supported horizons are 30, 60, and 90 days, with 30 as the default. The
+currency defaults to the account's configured currency, or USD. No FX
+conversion is applied.
+
+Supply an end-of-today balance with the `X-Starting-Balance` header to project
+balances without putting the value into the URL. The optional `starting_balance`
+query parameter is also accepted when the header is omitted. The forecast
+does not derive an opening balance from transactions. Without a supplied
+balance, balance fields are null and the forecast reports cash flow only.
+
+- Scheduled estimates include active confirmed subscriptions and recurring
+  deposits or charges detected from up to 1,096 days of recorded activity.
+  Recognized internal transfers are excluded and refunds reduce expenses.
+  Paused and canceled subscriptions are excluded, and recognized historical
+  charges are kept out of the variable spending estimate.
+- Variable cash flow uses up to 26 complete seven-day blocks ending yesterday.
+  At least eight blocks and recorded activity in at least half are required.
+  Known recurring charges are removed. The lowest and highest tenth of each
+  component's weekly amounts, at least one observation per tail, are capped
+  at the nearest retained value before averaging. The average is spread across
+  the forecast days. Sparse history produces scheduled-only information.
+- With at least 16 complete weeks, variable activity in eight or more, and
+  variation in weekly net cash flow, the response may include an illustrative
+  historical scenario range. This uses the 10th and 90th percentiles
+  of 1,000 resamples of contiguous two-week blocks. Scheduled amounts stay fixed.
+  These are not calibrated confidence intervals. Missing ledger activity,
+  schedule changes, and unknown accounts can materially change outcomes.
+
+The response includes historical totals and coverage, scheduled series, daily
+projections, horizon totals, assumptions, and limitations.
+
 ### Financial reports
 
 Open **Reports** and select a month and optionally a three-letter currency.
