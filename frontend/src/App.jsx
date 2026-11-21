@@ -14,6 +14,7 @@ import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
 import FinancialGoals from "./pages/FinancialGoals";
+import GoalScenario from "./pages/GoalScenario";
 import Reports from "./pages/Reports";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -119,6 +120,7 @@ function App() {
             }
           />
           <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />
+          <Route path="/goals/:id/scenarios" element={<ProtectedRoute><GoalScenario /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
           <Route

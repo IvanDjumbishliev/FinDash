@@ -30,7 +30,7 @@
 }
 .goals-page-title .goals-symbol { color: white; background: var(--primary-color); }
 
-.goals-page button, .goals-dialog button {
+.goals-page button, .goals-dialog button, .goals-action-link {
   min-height: 38px;
   padding: 6px 11px;
   border: 1px solid var(--border-color);
@@ -45,7 +45,7 @@
   font-size: .87rem;
   font-weight: 650;
 }
-.goals-page button:hover:not(:disabled), .goals-dialog button:hover:not(:disabled) { background: var(--accent-surface); }
+.goals-page button:hover:not(:disabled), .goals-dialog button:hover:not(:disabled), .goals-action-link:hover { background: var(--accent-surface); }
 .goals-page button:disabled, .goals-dialog button:disabled { opacity: .55; cursor: default; }
 .goals-page button.goals-primary, .goals-dialog button.goals-primary {
   color: white;

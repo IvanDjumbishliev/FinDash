@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import PropTypes from "prop-types";
-import { FiArchive, FiCheckCircle, FiClock, FiEdit2, FiPlus, FiRotateCcw, FiTarget } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import { FiArchive, FiCheckCircle, FiClock, FiEdit2, FiPlus, FiRotateCcw, FiSliders, FiTarget } from "react-icons/fi";
 import api from "../../api";
 import { displayDate, money } from "../../copilotPresentation";
 import { goalEndpoint, goalProgress } from "../../financialGoals";
@@ -60,6 +61,7 @@ export default function GoalCard({ goal, onAction, celebrating }) {
       {!goal.archived && <button type="button" className="goals-primary" onClick={(event) => onAction("contribution", goal, event.currentTarget)}>
         <FiPlus aria-hidden="true" /> Add contribution
       </button>}
+      <Link className="goals-action-link" to={`/goals/${goal.id}/scenarios`}><FiSliders aria-hidden="true" /> Simulate</Link>
       <button type="button" onClick={(event) => onAction("history", goal, event.currentTarget)}><FiClock aria-hidden="true" /> History</button>
       <button type="button" onClick={(event) => onAction("edit", goal, event.currentTarget)}><FiEdit2 aria-hidden="true" /> Edit</button>
       <button type="button" onClick={(event) => onAction("archive", goal, event.currentTarget)}>

@@ -9,7 +9,7 @@ export function cents(value) {
   return match ? BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0")) : null;
 }
 
-function decimal(value) {
+export function decimal(value) {
   return `${value / 100n}.${String(value % 100n).padStart(2, "0")}`;
 }
 

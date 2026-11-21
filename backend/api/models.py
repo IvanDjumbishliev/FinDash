@@ -491,3 +491,16 @@ class GoalContribution(models.Model):
             models.CheckConstraint(condition=models.Q(balance_after__gte=0), name="goal_entry_nonnegative_balance"),
             models.UniqueConstraint(fields=["goal", "request_id"], name="goal_entry_unique_request"),
         ]
+
+
+class GoalScenario(models.Model):
+    goal = models.ForeignKey(FinancialGoal, on_delete=models.CASCADE, related_name="scenarios")
+    name = models.CharField(max_length=80)
+    changes = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["goal", "name"], name="goal_scenario_unique_name"),
+        ]

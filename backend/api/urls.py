@@ -20,6 +20,7 @@ from .views.forecast_scenarios import (
     CashFlowScenarioDetailView, CashFlowScenarioListView, CashFlowScenarioPreviewView,
 )
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
+from .views.goal_scenarios import GoalScenarioDetailView, GoalScenarioListView, GoalScenarioPreviewView
 from .views.goals import GoalContributionView, GoalDetailView, GoalListView, GoalProjectionView
 from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
@@ -106,6 +107,9 @@ urlpatterns = [
     path("goals/<int:pk>/", GoalDetailView.as_view(), name="goal-detail"),
     path("goals/<int:pk>/contributions/", GoalContributionView.as_view(), name="goal-contributions"),
     path("goals/<int:pk>/projection/", GoalProjectionView.as_view(), name="goal-projection"),
+    path("goals/<int:pk>/scenarios/preview/", GoalScenarioPreviewView.as_view(), name="goal-scenario-preview"),
+    path("goals/<int:pk>/scenarios/", GoalScenarioListView.as_view(), name="goal-scenarios"),
+    path("goals/<int:pk>/scenarios/<int:scenario_id>/", GoalScenarioDetailView.as_view(), name="goal-scenario-detail"),
     path("budgets/", BudgetListView.as_view(), name="budget-list"),
     path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
     path("budgets/history/", BudgetHistoryView.as_view(), name="budget-history"),

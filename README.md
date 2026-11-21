@@ -137,6 +137,18 @@ Goals are private to the authenticated account. Each goal has one currency, set 
 
 An archived goal remains readable, and recording more entries requires restoring it first. Withdrawals cannot exceed the current balance. To correct a ledger entry, record a separate offsetting entry. Projections assume one contribution per calendar month, beginning one month after the current date in the account’s timezone. The estimate accounts for shorter months, excludes interest, and indicates whether the estimated completion date meets the optional deadline.
 
+#### Goal scenarios
+
+Choose **Simulate** on a goal card to compare its saved plan with hypothetical changes. Monthly contributions can increase or decrease. An optional one-time contribution is applied today, and monthly expense savings are added to the simulated contribution rate. The target amount and deadline can also be changed for the comparison.
+
+| Endpoint | Behavior |
+| --- | --- |
+| POST /api/goals/{id}/scenarios/preview/ | Returns baseline and hypothetical completion estimates, monthly progress, and assumptions. Send a `changes` object. An empty object previews the baseline. |
+| GET/POST /api/goals/{id}/scenarios/ | Lists or saves up to 50 named scenarios for the goal. To save, supply a `name` and `changes`. |
+| DELETE /api/goals/{id}/scenarios/{scenario_id}/ | Removes a saved scenario. |
+
+The `changes` object accepts `monthly_contribution`, `one_time_contribution`, `expense_reduction`, `target_amount`, and `target_date`. Omit a field to keep its baseline value. Use `null` for `target_date` to simulate removing a deadline. Saved scenarios store inputs and use the latest goal ledger when loaded. Projections assume steady monthly savings and omit interest and fees. Charts cover up to five years, with longer completion estimates shown separately when the date is representable.
+
 ### Virtual portfolios
 
 Open **Simulator** from navigation, or choose **Simulate trade** on a watchlist
