@@ -8,6 +8,7 @@ from .views.deals import (
 )
 
 from .views.spending_heatmap import ProfileTimezoneView, SpendingHeatmapDayView, SpendingHeatmapView
+from .views.portfolio_analytics import PortfolioAnalyticsExportView, PortfolioAnalyticsView
 from .views.portfolios import (
     PortfolioHoldingsView, PortfolioListView, PortfolioPerformanceView, PortfolioTradeView,
 )
@@ -109,5 +110,7 @@ urlpatterns = [
     path("portfolios/<int:pk>/holdings/", PortfolioHoldingsView.as_view(), name="portfolio-holdings"),
     path("portfolios/<int:pk>/trades/", PortfolioTradeView.as_view(), name="portfolio-trades"),
     path("portfolios/<int:pk>/performance/", PortfolioPerformanceView.as_view(), name="portfolio-performance"),
+    path("portfolios/<int:pk>/analytics/", PortfolioAnalyticsView.as_view(), name="portfolio-analytics"),
+    path("portfolios/<int:pk>/analytics/export/", PortfolioAnalyticsExportView.as_view(), name="portfolio-analytics-export"),
     path("stocks/search/", StockSearchView.as_view(), name="search_stocks"),
 ]

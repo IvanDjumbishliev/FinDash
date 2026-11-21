@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { FiActivity, FiPlus, FiRefreshCw } from "react-icons/fi";
 import api from "../api";
+import PortfolioAnalytics from "../components/PortfolioAnalytics";
 import PortfolioCharts from "../components/PortfolioCharts";
 import VirtualTradeDialog from "../components/VirtualTradeDialog";
 import { money } from "../copilotPresentation";
@@ -202,6 +203,8 @@ export default function PortfolioSimulator() {
           </div> : <p className="portfolio-empty">No open positions. Record a simulated buy to get started.</p>}
         </section>
       </>}
+
+      <PortfolioAnalytics key={portfolio.id} portfolioId={portfolio.id} revision={revision} />
 
       <section className="portfolio-panel" aria-labelledby="portfolio-history-heading">
         <h2 id="portfolio-history-heading">Trade history</h2>

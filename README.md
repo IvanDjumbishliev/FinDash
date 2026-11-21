@@ -164,6 +164,41 @@ P/L without brokerage connectivity, virtual cash accounting, short sales,
 or FX conversion. Splits and dividends require a verified corporate-action
 feed before they can be applied.
 
+#### Advanced portfolio analytics
+
+Open **Advanced portfolio analytics** in the simulator to view recent
+historical valuations, choose a benchmark, inspect company and sector
+concentration, or export CSV. The authenticated endpoints are
+`GET /api/portfolios/{id}/analytics/` and
+`GET /api/portfolios/{id}/analytics/export/`. They accept optional ISO
+`start` and `end` dates (up to 366 completed days) and `benchmark`
+(`^GSPC`, `^IXIC`, `^STOXX50E`, or `^FTSE`). The default period is the
+last 30 completed UTC days.
+
+- Historical values use observed closes in the portfolio currency and
+  group simulated trades by the ticker's exchange date. Missing quotes
+  remain blank. Incomplete observations interrupt an established
+  cumulative return chain. Provider dates and retrieval timestamps show
+  what data was received.
+- The positions-only ledger models buy outlay including fees as a virtual
+  contribution and net sell proceeds as a withdrawal. A sale whose fees
+  exceed proceeds contributes the difference. Daily returns use
+  `(closing value + withdrawals) / (opening value + contributions) - 1`,
+  assuming start-of-day contributions and end-of-day withdrawals. Linking
+  daily returns gives a time-weighted estimate. Ratio fields in the API
+  and CSV use decimal fractions. A selected benchmark and the portfolio
+  are rebased on their first shared valued date. Benchmark and portfolio
+  returns are price-only in the same currency.
+- Historical closings use Yahoo Finance's split-adjusted share basis.
+  Published split ratios convert older trade quantities to that basis
+  during analysis. Reconciliation leaves execution prices and trade
+  records intact. Unverified split histories and unreconciled shares
+  produce missing valuations. Cash-in-lieu and dividends are not modeled.
+- The latest observed complete valuation supplies allocation weights.
+  Company names and sectors are used when available. Unknown sectors
+  remain a separate bucket. Company concentration includes top-one and
+  top-three weights and the sum of squared weights (HHI, scale 0–1).
+
 ### Financial Copilot
 
 The **Financial Copilot** page uses the existing account and transaction ledger.

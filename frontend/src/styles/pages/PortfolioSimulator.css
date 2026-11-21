@@ -60,3 +60,14 @@
   .portfolio-hero { padding: 10px; }
   .portfolio-hero a { margin-left: 0; }
 }
+
+.portfolio-advanced > summary { font-size: 1rem; }
+.portfolio-advanced h3 { margin: 0 0 4px; font-size: .98rem; }
+.portfolio-analytics-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: .82rem; margin: 5px 0 0; }
+.portfolio-analytics-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.portfolio-analytics-legend span::before { content: ""; width: 18px; border-top: 2px solid var(--violet); }
+.portfolio-analytics-legend span + span::before { border-top: 2px dashed var(--link-color); }
+.portfolio-analytics-distribution { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 10px; }
+.portfolio-analytics-distribution h4 { margin: 8px 0 0; }
+.portfolio-analytics-distribution li { flex-wrap: wrap; overflow-wrap: anywhere; }
+.portfolio-coverage { padding-left: 20px; color: var(--muted); }

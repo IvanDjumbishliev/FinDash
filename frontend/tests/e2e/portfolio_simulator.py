@@ -1,6 +1,8 @@
 """Exercise the simulator using Django and isolated market quote fixtures."""
 import os
 import sys
+from datetime import timedelta
+from urllib.parse import unquote
 from uuid import uuid4
 
 import requests
@@ -14,8 +16,17 @@ def configure_provider():
     from api.services import portfolio_quotes
     from api.views import stocks
 
-    def quote_data(path, **_):
+    def quote_data(path, **params):
         stamp = int(timezone.now().timestamp())
+        if "period1" in params:
+            symbol = unquote(path.rsplit("/", 1)[-1])
+            prices = [100, 110, 120] if symbol == "AAPL" else [200, 210, 220]
+            return {"chart": {"result": [{
+                "meta": {"symbol": symbol, "currency": "USD", "exchangeTimezoneName": "UTC",
+                         "longName": "Apple Inc.", "sector": "Technology"},
+                "timestamp": [stamp - offset * 86400 for offset in (3, 2, 1)],
+                "indicators": {"quote": [{"close": prices}]},
+            }]}}
         return {"chart": {"result": [{
             "meta": {"symbol": path.rsplit("/", 1)[-1], "regularMarketPrice": 160,
                      "regularMarketTime": stamp, "currency": "USD", "exchangeTimezoneName": "UTC"},
@@ -106,7 +117,41 @@ def run(api, site, driver, firefox, temporary):
             return table && frame.contentWindow.innerWidth === 390 && doc.documentElement.scrollWidth <= 390 &&
                 table.scrollWidth > table.clientWidth && !!doc.querySelector('.portfolio-charts svg.recharts-surface');
         """))
-        print("Passed watchlist entry, portfolio creation, simulated buy/sell, oversell rejection, charts, trade history, freshness, Escape and 390 px layout.")
+        from django.utils import timezone
+        from api.models import VirtualTrade
+
+        for offset, side in ((3, "buy"), (1, "sell")):
+            VirtualTrade.objects.filter(portfolio__owner__username=username, side=side).update(
+                timestamp=timezone.now() - timedelta(days=offset)
+            )
+        browser.execute("document.querySelector('.portfolio-advanced summary').click();")
+        wait_for(lambda: browser.execute("""
+            return document.querySelector('.portfolio-advanced .portfolio-analytics-charts')?.textContent.includes('Historical valuation') &&
+                document.querySelector('.portfolio-advanced .portfolio-analytics-distribution')?.textContent.includes('Technology');
+        """))
+        browser.change(".portfolio-advanced label:nth-of-type(2) select", "^GSPC")
+        wait_for(lambda: browser.execute("""
+            return document.querySelector('.portfolio-analytics-charts')?.textContent.includes('rebased on') &&
+                document.querySelectorAll('.portfolio-analytics-charts section:nth-child(2) .recharts-line-curve').length === 2;
+        """))
+        browser.execute("""
+            const makeURL = URL.createObjectURL.bind(URL);
+            URL.createObjectURL = (blob) => {
+                blob.text().then((text) => { window.analyticsCSV = text; });
+                return makeURL(blob);
+            };
+            const oldClick = HTMLAnchorElement.prototype.click;
+            HTMLAnchorElement.prototype.click = function() {
+                if (this.download?.endsWith('.csv')) window.analyticsFilename = this.download;
+                else oldClick.call(this);
+            };
+        """)
+        assert browser.click("Export analytics CSV")
+        wait_for(lambda: browser.execute("""
+            return window.analyticsCSV?.startsWith('date,value,contributions,withdrawals,daily_return') &&
+                window.analyticsCSV.includes('^GSPC') && window.analyticsFilename?.endsWith('.csv');
+        """))
+        print("Passed watchlist entry, portfolio creation, simulated buy/sell, oversell rejection, charts, trade history, freshness, Escape, 390 px layout, benchmark selection and analytics CSV export.")
     finally:
         browser.close()
 
