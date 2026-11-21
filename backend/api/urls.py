@@ -7,7 +7,7 @@ from .views.deals import (
     LidlDealsView,
 )
 
-from .views.spending_heatmap import ProfileTimezoneView, SpendingHeatmapView
+from .views.spending_heatmap import ProfileTimezoneView, SpendingHeatmapDayView, SpendingHeatmapView
 from .views.assistant import AssistantView
 from .views.budget_recommendations import BudgetRecommendationApplyView, BudgetRecommendationView
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
@@ -69,6 +69,7 @@ urlpatterns = [
     path("user/profile/", GetProfileView.as_view()),
     path("user/profile/timezone/", ProfileTimezoneView.as_view(), name="profile-timezone"),
     path("analytics/spending-heatmap/", SpendingHeatmapView.as_view(), name="spending-heatmap"),
+    path("analytics/spending-heatmap/day/", SpendingHeatmapDayView.as_view(), name="spending-heatmap-day"),
     path("chat/", AssistantView.as_view()),
     path("news/", NewsView.as_view(), name="news"),
     path("budgets/", BudgetListView.as_view(), name="budget-list"),

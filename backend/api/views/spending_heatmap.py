@@ -8,16 +8,31 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.models import UserProfile
-from api.services.spending_heatmap import daily_spending
+from api.models import Transaction, UserProfile
+from api.services.spending_heatmap import daily_spending, spending_rows
 
 MAX_DAYS = 366
 
 
-class HeatmapQuerySerializer(serializers.Serializer):
+class CurrencyQuerySerializer(serializers.Serializer):
+    currency = serializers.RegexField(r"\A[A-Za-z]{3}\Z", required=False)
+
+
+class HeatmapQuerySerializer(CurrencyQuerySerializer):
     start = serializers.DateField(required=False, input_formats=["%Y-%m-%d"])
     end = serializers.DateField(required=False, input_formats=["%Y-%m-%d"])
-    currency = serializers.RegexField(r"\A[A-Za-z]{3}\Z", required=False)
+
+
+class HeatmapDaySerializer(CurrencyQuerySerializer):
+    date = serializers.DateField(input_formats=["%Y-%m-%d"])
+    category = serializers.ChoiceField(choices=Transaction.Category.values, required=False)
+
+
+def spending_preferences(user, query):
+    profile = getattr(user, "userprofile", None)
+    zone = ZoneInfo(profile.timezone if profile else "UTC")
+    currency = query.get("currency", profile.currency if profile else "USD").upper()
+    return zone, currency
 
 
 class ProfileTimezoneSerializer(serializers.Serializer):
@@ -52,9 +67,7 @@ class SpendingHeatmapView(APIView):
         serializer = HeatmapQuerySerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         query = serializer.validated_data
-        profile = getattr(request.user, "userprofile", None)
-        zone = ZoneInfo(profile.timezone if profile else "UTC")
-        currency = query.get("currency", profile.currency if profile else "USD").upper()
+        zone, currency = spending_preferences(request.user, query)
         end = query.get("end", timezone.localdate(timezone=zone))
         start = query.get("start", end - timedelta(days=min(MAX_DAYS - 1, end.toordinal() - 1)))
         if start > end:
@@ -71,3 +84,29 @@ class SpendingHeatmapView(APIView):
             "currency": currency,
             "days": daily_spending(request.user, start, end, zone, currency),
         })
+
+
+class SpendingHeatmapDayView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = HeatmapDaySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+        day = query["date"]
+        if day in (date.min, date.max):
+            raise ValidationError({"date": "Choose a date with representable timezone boundaries."})
+        zone, currency = spending_preferences(request.user, query)
+        category = query.get("category")
+        transactions = [
+            {
+                "id": row["id"],
+                "timestamp": row["timestamp"].astimezone(zone).isoformat(),
+                "category": row["category"],
+                "description": row["merchant"] or row["particulars"],
+                "spending": format(delta, ".2f"),
+            }
+            for _, delta, row in spending_rows(request.user, day, day, zone, currency, details=True)
+            if category is None or row["category"] == category
+        ]
+        return Response({"date": day.isoformat(), "currency": currency, "transactions": transactions})

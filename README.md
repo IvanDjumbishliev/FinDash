@@ -129,10 +129,22 @@ filter defaults to the profile currency or USD for accounts without a profile.
 
 The response contains `start`, `end`, `timezone`, `currency`, and a `days` array.
 Each day contains `date`, `total_spending`, `transaction_count`, and `category_totals`
-(an object keyed by category). Money amounts are decimal strings. Empty dates have
+(an object keyed by category), plus `category_counts` for category filtering.
+Money amounts are decimal strings. Empty dates have
 `"0.00"` spending, a count of zero, and an empty category object. The count includes
 purchases and recognized refunds. Refunds reduce spending on the day they post, so
 net spending can be negative. Income and recognized internal transfers are excluded.
+
+`GET /api/analytics/spending-heatmap/day/?date=2026-01-15&currency=EUR&category=groceries`
+returns the authenticated user's contributing transactions for one local date.
+Currency and category are optional. The detail list uses the same spending and refund
+rules as the calendar.
+
+The dashboard uses four positive-spending bands, ending at 25%, 50%, 75%, and 100%
+of the highest daily net spend for the selected year and category. The legend gives
+the exact currency bounds. Days with purchases or refunds whose net is zero or
+negative use a striped cell. Empty days use a neutral cell. The scale recalculates
+when the year or category changes, so use the legend when comparing views.
 
 Use `GET /api/user/profile/timezone/` to read the account timezone and
 `PATCH /api/user/profile/timezone/` with `{"timezone":"Europe/Sofia"}` to update it.

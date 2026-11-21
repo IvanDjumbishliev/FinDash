@@ -277,7 +277,7 @@ def run(base, site, driver, firefox, temporary):
         browser.close()
 
 
-def main():
+def main(run_browser=run):
     firefox = os.getenv("FIREFOX_BIN") or shutil.which("firefox")
     geckodriver = os.getenv("GECKODRIVER_BIN") or shutil.which("geckodriver")
     if not firefox or not geckodriver:
@@ -300,7 +300,7 @@ def main():
             wait_for(lambda: requests.get(api + "/api/transactions/", timeout=2).status_code == 401)
             wait_for(lambda: requests.get(site + "/login", timeout=2).ok)
             wait_for(lambda: requests.get(driver + "/status", timeout=2).ok)
-            run(api, site, driver, firefox, temporary)
+            run_browser(api, site, driver, firefox, temporary)
         finally:
             for process in reversed(processes):
                 if process.poll() is None:

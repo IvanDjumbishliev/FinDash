@@ -4,6 +4,7 @@ import "../styles/pages/Home.css";
 import RecentTransactions from "../components/RecentTransactions";
 import PieChart from "../components/PieChart";
 import Summary from "../components/Summary";
+import SpendingHeatmap from "../components/SpendingHeatmap";
 import PDF_enter from "../components/PDFEnter";
 
 function Home() {
@@ -62,6 +63,7 @@ function Home() {
           </div>
         </div>
       </section>
+      <SpendingHeatmap revision={importRevision} />
       <Summary />
     </main>
   );

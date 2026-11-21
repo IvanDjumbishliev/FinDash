@@ -46,9 +46,9 @@ class SpendingHeatmapTests(TestCase):
         self.assertEqual(response.data["timezone"], "Europe/Sofia")
         self.assertEqual(response.data["days"], [
             {"date": "2026-03-29", "total_spending": "12.00", "transaction_count": 2,
-             "category_totals": {"groceries": "12.00"}},
+             "category_totals": {"groceries": "12.00"}, "category_counts": {"groceries": 2}},
             {"date": "2026-03-30", "total_spending": "2.00", "transaction_count": 1,
-             "category_totals": {"groceries": "2.00"}},
+             "category_totals": {"groceries": "2.00"}, "category_counts": {"groceries": 1}},
         ])
 
     def test_clock_rollback_can_reenter_the_last_requested_date(self):
@@ -61,7 +61,7 @@ class SpendingHeatmapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["days"], [
             {"date": "2009-10-31", "total_spending": "5.00", "transaction_count": 2,
-             "category_totals": {"groceries": "5.00"}},
+             "category_totals": {"groceries": "5.00"}, "category_counts": {"groceries": 2}},
         ])
 
     def test_empty_days_currency_isolation_and_constant_query_count(self):
@@ -77,10 +77,10 @@ class SpendingHeatmapTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["currency"], "EUR")
         self.assertEqual(response.data["days"], [
-            {"date": "2026-01-01", "total_spending": "0.00", "transaction_count": 0, "category_totals": {}},
+            {"date": "2026-01-01", "total_spending": "0.00", "transaction_count": 0, "category_totals": {}, "category_counts": {}},
             {"date": "2026-01-02", "total_spending": "10.00", "transaction_count": 1,
-             "category_totals": {"groceries": "10.00"}},
-            {"date": "2026-01-03", "total_spending": "0.00", "transaction_count": 0, "category_totals": {}},
+             "category_totals": {"groceries": "10.00"}, "category_counts": {"groceries": 1}},
+            {"date": "2026-01-03", "total_spending": "0.00", "transaction_count": 0, "category_totals": {}, "category_counts": {}},
         ])
         overridden = self.client.get(self.url, {"start": "2026-01-02", "end": "2026-01-02", "currency": "usd"})
         self.assertEqual(overridden.data["currency"], "USD")
@@ -99,9 +99,10 @@ class SpendingHeatmapTests(TestCase):
         response = self.client.get(self.url, {"start": "2026-01-02", "end": "2026-01-03"})
         self.assertEqual(response.data["days"], [
             {"date": "2026-01-02", "total_spending": "12.00", "transaction_count": 3,
-             "category_totals": {"bills": "4.00", "groceries": "8.00"}},
+             "category_totals": {"bills": "4.00", "groceries": "8.00"},
+             "category_counts": {"bills": 1, "groceries": 2}},
             {"date": "2026-01-03", "total_spending": "-5.00", "transaction_count": 1,
-             "category_totals": {"groceries": "-5.00"}},
+             "category_totals": {"groceries": "-5.00"}, "category_counts": {"groceries": 1}},
         ])
 
     def test_default_history_ends_on_local_today(self):
@@ -135,3 +136,27 @@ class SpendingHeatmapTests(TestCase):
         self.assertEqual(client.get(self.url).status_code, 401)
         self.assertEqual(client.get(self.timezone_url).status_code, 401)
         self.assertEqual(client.patch(self.timezone_url, {"timezone": "UTC"}).status_code, 401)
+
+    def test_day_detail_uses_same_spending_rules_and_owner_scope(self):
+        UserProfile.objects.create(user=self.owner, timezone="Europe/Sofia")
+        moment = "2026-03-28T22:30:00+00:00"
+        purchase = self.record(moment, merchant="Market")
+        refund = self.record(moment, "3.00", particulars="Card reversal")
+        self.record(moment, category="bills")
+        self.record(moment, user=self.other)
+        self.record(moment, currency="EUR")
+        self.record(moment, particulars="Transfer to savings")
+        self.record("2026-03-28T21:59:59+00:00")
+
+        url = self.url + "day/"
+        response = self.client.get(url, {"date": "2026-03-29", "category": "groceries"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["transactions"], [
+            {"id": refund.pk, "timestamp": "2026-03-29T00:30:00+02:00", "category": "groceries",
+             "description": "Card reversal", "spending": "-3.00"},
+            {"id": purchase.pk, "timestamp": "2026-03-29T00:30:00+02:00", "category": "groceries",
+             "description": "Market", "spending": "10.00"},
+        ])
+        self.assertEqual(self.client.get(url, {"date": "2026-03-30"}).data["transactions"], [])
+        self.assertEqual(self.client.get(url, {"date": "bad"}).status_code, 400)
+        self.assertEqual(APIClient().get(url, {"date": "2026-03-29"}).status_code, 401)

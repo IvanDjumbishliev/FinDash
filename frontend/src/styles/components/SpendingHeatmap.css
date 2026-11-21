@@ -1,0 +1,235 @@
+.spending-heatmap {
+  --heat-empty: #eceef5;
+  --heat-1: #d9d1ff;
+  --heat-2: #ad9af8;
+  --heat-3: #7960df;
+  --heat-4: #4828a6;
+  --heat-size: 18px;
+}
+
+:root[data-theme="dark"] .spending-heatmap {
+  --heat-empty: #2b3042;
+  --heat-1: #4d397e;
+  --heat-2: #7156b5;
+  --heat-3: #a383f3;
+  --heat-4: #dfccff;
+}
+
+.heatmap-header,
+.heatmap-controls,
+.heatmap-year-input {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heatmap-header {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.heatmap-header h2,
+.spending-heatmap h3 {
+  margin: 0;
+}
+
+.heatmap-header p,
+.heatmap-instructions {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.heatmap-controls label {
+  display: block;
+  font-size: .85rem;
+  font-weight: 600;
+}
+
+.heatmap-controls input,
+.heatmap-controls select,
+.spending-heatmap button:not(.heatmap-cell) {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 36px;
+  font: inherit;
+}
+
+.heatmap-controls select {
+  display: block;
+}
+
+.heatmap-controls input {
+  width: 86px;
+}
+
+.heatmap-year-input {
+  gap: 4px;
+}
+
+.spending-heatmap button:not(.heatmap-cell) {
+  cursor: pointer;
+  color: var(--violet);
+}
+
+.heatmap-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 6px 5px 9px;
+  margin-bottom: 8px;
+}
+
+.heatmap-calendar {
+  display: grid;
+  grid-template-columns: 30px repeat(var(--weeks), var(--heat-size));
+  grid-template-rows: 20px repeat(7, var(--heat-size));
+  gap: 3px;
+  width: max-content;
+}
+
+.heatmap-month,
+.heatmap-weekday {
+  font-size: .75rem;
+  color: var(--muted);
+  align-self: center;
+}
+
+.heatmap-month { grid-row: 1; }
+.heatmap-weekday { grid-column: 1; }
+
+.heatmap-cell,
+.heatmap-swatch {
+  background: var(--heat-empty);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+}
+
+.spending-heatmap [data-level="1"] { background: var(--heat-1); }
+.spending-heatmap [data-level="2"] { background: var(--heat-2); }
+.spending-heatmap [data-level="3"] { background: var(--heat-3); }
+.spending-heatmap [data-level="4"] { background: var(--heat-4); }
+.spending-heatmap [data-offset="true"] {
+  background: repeating-linear-gradient(135deg, var(--heat-empty) 0 3px, var(--heat-2) 3px 5px);
+}
+
+.heatmap-cell {
+  padding: 0;
+  min-width: 0;
+  min-height: 0;
+  cursor: pointer;
+}
+
+.heatmap-cell[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.spending-heatmap :focus-visible,
+.heatmap-cell:hover {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  z-index: 1;
+}
+
+.heatmap-tooltip {
+  position: fixed;
+  z-index: 1000;
+  transform: translateY(calc(-100% - 6px));
+  width: max-content;
+  max-width: min(272px, calc(100vw - 16px));
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: .8rem;
+  pointer-events: none;
+}
+
+.heatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 0;
+  list-style: none;
+  font-size: .8rem;
+}
+
+.heatmap-legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.heatmap-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+
+.heatmap-peak,
+.heatmap-details,
+.heatmap-monthly {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+
+.heatmap-peak button {
+  margin-top: 6px;
+}
+
+.heatmap-state {
+  padding: 24px 0;
+  color: var(--muted);
+}
+
+.heatmap-monthly dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.heatmap-monthly dl div {
+  background: var(--field-surface);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.heatmap-monthly dt,
+.heatmap-transactions small {
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.heatmap-monthly dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.heatmap-transactions {
+  padding: 0;
+  list-style: none;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.heatmap-transactions li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 8px 0;
+}
+
+.heatmap-transactions span { overflow-wrap: anywhere; }
+.heatmap-transactions small { display: block; }
+.heatmap-transactions strong { flex-shrink: 0; }
+
+@media (max-width: 600px) {
+  .spending-heatmap { --heat-size: 23px; }
+}
