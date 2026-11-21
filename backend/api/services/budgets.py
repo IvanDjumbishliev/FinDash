@@ -24,6 +24,15 @@ INTERNAL_TRANSFER = re.compile(
 )
 
 
+def spending_delta(amount, particulars):
+    """Return the signed spending contribution, or None for excluded activity."""
+    if INTERNAL_TRANSFER.search(particulars):
+        return None
+    if amount < 0 or (amount > 0 and REFUND.search(particulars)):
+        return -amount
+    return None
+
+
 def parse_month(value):
     """Accept YYYY-MM or the first day of that month in ISO format."""
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}(?:-01)?", value):
@@ -68,13 +77,15 @@ def monthly_spending(owner, start, end, keys=None):
     for timestamp, currency, category, amount, particulars in transactions.iterator():
         month = timezone.localtime(timestamp).date().replace(day=1)
         currency = currency.strip().upper()
-        if (keys is not None and (month, currency) not in keys) or INTERNAL_TRANSFER.search(particulars):
+        if keys is not None and (month, currency) not in keys:
+            continue
+        delta = spending_delta(amount, particulars)
+        if delta is None:
             continue
         if amount < 0:
             observed_months[currency].add(month)
-        if amount < 0 or (amount > 0 and REFUND.search(particulars)):
-            spending[month, currency, category] -= amount
-            spending[month, currency, None] -= amount
+        spending[month, currency, category] += delta
+        spending[month, currency, None] += delta
     return spending, observed_months
 
 

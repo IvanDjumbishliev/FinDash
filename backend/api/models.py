@@ -10,6 +10,7 @@ def get_current_time():
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    timezone = models.CharField(max_length=255, default="UTC")
     budget = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=3, default="USD")
 
@@ -50,6 +51,9 @@ class Transaction(models.Model):
         "StatementImport", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="imported_transactions",
     )
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "timestamp"], name="txn_user_timestamp_idx")]
 
     def __str__(self):
         return (

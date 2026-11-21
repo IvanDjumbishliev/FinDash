@@ -119,6 +119,25 @@ Major endpoints are served below `/api/`:
 - `POST /api/chat/`
 - `GET|POST /api/stocks/watchlist/`
 
+### Spending heatmap
+
+`GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`
+returns the inclusive local date range in ascending order. Supply dates as `YYYY-MM-DD`.
+When omitted, `end` defaults to today in the account timezone, and `start` defaults to
+365 days before `end`. A range may include at most 366 dates. The optional currency
+filter defaults to the profile currency or USD for accounts without a profile.
+
+The response contains `start`, `end`, `timezone`, `currency`, and a `days` array.
+Each day contains `date`, `total_spending`, `transaction_count`, and `category_totals`
+(an object keyed by category). Money amounts are decimal strings. Empty dates have
+`"0.00"` spending, a count of zero, and an empty category object. The count includes
+purchases and recognized refunds. Refunds reduce spending on the day they post, so
+net spending can be negative. Income and recognized internal transfers are excluded.
+
+Use `GET /api/user/profile/timezone/` to read the account timezone and
+`PATCH /api/user/profile/timezone/` with `{"timezone":"Europe/Sofia"}` to update it.
+Accounts default to UTC. Both endpoints require authentication.
+
 ### Bank statement imports
 
 From the dashboard, select **Upload statement**. The wizard walks through **Upload**, **Parse**, **Review**, **Confirm**, and **Complete**. Drop a PDF or CSV onto the uploader or use its file picker. Review edits and approvals, check expected imported and skipped counts, then confirm to save. The completion receipt shows the result and refreshes dashboard spending and recent activity. Files are limited to 10 MiB and 2,000 rows. CSV is parsed locally, with automatic mapping for common English and Bulgarian headers. You can override the mapping, choose day-first or month-first dates, and enter a default currency. The default category is `general` when the statement supplies none.
