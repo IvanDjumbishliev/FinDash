@@ -1,24 +1,35 @@
 from django.db import DatabaseError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.models import StatementImport
-from api.services.statements.imports import PREVIEW_LIFETIME, confirm_import, expire_previews
+from api.services.statements.imports import PREVIEW_LIFETIME, confirm_import, expire_previews, preview_rows, review_import
+from api.services.statements.intelligence import prepare_rows
 from api.services.statements.normalization import StatementError
 from api.services.statements.pipeline import PARSERS, StatementSizeLimit, parse_options, upload_content
 
+from .statement_review import ConfirmationSerializer, ReviewRequestSerializer
 
-def import_data(record):
+
+def import_data(record, *, include_rows=True):
     return {
         "id": str(record.pk),
         "file_format": record.file_format,
         "status": record.status,
         "row_count": record.row_count,
-        "transactions": record.parsed_rows,
+        "imported_count": (
+            record.imported_count if record.imported_count is not None else
+            record.row_count if record.status == StatementImport.Status.IMPORTED else 0
+        ),
+        "revision": record.revision,
+        "created_at": record.created_at.isoformat(),
+        "updated_at": record.updated_at.isoformat(),
+        **({"transactions": preview_rows(record)} if include_rows else {}),
         "errors": record.errors,
         "expires_at": record.expires_at.isoformat(),
     }
@@ -57,11 +68,15 @@ class StatementUploadView(APIView):
             result_status = StatementImport.Status.NEEDS_MAPPING
         elif parsed.errors:
             result_status = StatementImport.Status.FAILED
+        rows, ai_status = (
+            prepare_rows(request.user, parsed.rows, ai_consent=options.allow_ai_categorization)
+            if result_status == StatementImport.Status.READY else ([], "not_requested")
+        )
         record = self.create_import(
             request.user, file_format, result_status,
-            errors=parsed.errors, rows=parsed.rows if result_status == StatementImport.Status.READY else [],
+            errors=parsed.errors, rows=rows,
         )
-        data = import_data(record)
+        data = {**import_data(record), "ai_status": ai_status}
         if parsed.columns and not self.legacy_commit and file_format == "csv":
             data.update(columns=parsed.columns, mapping=parsed.mapping)
         if result_status == StatementImport.Status.NEEDS_MAPPING:
@@ -69,11 +84,18 @@ class StatementUploadView(APIView):
         if result_status == StatementImport.Status.FAILED:
             return Response({**data, "error": "Fix the invalid transaction rows before importing."}, status=422)
         if self.legacy_commit:
+            if any(row["decision"] != "approved" for row in rows):
+                return Response({**data, "error": "Review this statement before importing flagged transactions."}, status=409)
             try:
-                confirm_import(record)
-            except (DatabaseError, StatementError):
+                saved = confirm_import(record)
+            except StatementError as error:
+                return Response({**data, "error": str(error)}, status=error.status)
+            except DatabaseError:
                 return Response({**data, "error": "The statement could not be saved."}, status=503)
-            return Response({"response": parsed.rows}, status=201)
+            if saved.status != StatementImport.Status.IMPORTED:
+                return Response({**import_data(saved), "error": "Review newly flagged transactions."}, status=409)
+            return Response({"response": [{key: row[key] for key in
+                ("amount", "timestamp", "category", "particulars", "currency")} for row in rows]}, status=201)
         return Response(data, status=201)
 
     @staticmethod
@@ -103,6 +125,16 @@ class StatementImportDetailView(APIView):
     def get(self, request, pk):
         return Response(import_data(self.owned_record(request, pk)))
 
+    def patch(self, request, pk):
+        record = self.owned_record(request, pk)
+        serializer = ReviewRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            return Response(import_data(review_import(record, **serializer.validated_data)))
+        except StatementError as error:
+            record.refresh_from_db()
+            return Response({**import_data(record), "error": str(error)}, status=error.status)
+
     def delete(self, request, pk):
         record = self.owned_record(request, pk)
         StatementImport.objects.filter(pk=record.pk, owner=request.user, status__in=[
@@ -117,9 +149,49 @@ class StatementConfirmView(StatementImportDetailView):
 
     def post(self, request, pk):
         record = self.owned_record(request, pk)
+        serializer = ConfirmationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         try:
-            return Response(import_data(confirm_import(record)))
+            saved = confirm_import(record, **serializer.validated_data)
+            if saved.status != StatementImport.Status.IMPORTED:
+                return Response({**import_data(saved), "error": "New duplicate matches were found. Review them before confirming."}, status=409)
+            return Response(import_data(saved))
         except StatementError as error:
-            return Response({"error": str(error)}, status=error.status)
+            record.refresh_from_db()
+            return Response({**import_data(record), "error": str(error)}, status=error.status)
         except DatabaseError:
             return Response({"error": "The statement could not be saved. Try again."}, status=503)
+
+
+class StatementHistoryPagination(LimitOffsetPagination):
+    default_limit = 25
+    max_limit = 100
+
+
+class StatementHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        expire_previews(request.user)
+        imports = StatementImport.objects.filter(owner=request.user).defer("parsed_rows").order_by("-created_at", "-pk")
+        paginator = StatementHistoryPagination()
+        page = paginator.paginate_queryset(imports, request)
+        return paginator.get_paginated_response([import_data(record, include_rows=False) for record in page])
+
+
+class StatementImportedTransactionsView(StatementImportDetailView):
+    http_method_names = ["get", "head", "options"]
+
+    def get(self, request, pk):
+        record = self.owned_record(request, pk)
+        transactions = record.imported_transactions.filter(user=request.user).order_by("pk")
+        paginator = StatementHistoryPagination()
+        page = paginator.paginate_queryset(transactions, request)
+        return paginator.get_paginated_response([
+            {
+                "id": row.pk, "timestamp": row.timestamp.isoformat(), "amount": str(row.amount),
+                "currency": row.currency, "merchant": row.merchant or row.particulars,
+                "category": row.category, "reference": row.statement_reference,
+            }
+            for row in page
+        ])

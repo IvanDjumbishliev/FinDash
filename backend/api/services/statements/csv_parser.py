@@ -6,13 +6,15 @@ from .normalization import MAX_ERRORS, MAX_ROWS, ParsedStatement, StatementError
 
 ALIASES = {
     "date": {"date", "transaction date", "posting date", "value date", "book date", "booking date", "timestamp", "дата", "вальор", "дата на операцията"},
-    "description": {"description", "details", "particulars", "merchant", "payee", "memo", "описание", "основание", "детайли"},
+    "description": {"description", "details", "particulars", "memo", "описание", "основание", "детайли"},
     "amount": {"amount", "signed amount", "transaction amount", "сума", "стойност"},
     "debit": {"debit", "debit amount", "withdrawal", "money out", "paid out", "дебит", "разход"},
     "credit": {"credit", "credit amount", "deposit", "money in", "paid in", "кредит", "приход"},
     "currency": {"currency", "ccy", "валута"},
     "direction": {"direction", "debit credit", "dr cr"},
     "category": {"category", "категория"},
+    "merchant": {"merchant", "payee", "counterparty", "търговец", "контрагент"},
+    "reference": {"reference", "transaction reference", "transaction id", "reference id", "ref", "референция", "номер на операция"},
 }
 
 
@@ -51,6 +53,8 @@ def parse_table(headers, records, options):
             for field, aliases in ALIASES.items()
             if (index := next((i for i, key in enumerate(keys) if key in aliases), None)) is not None
         }
+        if "description" not in mapping and "merchant" in mapping:
+            mapping["description"] = mapping.pop("merchant")
         if "amount" in mapping:
             mapping.pop("debit", None)
             mapping.pop("credit", None)

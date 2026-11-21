@@ -17,10 +17,13 @@ from .views.leaflet_user import LeafletUserView
 from .views.news import NewsView
 from .views.pdf_import import (
     StatementConfirmView,
+    StatementHistoryView,
     StatementImportDetailView,
+    StatementImportedTransactionsView,
     StatementUploadView,
     UploadBankStatementView,
 )
+from .views.statement_review import MerchantRuleDetailView, MerchantRuleListView
 from .views.subscriptions import (
     SubscriptionDetailView,
     SubscriptionDetectView,
@@ -48,7 +51,11 @@ urlpatterns = [
     ),
     path("bank-statement/", UploadBankStatementView.as_view()),
     path("bank-statement/preview/", StatementUploadView.as_view(), name="statement-preview"),
+    path("bank-statement/imports/", StatementHistoryView.as_view(), name="statement-history"),
+    path("bank-statement/rules/", MerchantRuleListView.as_view(), name="merchant-rules"),
+    path("bank-statement/rules/<int:pk>/", MerchantRuleDetailView.as_view(), name="merchant-rule-detail"),
     path("bank-statement/imports/<uuid:pk>/", StatementImportDetailView.as_view(), name="statement-import"),
+    path("bank-statement/imports/<uuid:pk>/transactions/", StatementImportedTransactionsView.as_view(), name="statement-imported-transactions"),
     path("bank-statement/imports/<uuid:pk>/confirm/", StatementConfirmView.as_view(), name="statement-confirm"),
     path("summary/", UserSummaryView.as_view()),
     path(

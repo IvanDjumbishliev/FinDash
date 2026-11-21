@@ -62,3 +62,29 @@
 
 #statement-column-mapping { margin-top: 0.5rem; }
 #statement-column-mapping[hidden] { display: none; }
+
+.statement-review-list { list-style: none; padding: 0; }
+.statement-review-row { padding: 0.7rem; border-bottom: 1px solid var(--border-subtle); overflow-wrap: anywhere; }
+.statement-review-row:last-child { border-bottom: 0; }
+.statement-review-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+.statement-review-heading label { display: inline-flex; align-items: center; gap: 0.4rem; }
+.statement-muted { color: var(--muted); font-size: 0.875rem; }
+.statement-duplicate { margin: 0.3rem 0; font-size: 0.9rem; font-weight: 700; }
+.statement-dialog .statement-correction {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+    align-items: end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+.statement-correction label { display: grid; gap: 0.2rem; min-width: 0; }
+.statement-correction :is(input, select) { width: 100%; }
+.statement-table:has(.statement-review-list) { border-radius: 9px; max-height: min(48vh, 32rem); }
+.statement-history-details { margin-top: 0.5rem; }
+.statement-secondary {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    color: var(--ink);
+    background: var(--surface);
+}

@@ -42,6 +42,15 @@ class Transaction(models.Model):
         max_length=3, default="USD", help_text="Currency of the transaction"
     )
 
+    merchant = models.CharField(max_length=255, blank=True)
+    normalized_merchant = models.CharField(max_length=255, blank=True)
+    source_normalized_merchant = models.CharField(max_length=255, blank=True)
+    statement_reference = models.CharField(max_length=128, blank=True)
+    statement_import = models.ForeignKey(
+        "StatementImport", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="imported_transactions",
+    )
+
     def __str__(self):
         return (
             f"{self.user.username} - {self.amount} - {self.category} - {self.timestamp}"
@@ -164,6 +173,23 @@ class StatementImport(models.Model):
     parsed_rows = models.JSONField(default=list, blank=True)
     errors = models.JSONField(default=list, blank=True)
     row_count = models.PositiveIntegerField(default=0)
+    imported_count = models.PositiveIntegerField(null=True, blank=True)
+    revision = models.PositiveIntegerField(default=0)
     expires_at = models.DateTimeField(db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class MerchantCategoryRule(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="merchant_category_rules")
+    merchant = models.CharField(max_length=255)
+    normalized_merchant = models.CharField(max_length=255)
+    category = models.CharField(max_length=50, choices=Transaction.Category.choices)
+
+    class Meta:
+        ordering = ["merchant", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "normalized_merchant"], name="unique_merchant_category_rule"
+            ),
+        ]

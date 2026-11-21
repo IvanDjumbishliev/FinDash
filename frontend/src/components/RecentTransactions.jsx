@@ -1,5 +1,6 @@
 import "../styles/components/RecentTransactions.css";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import api from "../api";
 
 const fetchLatestTransactions = async (limit) => {
@@ -8,7 +9,6 @@ const fetchLatestTransactions = async (limit) => {
       params: { limit, ordering: "-timestamp" },
     });
 
-    console.log(response.data.results);
     return response.data.results;
   } catch (error) {
     alert("Failed to fetch transactions.");
@@ -26,7 +26,7 @@ export default function RecentTransactions({ limit }) {
     };
 
     fetchTransactions();
-  }, []);
+  }, [limit]);
 
   if (!LastTransactions || LastTransactions.length === 0) {
     return (
@@ -71,3 +71,5 @@ export default function RecentTransactions({ limit }) {
     </table>
   );
 }
+
+RecentTransactions.propTypes = { limit: PropTypes.number.isRequired };

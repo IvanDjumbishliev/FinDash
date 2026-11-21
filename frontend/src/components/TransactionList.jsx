@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import "../styles/components/TransactionList.css";
 
 function TransactionList({ transactions, handleDelete }) {
@@ -10,6 +11,7 @@ function TransactionList({ transactions, handleDelete }) {
             <strong>Amount:</strong> {transaction.amount} {transaction.currency}{" "}
             <br />
             <strong>Category:</strong> {transaction.category} <br />
+            {transaction.merchant && <><strong>Merchant:</strong> {transaction.merchant}<br /></>}
             <strong>Description:</strong> {transaction.particulars || "N/A"}{" "}
             <br />
             <strong>Time:</strong>{" "}
@@ -26,5 +28,18 @@ function TransactionList({ transactions, handleDelete }) {
     </div>
   );
 }
+
+TransactionList.propTypes = {
+  transactions: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    amount: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    currency: PropTypes.string,
+    category: PropTypes.string,
+    merchant: PropTypes.string,
+    particulars: PropTypes.string,
+    timestamp: PropTypes.string,
+  })).isRequired,
+  handleDelete: PropTypes.func.isRequired,
+};
 
 export default TransactionList;

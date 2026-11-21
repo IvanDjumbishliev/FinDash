@@ -145,10 +145,16 @@ def normalize_row(fields, *, default_currency=None, date_order="DMY"):
     category = str(fields.get("category") or Transaction.Category.GENERAL).strip().casefold()
     if category not in Transaction.Category.values:
         raise ValueError("Use a valid FinDash category or leave the category unmapped.")
+    reference = str(fields.get("reference") or "").strip()
+    if len(reference) > 128 or re.search(r"[\x00-\x1f]", reference):
+        raise ValueError("Provide a valid transaction reference (up to 128 characters).")
     return {
         "timestamp": timestamp,
         "amount": format(amount, ".2f"),
         "currency": currency,
         "particulars": description,
         "category": category,
+        "category_supplied": bool(fields.get("category")),
+        "reference": reference,
+        "merchant_hint": str(fields.get("merchant") or "").strip()[:255],
     }

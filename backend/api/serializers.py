@@ -21,7 +21,8 @@ class UserSerializer(serializers.ModelSerializer):
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ["id", "amount", "category", "timestamp", "particulars", "currency"]
+        fields = ["id", "amount", "category", "timestamp", "particulars", "currency", "merchant"]
+        read_only_fields = ["merchant"]
 
 
 class SubscriptionSerializer(serializers.ModelSerializer):

@@ -128,6 +128,14 @@ From the dashboard, select **Upload statement**, choose a PDF or CSV, review the
 - The legacy `POST /api/bank-statement/` still commits compatible PDFs directly. Layouts the local parser cannot recognize require explicit consent and a configured Gemini key. Gemini receives the PDF inline with the request. FinDash creates no provider Files API upload.
 - The original file is not retained by FinDash. Prepared transaction rows are cleared on confirmation, discard, or expiry. Previews expire after 30 minutes. Owner requests clear expired previews, and deployments can schedule `python manage.py expire_statement_previews` for cleanup during idle periods.
 
+#### Transaction review and import history
+
+- Preview rows show cleaned merchant names, category suggestions and confidence, and possible duplicates. Duplicate checks compare the transaction day, signed amount, currency, normalized merchant, and bank reference when available. Two different explicit references are treated as different transactions. A missing reference can still produce a possible match.
+- Use `PATCH /api/bank-statement/imports/{id}/` with the current `revision` and `changes` keyed by `row_id` to correct merchant or category and approve or reject rows. Approving a flagged match requires `allow_duplicate: true` for that row. Confirmation saves approved rows in one transaction and rechecks for duplicates added since review.
+- User rules match normalized merchant names and take precedence over built-in rules. Manage them at `/api/bank-statement/rules/` and `/api/bank-statement/rules/{id}/`. These endpoints are owner-scoped.
+- Optional `allow_ai_categorization=true` on the preview sends cleaned merchant names for uncertain rows to Gemini. Suggestions must pass category validation and be approved in review. PDF parsing consent is separate.
+- `GET /api/bank-statement/imports/` lists import batches and statuses. `GET /api/bank-statement/imports/{id}/transactions/` lists transactions linked to that import. Both endpoints support limit/offset pagination. Earlier imports retain their batch counts but have no linked rows because provenance was not stored at the time.
+
 ### Monthly budgets
 
 Budget endpoints require a JWT access token. Create a budget with `POST /api/budgets/`:

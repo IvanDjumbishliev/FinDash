@@ -23,6 +23,7 @@ class ParseOptions:
     default_currency: str | None = None
     date_order: str = "DMY"
     allow_external_processing: bool = False
+    allow_ai_categorization: bool = False
 
 
 class StatementParser(Protocol):
@@ -61,16 +62,22 @@ def parse_options(data):
     date_order = data.get("date_order", "DMY")
     if date_order not in ("DMY", "MDY"):
         raise StatementError("Choose either day-first or month-first dates.")
-    consent = data.get("allow_external_processing")
-    if consent is not None and not (
-        type(consent) is bool or (isinstance(consent, str) and consent in {"true", "false"})
-    ):
+    def consent(flag):
+        value = data.get(flag, False)
+        if type(value) is bool:
+            return value
+        if isinstance(value, str) and value in {"true", "false"}:
+            return value == "true"
         raise StatementError("External processing consent must be true or false.")
     try:
         default_currency = currency_code(data["default_currency"]) if data.get("default_currency") else None
     except ValueError as error:
         raise StatementError(str(error)) from error
-    return ParseOptions(mapping, default_currency, date_order, consent is True or consent == "true")
+    return ParseOptions(
+        mapping=mapping, default_currency=default_currency, date_order=date_order,
+        allow_external_processing=consent("allow_external_processing"),
+        allow_ai_categorization=consent("allow_ai_categorization"),
+    )
 
 
 def upload_content(uploaded, *, allowed_formats):
