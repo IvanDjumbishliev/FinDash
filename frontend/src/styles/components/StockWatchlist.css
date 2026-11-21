@@ -89,3 +89,12 @@
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
 }
+
+.stock-simulator-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--violet);
+  font-weight: 650;
+  margin: 4px 0 8px;
+}

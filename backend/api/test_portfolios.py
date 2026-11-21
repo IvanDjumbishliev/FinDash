@@ -182,6 +182,33 @@ class VirtualPortfolioTests(TestCase):
         self.assertEqual(self.portfolio.ledger_version, 0)
         self.assertFalse(self.portfolio.trades.exists())
 
+    def test_history_is_paginated_owner_scoped_and_performance_uses_full_ledger(self):
+        buy = self.trade(quantity="3", price="10", fees="3")
+        sale = self.trade("sell", quantity="1", price="20")
+        final = self.trade("sell", quantity="2", price="12")
+        result = self.client.get(f"{self.url}{self.portfolio.pk}/trades/", {"limit": 2})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.data["count"], 3)
+        self.assertEqual([entry["id"] for entry in result.data["results"]], [final.data["id"], sale.data["id"]])
+        self.assertTrue(result.data["next"])
+        second = self.client.get(f"{self.url}{self.portfolio.pk}/trades/", {"limit": 2, "offset": 2})
+        self.assertEqual([entry["id"] for entry in second.data["results"]], [buy.data["id"]])
+        self.assertEqual(self.get("trades", self.foreign).status_code, 404)
+        self.assertEqual(APIClient().get(f"{self.url}{self.portfolio.pk}/trades/").status_code, 401)
+        report = self.get("performance").data
+        self.assertEqual(report["performance"]["total_invested"], "33")
+        self.assertEqual(report["performance"]["open_cost_basis"], "0")
+        self.assertEqual([point["realized_pnl"] for point in report["history"]], ["0", "9", "11"])
+        self.assertEqual(report["holdings"], [])
+
+    def test_watchlist_symbols_for_trade_form_skip_market_history(self):
+        Stock.objects.create(user=self.owner, name="Apple", ticker="AAPL", quantity=0, price_per_share=0, purchase_date=self.now)
+        Stock.objects.create(user=self.other, name="Microsoft", ticker="MSFT", quantity=0, price_per_share=0, purchase_date=self.now)
+        with patch("api.views.stocks._finance_data") as provider:
+            response = self.client.get("/api/stocks/watchlist/", {"include_history": "false"})
+        provider.assert_not_called()
+        self.assertEqual(response.data, {"stocks": [{"symbol": "AAPL", "name": "Apple"}]})
+
 
 class ConcurrentVirtualTradeTests(TransactionTestCase):
     def test_two_concurrent_sales_cannot_oversell(self):

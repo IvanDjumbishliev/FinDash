@@ -9,6 +9,7 @@ from api.models import Portfolio, VirtualTrade
 
 ZERO = Decimal(0)
 BASIS_PRECISION = Decimal("0.0000000000000001")
+PERFORMANCE_POINTS = 100
 
 
 class PortfolioNotFound(Exception):
@@ -81,11 +82,14 @@ class Position:
     cost_basis: Decimal = ZERO
     realized_pnl: Decimal = ZERO
     fees: Decimal = ZERO
+    invested: Decimal = ZERO
     lots: deque = field(default_factory=deque)
 
 
 def fifo_positions(trades):
     positions = {}
+    history = deque(maxlen=PERFORMANCE_POINTS)
+    cumulative_realized = ZERO
     with localcontext() as context:
         context.prec = 60
         for trade in trades:
@@ -94,34 +98,45 @@ def fifo_positions(trades):
             if trade.side == VirtualTrade.Side.BUY:
                 basis = trade.quantity * trade.price + trade.fees
                 position.lots.append(Lot(trade.quantity, basis))
+                position.invested += basis
                 position.cost_basis += basis
                 position.quantity += trade.quantity
-                continue
+            else:
+                realized = close_fifo_lots(position, trade)
+                position.realized_pnl += realized
+                cumulative_realized += realized
 
-            if trade.quantity > position.quantity:
-                raise InvalidTrade("The virtual trade ledger is inconsistent.")
-            unsold = trade.quantity
-            released = ZERO
-            while unsold:
-                lot = position.lots[0]
-                if unsold >= lot.quantity:
-                    unsold -= lot.quantity
-                    released += lot.basis
-                    position.lots.popleft()
-                else:
-                    allocated = (lot.basis * unsold / lot.quantity).quantize(BASIS_PRECISION, rounding=ROUND_HALF_EVEN)
-                    released += allocated
-                    lot.basis -= allocated
-                    lot.quantity -= unsold
-                    unsold = ZERO
-            position.cost_basis -= released
-            position.quantity -= trade.quantity
-            position.realized_pnl += trade.quantity * trade.price - trade.fees - released
-    return positions
+            history.append({
+                "trade_id": trade.pk, "timestamp": trade.timestamp, "ticker": trade.ticker, "side": trade.side,
+                "realized_pnl": decimal_string(cumulative_realized),
+            })
+    return positions, list(history)
+
+
+def close_fifo_lots(position, trade):
+    if trade.quantity > position.quantity:
+        raise InvalidTrade("The virtual trade ledger is inconsistent.")
+    unsold = trade.quantity
+    released = ZERO
+    while unsold:
+        lot = position.lots[0]
+        if unsold >= lot.quantity:
+            unsold -= lot.quantity
+            released += lot.basis
+            position.lots.popleft()
+        else:
+            allocated = (lot.basis * unsold / lot.quantity).quantize(BASIS_PRECISION, rounding=ROUND_HALF_EVEN)
+            released += allocated
+            lot.basis -= allocated
+            lot.quantity -= unsold
+            unsold = ZERO
+    position.cost_basis -= released
+    position.quantity -= trade.quantity
+    return trade.quantity * trade.price - trade.fees - released
 
 
 def portfolio_snapshot(portfolio, quotes_for):
-    positions = fifo_positions(portfolio.trades.order_by("pk").iterator())
+    positions, history = fifo_positions(portfolio.trades.order_by("pk").iterator())
     quotes = quotes_for(sorted(ticker for ticker, item in positions.items() if item.quantity))
     holdings = []
     by_ticker = []
@@ -174,6 +189,7 @@ def portfolio_snapshot(portfolio, quotes_for):
             "open_position_count": len(holdings),
             "valued_position_count": valued,
             "valuation_complete": complete,
+            "total_invested": decimal_string(sum((item.invested for item in positions.values()), ZERO)),
             "open_cost_basis": decimal_string(sum((item.cost_basis for item in positions.values()), ZERO)),
             "fees": decimal_string(sum((item.fees for item in positions.values()), ZERO)),
             "realized_pnl": decimal_string(realized),
@@ -183,4 +199,4 @@ def portfolio_snapshot(portfolio, quotes_for):
             "priced_market_value": decimal_string(priced_value),
             "priced_unrealized_pnl": decimal_string(priced_unrealized),
         }
-    return holdings, performance, by_ticker
+    return holdings, performance, by_ticker, history

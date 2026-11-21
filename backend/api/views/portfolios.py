@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import DatabaseError
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from api.models import Portfolio, VirtualTrade
@@ -75,7 +76,19 @@ class PortfolioListView(PrivateCopilotView):
         return Response(PortfolioSerializer(portfolio).data, status=201)
 
 
+class TradeHistoryPagination(LimitOffsetPagination):
+    default_limit = 15
+    max_limit = 100
+
+
 class PortfolioTradeView(PrivateCopilotView):
+    def get(self, request, pk):
+        portfolio = get_object_or_404(Portfolio.objects.filter(owner=request.user), pk=pk)
+        pagination = TradeHistoryPagination()
+        trades = portfolio.trades.order_by("-pk")
+        page = pagination.paginate_queryset(trades, request, view=self)
+        return pagination.get_paginated_response(VirtualTradeSerializer(page, many=True).data)
+
     def post(self, request, pk):
         serializer = VirtualTradeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -96,22 +109,22 @@ class PortfolioSnapshotView(PrivateCopilotView):
     def get(self, request, pk):
         portfolio = get_object_or_404(Portfolio.objects.filter(owner=request.user), pk=pk)
         try:
-            holdings, performance, tickers = portfolio_snapshot(portfolio, portfolio_quotes)
+            holdings, performance, tickers, history = portfolio_snapshot(portfolio, portfolio_quotes)
         except (DatabaseError, InvalidTrade):
             return Response({"error": "The virtual ledger could not be read."}, status=503)
         return Response({
             "portfolio": PortfolioSerializer(portfolio).data,
             "cost_basis_method": BASIS,
             "notices": NOTICES,
-            **self.details(holdings, performance, tickers),
+            **self.details(holdings, performance, tickers, history),
         })
 
 
 class PortfolioHoldingsView(PortfolioSnapshotView):
-    def details(self, holdings, performance, tickers):
+    def details(self, holdings, performance, tickers, history):
         return {"holdings": holdings, "valuation_complete": performance["valuation_complete"]}
 
 
 class PortfolioPerformanceView(PortfolioSnapshotView):
-    def details(self, holdings, performance, tickers):
-        return {"performance": performance, "by_ticker": tickers}
+    def details(self, holdings, performance, tickers, history):
+        return {"performance": performance, "by_ticker": tickers, "holdings": holdings, "history": history}

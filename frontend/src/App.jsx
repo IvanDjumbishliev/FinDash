@@ -9,6 +9,7 @@ import Transactions from "./pages/Transactions";
 import Footer from "./components/Loyout";
 import Promotions from "./pages/Promotions";
 import Stocks from "./pages/Stocks";
+import PortfolioSimulator from "./pages/PortfolioSimulator";
 import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
@@ -77,6 +78,10 @@ function App() {
                 <Stocks />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/portfolios"
+            element={<ProtectedRoute><PortfolioSimulator /></ProtectedRoute>}
           />
           <Route
             path="/news"

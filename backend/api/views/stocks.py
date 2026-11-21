@@ -112,6 +112,8 @@ class WatchlistView(views.APIView):
 
     def get(self, request):
         stocks = list(Stock.objects.filter(user=request.user).values("ticker", "name"))
+        if request.query_params.get("include_history") == "false":
+            return Response({"stocks": [{"symbol": stock["ticker"], "name": stock["name"]} for stock in stocks]})
         if stocks:
             with ThreadPoolExecutor(max_workers=min(5, len(stocks))) as pool:
                 stocks = list(pool.map(_watchlist_entry, stocks))

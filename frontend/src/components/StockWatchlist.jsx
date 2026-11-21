@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { FiArrowUpRight } from "react-icons/fi";
 import {
   ResponsiveContainer,
   LineChart,
@@ -142,6 +144,9 @@ export default function StockWatchlist() {
         {watchlist.map((stock) => (
           <article key={stock.symbol} className="stock-chart">
             <h2>{stock.name} ({stock.symbol})</h2>
+            <Link className="stock-simulator-link" to={`/portfolios?ticker=${encodeURIComponent(stock.symbol)}`}>
+              Simulate trade <FiArrowUpRight aria-hidden="true" />
+            </Link>
             {stock.history?.length ? (
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={stock.history}>
