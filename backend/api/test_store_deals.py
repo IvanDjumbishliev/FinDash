@@ -91,6 +91,15 @@ class BrochureDealTests(SimpleTestCase):
         )
         extract.assert_called_once_with(search_text, page.content, 581, 836)
 
+        from api.views.deals import scrape_fantastico
+
+        get.reset_mock()
+        get.side_effect = [listing, flipbook, pager, search, page]
+        catalog = scrape_fantastico(catalog=True)
+        self.assertEqual(catalog[0]["_catalog"], {
+            "source_url": current_url, "price_text": "2,99 €",
+        })
+
     def test_fantastico_pairs_searchable_product_words_with_price_and_photo(self):
         from io import BytesIO
 

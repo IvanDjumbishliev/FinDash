@@ -252,6 +252,30 @@ for deployments. Django uses a process-local random key when it is omitted,
 so JWTs and export tokens expire on restart and do not work across workers.
 Existing sessions using the former bundled key must sign in again.
 
+### Grocery catalog normalization
+
+The catalog reuses the existing Bulgarian deals adapters. It stores retailer
+product and offer IDs where supplied, advertised prices and currencies, package
+quantities in kg, liters, or items, unit prices, and observed source dates.
+Equivalent units share a normalized product name, while pack size and count
+remain part of an offer's identity. Missing or ambiguous values stay unset.
+An advertised offer establishes no store-level stock guarantee.
+
+Live catalog refresh is disabled by default. Configure
+`GROCERY_CATALOG_RETAILERS` for the retailers whose published access rules and
+applicable terms permit your deployment's use, then run
+`python manage.py refresh_grocery_catalog lidl kaufland fantastico` with only
+those retailers enabled. Refreshes are limited to one attempt per retailer
+per hour. Empty or failed imports retain the last successful snapshot.
+
+`GroceryOffer.objects.current()` uses only dated, priced offers seen in a
+successful refresh within the past 48 hours. `.comparable()` also requires a
+known package unit price and excludes known membership-only prices. Kaufland's
+price-free image fallback is omitted from catalog imports. The Fantastico
+adapter has no reliable per-offer dates or separate product image URLs.
+Its brochure offers can be retained as source observations and are excluded
+from current comparisons until reliable dates are available.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`

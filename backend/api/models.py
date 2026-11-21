@@ -220,3 +220,85 @@ class CashFlowScenario(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["owner", "name"], name="cash_flow_scenario_owner_name"),
         ]
+
+
+class GroceryRetailer(models.TextChoices):
+    LIDL = "lidl", "Lidl"
+    KAUFLAND = "kaufland", "Kaufland"
+    FANTASTICO = "fantastico", "Fantastico"
+
+
+class GroceryCatalogRefresh(models.Model):
+    retailer = models.CharField(max_length=10, choices=GroceryRetailer.choices, primary_key=True)
+    last_attempt_at = models.DateTimeField()
+    last_success_at = models.DateTimeField(null=True)
+    status = models.CharField(max_length=12)
+    offer_count = models.PositiveIntegerField(default=0)
+
+
+class GroceryOfferQuerySet(models.QuerySet):
+    def current(self, *, now=None):
+        from datetime import timedelta
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        now = now or timezone.now()
+        today = now.astimezone(ZoneInfo("Europe/Sofia")).date()
+        return self.filter(
+            starts_on__lte=today, expires_on__gte=today,
+            last_successful_update__gte=now - timedelta(hours=48),
+            last_successful_update=models.Subquery(
+                GroceryCatalogRefresh.objects.filter(retailer=models.OuterRef("retailer")).values("last_success_at")[:1],
+            ),
+            price__isnull=False, currency__isnull=False,
+        ).filter(
+            models.Q(starts_at__isnull=True) | models.Q(starts_at__lte=now),
+            models.Q(expires_at__isnull=True) | models.Q(expires_at__gte=now),
+        )
+
+    def comparable(self, *, now=None):
+        return self.current(now=now).filter(
+            unit_price__isnull=False, requires_membership=False,
+        )
+
+
+class GroceryOffer(models.Model):
+    class Unit(models.TextChoices):
+        KILOGRAM = "kg", "Kilogram"
+        LITER = "l", "Liter"
+        ITEM = "item", "Item"
+
+    retailer = models.CharField(max_length=10, choices=GroceryRetailer.choices)
+    retailer_product_id = models.CharField(max_length=255, blank=True)
+    retailer_offer_id = models.CharField(max_length=255, blank=True)
+    fingerprint = models.CharField(max_length=64)
+    product_name = models.CharField(max_length=255)
+    normalized_name = models.CharField(max_length=255, db_index=True)
+    brand = models.CharField(max_length=120, blank=True)
+    category = models.CharField(max_length=120, blank=True)
+    price = models.DecimalField(max_digits=12, decimal_places=2, null=True)
+    currency = models.CharField(max_length=3, null=True)
+    quantity = models.DecimalField(max_digits=14, decimal_places=6, null=True)
+    measurement_unit = models.CharField(max_length=4, choices=Unit.choices, blank=True)
+    pack_count = models.PositiveIntegerField(null=True)
+    unit_price = models.DecimalField(max_digits=24, decimal_places=6, null=True)
+    starts_on = models.DateField(null=True)
+    expires_on = models.DateField(null=True)
+    starts_at = models.DateTimeField(null=True)
+    expires_at = models.DateTimeField(null=True)
+    image_url = models.URLField(max_length=2048, blank=True)
+    source_url = models.URLField(max_length=2048)
+    last_successful_update = models.DateTimeField()
+    availability_status = models.CharField(max_length=16, default="unverified")
+    requires_membership = models.BooleanField(default=False)
+
+    objects = GroceryOfferQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["retailer", "fingerprint"], name="grocery_offer_retailer_fingerprint"),
+        ]
+        indexes = [
+            models.Index(fields=["retailer", "expires_on", "last_successful_update"], name="grocery_offer_activity_idx"),
+        ]

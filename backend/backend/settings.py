@@ -187,3 +187,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = (*default_headers, "x-starting-balance")
+
+GROCERY_CATALOG_RETAILERS = frozenset(
+    value.strip() for value in os.getenv("GROCERY_CATALOG_RETAILERS", "").split(",") if value.strip()
+)

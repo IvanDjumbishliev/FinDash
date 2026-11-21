@@ -20,6 +20,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
+LIDL_SOURCE = "https://www.lidl.bg/c/aktsiya/a10106553"
+KAUFLAND_SOURCE = "https://www.kaufland.bg/aktualni-predlozheniya/oferti.html"
+FANTASTICO_SOURCE = "https://fantastico.bg/special-offers"
+
+
+def offer_output(offers, catalog):
+    if catalog:
+        return offers
+    return [{key: value for key, value in row.items() if key != "_catalog"} for row in offers]
+
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -48,7 +59,7 @@ def jpeg_data_url(content):
     return "data:image/jpeg;base64," + base64.b64encode(content).decode("ascii")
 
 
-def lidl_product_offers(html, timestamp):
+def lidl_product_offers(html, timestamp, *, catalog=False):
     offers = {}
     soup = BeautifulSoup(html, "html.parser")
     for tile in soup.select("[data-grid-data]"):
@@ -71,54 +82,61 @@ def lidl_product_offers(html, timestamp):
             plus = (product.get("lidlPlus") or [{}])[0]
             price = plus.get("price") or {}
         amount = price.get("price")
-        if not (name and image and isinstance(amount, (int, float))):
+        if not name or (not catalog and (not image or type(amount) not in (int, float))):
             continue
+        if type(amount) not in (int, float):
+            amount = None
+            requires_membership = False
 
         currency = price.get("displayedCurrency", "€")
         discount = price.get("discount") or {}
         previous_amount = price.get("oldPrice") or discount.get("deletedPrice")
         percentage = None
-        if isinstance(previous_amount, (int, float)) and previous_amount > amount:
+        if amount is not None and isinstance(previous_amount, (int, float)) and previous_amount > amount:
             percentage = round((1 - amount / previous_amount) * 100)
         else:
             match = re.search(r"(\d{1,2})\s*[%﹪]\s*по-евтино", discount.get("discountText") or "")
             if match:
                 percentage = int(match[1])
 
-        formatted_price = f"{amount:.2f}".replace(".", ",")
-        key = (product.get("productId") or name, formatted_price, currency)
+        formatted_price = f"{amount:.2f}".replace(".", ",") if amount is not None else ""
+        key = (product.get("productId") or name, name, formatted_price, currency, start, end, str(product.get("grammage")))
         offers.setdefault(key, {
             "name": name,
-            "price": f"{formatted_price} {currency}",
-            "image_url": urljoin("https://www.lidl.bg", image),
+            "price": f"{formatted_price} {currency}" if formatted_price else "",
+            "image_url": urljoin("https://www.lidl.bg", image) if image else "",
             "store": "Lidl",
             "discount_percent": percentage,
             "price_note": "Lidl Plus" if requires_membership else "",
+            "_catalog": {
+                "product_id": product.get("productId"), "name": name, "brand": product.get("brand"),
+                "quantity_text": product.get("grammage"), "amount": amount,
+                "currency": price.get("displayedCurrency"), "start": start, "end": end,
+                "source_url": LIDL_SOURCE, "membership": requires_membership,
+            },
         })
-    return sorted(
-        offers.values(), key=lambda offer: offer["discount_percent"] or 0, reverse=True
-    )
+    return offer_output(sorted(offers.values(), key=lambda offer: offer["discount_percent"] or 0, reverse=True), catalog)
 
 
-def scrape_lidl():
-    cache_key = "scraped_deals_lidl_products"
+def scrape_lidl(*, catalog=False):
+    cache_key = "scraped_deals_lidl_products_v2"
     cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    if cached is not None and not catalog:
+        return offer_output(cached if catalog else [row for row in cached if row["image_url"] and row["price"]], catalog)
 
     try:
         response = requests.get(
-            "https://www.lidl.bg/c/aktsiya/a10106553", headers=HEADERS, timeout=15
+            LIDL_SOURCE, headers=HEADERS, timeout=15
         )
         response.raise_for_status()
-        deals = lidl_product_offers(response.text, time())
+        deals = lidl_product_offers(response.text, time(), catalog=True)
     except (requests.RequestException, RuntimeError):
-        logger.warning("Could not load Lidl's current offers", exc_info=True)
+        logger.warning("Could not load Lidl's current offers", exc_info=not catalog)
         return []
 
     if deals:
         cache.set(cache_key, deals, timeout=3600)
-    return deals
+    return offer_output(deals if catalog else [row for row in deals if row["image_url"] and row["price"]], catalog)
 
 
 def extract_ssr_json(html):
@@ -155,15 +173,15 @@ def extract_ssr_json(html):
     return None
 
 
-def scrape_kaufland():
-    cache_key = "scraped_deals_kaufland_current"
+def scrape_kaufland(*, catalog=False):
+    cache_key = "scraped_deals_kaufland_current_v2"
     cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    if cached is not None and not catalog:
+        return offer_output(cached, catalog)
 
     try:
         response = requests.get(
-            "https://www.kaufland.bg/aktualni-predlozheniya/oferti.html",
+            KAUFLAND_SOURCE,
             headers=HEADERS,
             timeout=20,
         )
@@ -183,9 +201,10 @@ def scrape_kaufland():
                                 img.get("src") or img.get("data-src")
                             ),
                             "store": "Kaufland",
+                            "_catalog": {"source_url": KAUFLAND_SOURCE},
                         }
                     )
-            deals = cards
+            deals = [] if catalog else cards
         else:
             deals = []
             seen = set()
@@ -199,7 +218,8 @@ def scrape_kaufland():
                         if (start and start > today) or (end and end < today):
                             continue
                         offer_id = offer.get("offerId")
-                        if offer_id in seen:
+                        key = (offer_id, offer.get("unit"), start, end)
+                        if offer_id and key in seen:
                             continue
                         name = re.sub(
                             r"\s+",
@@ -222,7 +242,7 @@ def scrape_kaufland():
                             )
                         if name:
                             if offer_id:
-                                seen.add(offer_id)
+                                seen.add(key)
                             deals.append(
                                 {
                                     "name": name,
@@ -232,13 +252,22 @@ def scrape_kaufland():
                                         or (offer.get("detailImages") or [""])[0]
                                     ),
                                     "store": "Kaufland",
+                                    "_catalog": {
+                                        "product_id": offer.get("productId"), "offer_id": offer_id,
+                                        "brand": offer.get("brand"), "category": category.get("title") or category.get("name"),
+                                        "quantity_text": offer.get("unit"),
+                                        "price_text": offer.get("formattedPrice"),
+                                        "amount": offer.get("price"), "currency": offer.get("currency"),
+                                        "start": start, "end": end, "source_url": KAUFLAND_SOURCE,
+                                    },
                                 }
                             )
     except Exception:
         deals = []
 
-    cache.set(cache_key, deals, timeout=60 * 60)
-    return deals
+    if deals or not catalog:
+        cache.set(cache_key, deals, timeout=60 * 60)
+    return offer_output(deals, catalog)
 
 
 def fantastico_words(content):
@@ -344,15 +373,15 @@ def fantastico_page_offers(search_text, image_content, width, height):
     return offers
 
 
-def scrape_fantastico():
-    cache_key = "scraped_deals_fantastico_products"
+def scrape_fantastico(*, catalog=False):
+    cache_key = "scraped_deals_fantastico_products_v2"
     cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    if cached is not None and not catalog:
+        return offer_output(cached, catalog)
 
     try:
         listing = requests.get(
-            "https://fantastico.bg/special-offers", headers=HEADERS, timeout=10
+            FANTASTICO_SOURCE, headers=HEADERS, timeout=10
         )
         listing.raise_for_status()
         soup = BeautifulSoup(listing.text, "html.parser")
@@ -419,7 +448,7 @@ def scrape_fantastico():
         defaults = pages["defaults"]
         page_numbers = sorted(int(key) for key in pages if key.isdecimal())
     except (requests.RequestException, ValueError, KeyError):
-        logger.warning("Could not load Fantastico's current brochure", exc_info=True)
+        logger.warning("Could not load Fantastico's current brochure", exc_info=not catalog)
         return []
 
     def read_page(number):
@@ -436,20 +465,32 @@ def scrape_fantastico():
                 page.get("width", defaults["width"]),
                 page.get("height", defaults["height"]),
             )
-        except (requests.RequestException, ValueError, OSError):
+        except (requests.RequestException, ValueError, OSError, KeyError, TypeError):
             logger.warning("Could not read Fantastico brochure page %s", number)
-            return []
+            return None
 
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        offers = [offer for page in pool.map(read_page, page_numbers) for offer in page]
+    if catalog:
+        results = []
+        for number in page_numbers:
+            page = read_page(number)
+            if page is None:
+                return []
+            results.append(page)
+    else:
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            results = list(pool.map(read_page, page_numbers))
+    offers = [offer for page in results if page for offer in page]
 
     deals = {}
+    brochure_source = urlsplit(flipbook_url)._replace(query="", fragment="").geturl()
     for offer in sorted(offers, key=lambda item: item["discount_percent"] or 0, reverse=True):
-        deals.setdefault((offer["name"].casefold(), offer["price"]), offer)
+        deals.setdefault((offer["name"].casefold(), offer["price"]), {
+            **offer, "_catalog": {"source_url": brochure_source, "price_text": offer["price"]},
+        })
     result = list(deals.values())
     if result:
         cache.set(cache_key, result, timeout=3600)
-    return result
+    return offer_output(result, catalog)
 
 
 class LidlDealsView(APIView):
