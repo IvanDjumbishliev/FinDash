@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { Pie } from "react-chartjs-2";
 import "../styles/components/Chart.css";
 
@@ -11,3 +12,8 @@ export default function Chart({ chartData, options }) {
     </div>
   );
 }
+
+Chart.propTypes = {
+  chartData: PropTypes.shape({ labels: PropTypes.array, datasets: PropTypes.array.isRequired }).isRequired,
+  options: PropTypes.object,
+};

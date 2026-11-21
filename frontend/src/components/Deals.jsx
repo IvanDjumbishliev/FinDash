@@ -1,3 +1,4 @@
+import { dealItems, dealResults, storeList } from "./dealProps";
 import { useState } from "react";
 import "../styles/components/Deals.css";
 
@@ -79,3 +80,6 @@ const Deals = ({ stores, results }) => {
 };
 
 export default Deals;
+
+Deals.propTypes = { stores: storeList.isRequired, results: dealResults.isRequired };
+StoreItemGrid.propTypes = { items: dealItems.isRequired };

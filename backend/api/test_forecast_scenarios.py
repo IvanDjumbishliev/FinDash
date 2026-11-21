@@ -72,7 +72,9 @@ class CashFlowScenarioTests(TestCase):
             "baseline_balance": "530.00", "scenario_balance": "915.00", "balance_difference": "385.00",
             "net_cash_flow_difference": "285.00",
         })
-        self.assertTrue(all(query["sql"].lstrip().upper().startswith("SELECT") for query in queries))
+        # PostgreSQL wraps iterator queries in a server-side cursor declaration.
+        for query in queries:
+            self.assertRegex(query["sql"], r"(?is)^\s*(?:SELECT\b|DECLARE\b.+\bCURSOR\b.+\bFOR\s+SELECT\b)")
         self.assertEqual(self.snapshot(), before)
         self.assertFalse(CashFlowScenario.objects.exists())
 

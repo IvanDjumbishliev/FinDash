@@ -103,6 +103,16 @@ python manage.py test
 python manage.py migrate
 ```
 
+## Continuous integration
+
+The [CI workflow](.github/workflows/ci.yml) runs on pull requests and pushes to `main`. **Backend checks** installs from `uv.lock`, runs Django checks, checks for missing migration files, applies migrations to disposable PostgreSQL, and runs the backend suite. **Frontend checks** runs `npm ci`, ESLint, the frontend tests, and the production build. To diagnose a failure, open the job under **Actions → CI** and expand the failed step. The Django migration job and the test runner use separate temporary databases in the same PostgreSQL service.
+
+### Required GitHub settings
+
+1. In **Settings → Actions → General**, enable the actions used by the workflow and set the default workflow token to read-only. Where fork settings are available, allow fork checks with read-only access and keep write-token and secret forwarding disabled. Use GitHub-hosted runners for this workflow. [GitHub Actions settings](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository)
+2. After the workflow has reported both checks, create an active branch ruleset for `main` under **Settings → Rules → Rulesets**, or use branch protection. Require a pull request and require **Backend checks** and **Frontend checks** from GitHub Actions. Require the branch to be up to date before merging and keep the bypass list empty for ordinary contributors. [Required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)
+3. Keep the deployment provider’s deploy-on-push integration disabled. Before a manual release, verify that both checks succeeded on the **push to `main` for the exact commit** being deployed. If a deployment target and credentials are provided later, make the deployment job depend on both CI jobs for that commit and run it only on `main` pushes. Keep credentials in a protected production environment restricted to `main`. [GitHub deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
+
 ## Project structure
 
 ```text

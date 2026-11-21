@@ -1,3 +1,4 @@
+import { dealResults, storeList } from "./dealProps";
 import { useState } from "react";
 import { StoreItemGrid } from "./Deals";
 import "../styles/components/DealSearcher.css";
@@ -72,3 +73,5 @@ export default function DealSearcher({ stores, results }) {
     </section>
   );
 }
+
+DealSearcher.propTypes = { stores: storeList.isRequired, results: dealResults.isRequired };

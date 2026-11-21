@@ -9,7 +9,6 @@ import "../styles/components/Form.css";
 function Form({ route, method }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const name = method === "login" ? "Login" : "Register";
@@ -22,8 +21,6 @@ function Form({ route, method }) {
       alert("Please fill in all fields");
       return;
     }
-
-    setLoading(true);
 
     try {
       const res = await api.post(route, { username, password });
@@ -38,8 +35,6 @@ function Form({ route, method }) {
       }
     } catch (error) {
       alert(error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -81,5 +76,10 @@ function Form({ route, method }) {
     </div>
   );
 }
+
+Form.propTypes = {
+  route: PropTypes.string.isRequired,
+  method: PropTypes.oneOf(["login", "register"]).isRequired,
+};
 
 export default Form;

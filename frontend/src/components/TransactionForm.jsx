@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { useState } from "react";
 import api from "../api";
 import "../styles/components/TransactionForm.css";
@@ -103,3 +104,7 @@ function TransactionForm({ onTransactionAdded }) {
 }
 
 export default TransactionForm;
+
+TransactionForm.propTypes = {
+  onTransactionAdded: PropTypes.func.isRequired,
+};

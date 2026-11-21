@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 import Chart from "./Chart";
 import { useTheme } from "../theme";
@@ -133,3 +134,10 @@ const PieChart = ({ transactions }) => {
 };
 
 export default PieChart;
+
+PieChart.propTypes = {
+  transactions: PropTypes.arrayOf(PropTypes.shape({
+    category: PropTypes.string.isRequired,
+    amount: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  })),
+};

@@ -1,3 +1,4 @@
+import PropTypes from "prop-types";
 import "../styles/components/Message.css";
 import ReactMarkdown from "react-markdown";
 
@@ -15,3 +16,8 @@ export default function Message({ text, sender }) {
     </div>
   );
 }
+
+Message.propTypes = {
+  text: PropTypes.string.isRequired,
+  sender: PropTypes.string.isRequired,
+};
