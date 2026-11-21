@@ -13,6 +13,7 @@ import PortfolioSimulator from "./pages/PortfolioSimulator";
 import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
+import FinancialGoals from "./pages/FinancialGoals";
 import Reports from "./pages/Reports";
 import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
@@ -117,6 +118,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
           <Route

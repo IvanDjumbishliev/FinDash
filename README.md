@@ -121,6 +121,8 @@ Major endpoints are served below `/api/`:
 
 ### Financial goals
 
+Open **Goals** in the FinDash navigation to create savings goals, record contributions or withdrawals, and view each goal’s history. The dashboard shows net recorded contributions and targets by currency for unarchived goals.
+
 Goals are private to the authenticated account. Each goal has one currency, set at creation. Amounts use two decimal places. Contributions and withdrawals affect only the goal’s ledger.
 
 | Endpoint | Behavior |
