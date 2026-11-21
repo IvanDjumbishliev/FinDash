@@ -522,7 +522,38 @@ An optional `stock_alerts` array replaces the saved rules. Each rule uses a watc
 
 Budget, spending, import, and report events run after successful writes. Spending alerts require sufficient recent history in the same category and currency. Reports generated again for the same period and currency on the same local date share an event.
 
-Run `python manage.py process_notifications` from the backend directory to check subscription renewals and stock prices and purge expired inbox entries. Schedule this command through the deployment scheduler. Use `--owner-id ID` for a single account. Set `NOTIFICATION_RETENTION_DAYS` to control how long inbox entries remain visible and stored. The default is 90 days. Deduplication records retain an event hash without message content so an expired alert cannot reappear. This feature delivers generic messages through the in-app inbox.
+Set `NOTIFICATION_RETENTION_DAYS` to control how long inbox entries remain visible and stored. The default is 90 days. Deduplication records retain an event hash without message content so an expired alert cannot reappear. Delivery is through the in-app inbox.
+
+#### Local workers and scheduled checks
+
+Start Redis locally. For example, run this in a separate terminal with Docker installed.
+
+```sh
+docker run --rm -p 127.0.0.1:6379:6379 redis:7-alpine
+```
+
+Install the backend dependencies with `uv sync --locked` and apply migrations with `uv run python manage.py migrate` from `backend/`. Run the worker and Beat in separate terminals from that directory, using the same database and environment variables as the Django server.
+
+```sh
+uv run celery -A backend worker --loglevel=INFO --concurrency=1
+uv run celery -A backend beat --loglevel=INFO
+```
+
+Use the default prefork worker pool on Linux or macOS to enforce time limits. Use one Beat instance per deployment. To exercise the schedule locally, set `NOTIFICATION_BUDGET_INTERVAL_SECONDS=60` in the Beat terminal before startup, add a current-month budget, and watch the worker logs for `notifications.schedule_budgets` and `notifications.check_budgets`. You can also enqueue a scan immediately with `uv run celery -A backend call notifications.schedule_budgets`.
+
+| Environment variable | Default |
+| --- | --- |
+| `CELERY_BROKER_URL` | `redis://127.0.0.1:6379/0` |
+| `NOTIFICATION_RENEWAL_INTERVAL_SECONDS` | `3600` |
+| `NOTIFICATION_BUDGET_INTERVAL_SECONDS` | `900` |
+| `NOTIFICATION_RETENTION_INTERVAL_SECONDS` | `86400` |
+| `NOTIFICATION_MARKET_CHECKS_ENABLED` | `false` |
+| `NOTIFICATION_MARKET_INTERVAL_SECONDS` | `900` |
+
+Intervals have a 60-second minimum. To enable market checks, set the market flag to `true` for both Beat and the worker. Temporary broker, database, and quote outages are retried after 60, 120, and 240 seconds. Tasks have a 90-second soft timeout and a 120-second hard timeout. Worker task logs record the outcome and retry timing. Budget checks scan active budgets for the current month, and the existing write hooks still handle changes immediately. Repeated checks share the same notification deduplication records.
+
+For a synchronous maintenance run, `uv run python manage.py process_notifications` checks renewals and stock rules and purges expired entries. Use `--owner-id ID` to limit that command to one account.
+
 
 ## License
 

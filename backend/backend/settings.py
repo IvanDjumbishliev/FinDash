@@ -193,3 +193,40 @@ GROCERY_CATALOG_RETAILERS = frozenset(
 )
 
 NOTIFICATION_RETENTION_DAYS = max(1, int(os.getenv("NOTIFICATION_RETENTION_DAYS", "90")))
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 10
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_connect_timeout": 5,
+    "socket_timeout": 5,
+    "visibility_timeout": 1800,
+}
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TASK_SOFT_TIME_LIMIT = 90
+CELERY_TASK_TIME_LIMIT = 120
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+NOTIFICATION_MARKET_CHECKS_ENABLED = os.getenv("NOTIFICATION_MARKET_CHECKS_ENABLED", "false").lower() == "true"
+
+CELERY_BEAT_SCHEDULE = {
+    "notification-renewals": {
+        "task": "notifications.schedule_renewals",
+        "schedule": max(60, int(os.getenv("NOTIFICATION_RENEWAL_INTERVAL_SECONDS", "3600"))),
+    },
+    "notification-budgets": {
+        "task": "notifications.schedule_budgets",
+        "schedule": max(60, int(os.getenv("NOTIFICATION_BUDGET_INTERVAL_SECONDS", "900"))),
+    },
+    "notification-retention": {
+        "task": "notifications.purge",
+        "schedule": max(60, int(os.getenv("NOTIFICATION_RETENTION_INTERVAL_SECONDS", "86400"))),
+    },
+}
+if NOTIFICATION_MARKET_CHECKS_ENABLED:
+    CELERY_BEAT_SCHEDULE["notification-market"] = {
+        "task": "notifications.schedule_market",
+        "schedule": max(60, int(os.getenv("NOTIFICATION_MARKET_INTERVAL_SECONDS", "900"))),
+    }

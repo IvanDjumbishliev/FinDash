@@ -102,15 +102,21 @@ def generate_renewal_alerts(owner, *, now=None):
                for entry in RenewalSchedule(today, preferences).entries(records) if entry["reminder_due"])
 
 
-def generate_stock_alerts(owner, *, now=None):
+class MarketQuotesUnavailable(Exception):
+    pass
+
+
+def generate_stock_alerts(owner, *, now=None, retry_unavailable=False):
     if not categories_for(owner.pk)[Category.STOCK_THRESHOLD]:
         return 0
     now = now or timezone.now()
     watchlist = Stock.objects.filter(user=owner).values_list("ticker", flat=True)
     rules = NotificationStockAlert.objects.filter(owner=owner, ticker__in=watchlist)
     count = 0
+    unavailable = False
     for rule in rules:
         quote = market_quote(rule.ticker)
+        unavailable |= quote.get("status") == "unavailable"
         observed = quote.get("timestamp")
         price = quote.get("price")
         if (quote.get("status") != "quoted" or quote.get("currency") != rule.currency
@@ -128,4 +134,6 @@ def generate_stock_alerts(owner, *, now=None):
             )
             if claimed and met and not latest.was_met:
                 count += bool(notify(owner.pk, Category.STOCK_THRESHOLD, f"{latest.pk}:{observed.isoformat()}"))
+    if unavailable and retry_unavailable:
+        raise MarketQuotesUnavailable()
     return count
