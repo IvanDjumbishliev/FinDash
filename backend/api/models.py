@@ -334,3 +334,46 @@ class GroceryShoppingList(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["owner", "name"], name="grocery_shopping_list_owner_name"),
         ]
+
+
+class Portfolio(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="virtual_portfolios")
+    name = models.CharField(max_length=100)
+    currency = models.CharField(max_length=3, default="USD")
+    created_at = models.DateTimeField(auto_now_add=True)
+    ledger_version = models.PositiveBigIntegerField(default=0)
+    is_virtual = True
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+
+class VirtualTrade(models.Model):
+    class Side(models.TextChoices):
+        BUY = "buy", "Buy"
+        SELL = "sell", "Sell"
+
+    portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE, related_name="trades")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ticker = models.CharField(max_length=10)
+    side = models.CharField(max_length=4, choices=Side.choices)
+    quantity = models.DecimalField(max_digits=18, decimal_places=8)
+    price = models.DecimalField(max_digits=18, decimal_places=8)
+    fees = models.DecimalField(max_digits=18, decimal_places=8, default=0)
+    currency = models.CharField(max_length=3)
+    client_order_id = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["pk"]
+        indexes = [models.Index(fields=["portfolio", "ticker", "id"], name="virtual_trade_ticker_idx")]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="virtual_trade_positive_qty"),
+            models.CheckConstraint(condition=models.Q(price__gt=0), name="virtual_trade_positive_price"),
+            models.CheckConstraint(condition=models.Q(fees__gte=0), name="virtual_trade_nonnegative_fees"),
+            models.CheckConstraint(condition=models.Q(side__in=["buy", "sell"]), name="virtual_trade_valid_side"),
+            models.UniqueConstraint(
+                fields=["portfolio", "client_order_id"],
+                condition=models.Q(client_order_id__isnull=False),
+                name="virtual_trade_unique_order",
+            ),
+        ]

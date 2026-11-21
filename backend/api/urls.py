@@ -8,6 +8,9 @@ from .views.deals import (
 )
 
 from .views.spending_heatmap import ProfileTimezoneView, SpendingHeatmapDayView, SpendingHeatmapView
+from .views.portfolios import (
+    PortfolioHoldingsView, PortfolioListView, PortfolioPerformanceView, PortfolioTradeView,
+)
 from .views.reports import FinancialReportPDFView, FinancialReportView
 from .views.assistant import AssistantView, CopilotHistoryView, CopilotSettingsView
 from .views.budget_recommendations import BudgetRecommendationApplyView, BudgetRecommendationView
@@ -102,5 +105,9 @@ urlpatterns = [
     path("subscriptions/preferences/", SubscriptionPreferencesView.as_view(), name="subscription-preferences"),
     path("subscriptions/<int:pk>/", SubscriptionDetailView.as_view(), name="subscription-detail"),
     path("stocks/watchlist/", WatchlistView.as_view(), name="watchlist"),
+    path("portfolios/", PortfolioListView.as_view(), name="portfolio-list"),
+    path("portfolios/<int:pk>/holdings/", PortfolioHoldingsView.as_view(), name="portfolio-holdings"),
+    path("portfolios/<int:pk>/trades/", PortfolioTradeView.as_view(), name="portfolio-trades"),
+    path("portfolios/<int:pk>/performance/", PortfolioPerformanceView.as_view(), name="portfolio-performance"),
     path("stocks/search/", StockSearchView.as_view(), name="search_stocks"),
 ]

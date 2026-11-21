@@ -119,6 +119,42 @@ Major endpoints are served below `/api/`:
 - `POST /api/chat/`
 - `GET|POST /api/stocks/watchlist/`
 
+### Virtual portfolios
+
+All portfolio endpoints require authentication. Each portfolio is virtual
+and belongs to its creator. Use the existing `GET /api/stocks/search/` to
+look up tickers, then enter a simulated execution price for each trade.
+
+- `GET|POST /api/portfolios/` lists or creates portfolios. Creation accepts
+  `name` and an optional three-letter `currency` (default USD).
+- `POST /api/portfolios/{id}/trades/` records a simulated `buy` or `sell`
+  with `ticker`, `quantity`, `price`, optional `fees` (default zero), and
+  optional `currency` (defaults to and must match the portfolio currency).
+  The server records the timestamp. Fractional shares are supported.
+  A sale cannot exceed the virtual units held. An optional UUID
+  `client_order_id` makes identical retries return the existing trade and
+  rejects changes to the original order terms.
+- `GET /api/portfolios/{id}/holdings/` returns open holdings, cost basis,
+  market quote timestamps, and unrealized P/L when valuation is available.
+- `GET /api/portfolios/{id}/performance/` returns current position totals,
+  realized and unrealized P/L, fees, and per-ticker ledger figures including
+  closed positions.
+
+FIFO consumes buy lots in recorded ledger order. Buy fees increase each
+lot's basis. A partial sale allocates basis proportionally to the shares
+sold, rounded to 16 decimal places with half-even rounding. The residual
+basis stays with the lot and is released on closure. Sell fees reduce
+proceeds. The API returns financial amounts as decimal strings.
+
+Market quotes are separate from user-entered execution prices. If a quote
+is missing, older than seven days, or denominated in a different currency
+or subunit, the holding's market value and unrealized P/L are unavailable.
+Incomplete portfolio valuations identify the priced subtotal. Only up to
+25 open tickers are quoted per snapshot. The simulator tracks positions and
+P/L without brokerage connectivity, virtual cash accounting, short sales,
+or FX conversion. Splits and dividends require a verified corporate-action
+feed before they can be applied.
+
 ### Financial Copilot
 
 The **Financial Copilot** page uses the existing account and transaction ledger.
