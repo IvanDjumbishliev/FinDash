@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.response import Response
 
+from api.throttles import SensitiveEndpointThrottle
 from api.models import Budget, BudgetSuggestionReview, Transaction
 from api.services.budget_explanations import explain_recommendations
 from api.services.budget_recommendations import generate_recommendations
@@ -55,6 +56,9 @@ class ApprovalRequest(serializers.Serializer):
 
 
 class BudgetRecommendationView(BudgetView):
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "budget_suggestions"
+
     serializer_class = RecommendationRequest
 
     def post(self, request):

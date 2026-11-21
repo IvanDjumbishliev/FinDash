@@ -4,12 +4,12 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, main, serve, wait_for
+from statement_wizard import Browser, browser_test_password, main, serve, wait_for
 
 
 def run(api, site, driver, firefox, _temporary):
     response = requests.post(f"{api}/api/user/register/", json={
-        "username": f"goals-browser-{uuid4().hex}", "password": uuid4().hex,
+        "username": f"goals-browser-{uuid4().hex}", "password": browser_test_password(),
     }, timeout=5)
     response.raise_for_status()
     token = response.json()["access"]

@@ -4,7 +4,6 @@ from rest_framework import serializers, status
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from api.services.copilot import CopilotUnavailable, answer_question
@@ -13,12 +12,9 @@ from api.services.copilot_history import (
 )
 from api.services.copilot_tools import InvalidToolCall
 
+from api.throttles import CopilotThrottle
+
 from .client import client
-
-
-class CopilotThrottle(UserRateThrottle):
-    scope = "copilot"
-    rate = "12/min"
 
 
 class PromptField(serializers.CharField):

@@ -3,12 +3,12 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, main, wait_for
+from statement_wizard import Browser, browser_test_password, main, wait_for
 
 
 def run(api, site, driver, firefox, _temporary):
     account = requests.post(f"{api}/api/user/register/", json={
-        "username": f"heatmap-test-{uuid4().hex[:8]}", "password": uuid4().hex,
+        "username": f"heatmap-test-{uuid4().hex[:8]}", "password": browser_test_password(),
     }, timeout=5)
     account.raise_for_status()
     token = account.json()["access"]

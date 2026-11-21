@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from datetime import timedelta
 
 from django.conf import settings
@@ -8,6 +9,8 @@ from django.utils import timezone
 from api.models import (
     Notification, NotificationCategory, NotificationEvent, NotificationPreference, default_notification_categories,
 )
+
+logger = logging.getLogger(__name__)
 
 MESSAGES = {
     NotificationCategory.BUDGET_THRESHOLD: ("Budget threshold reached", "Review your budget progress in FinDash."),
@@ -39,7 +42,13 @@ def notify(owner_id, category, event_key):
 
 
 def after_commit(callback, *args):
-    transaction.on_commit(lambda: callback(*args), robust=True)
+    def run():
+        try:
+            callback(*args)
+        except Exception:
+            logger.warning("Post-commit notification processing failed")
+
+    transaction.on_commit(run)
 
 
 def retention_cutoff(now=None):

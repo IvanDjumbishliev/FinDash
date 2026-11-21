@@ -9,7 +9,7 @@ export default function Message({ text, sender }) {
         <div className="message-avatar">{sender === "user" ? "👤" : "🤖"}</div>
         <div className="message-bubble">
           <div className="message-text">
-            <ReactMarkdown>{text}</ReactMarkdown>
+            <ReactMarkdown skipHtml disallowedElements={["a", "img"]} unwrapDisallowed>{text}</ReactMarkdown>
           </div>
         </div>
       </div>

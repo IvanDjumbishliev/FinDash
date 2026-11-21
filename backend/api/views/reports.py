@@ -8,6 +8,7 @@ from django.http import HttpResponse
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from api.throttles import SensitiveEndpointThrottle
 from api.services.budgets import parse_month
 from api.services.copilot_tools import DataLimitExceeded, currency_code
 from api.services.notification_events import report_generated
@@ -54,6 +55,9 @@ def report_digest(report):
 
 
 class FinancialReportView(PrivateCopilotView):
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "report_generation"
+
     def post(self, request):
         serializer = ReportInput(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -77,6 +81,9 @@ class FinancialReportView(PrivateCopilotView):
 
 
 class FinancialReportPDFView(PrivateCopilotView):
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "report_export"
+
     def post(self, request):
         serializer = ReportExportInput(data=request.data)
         serializer.is_valid(raise_exception=True)

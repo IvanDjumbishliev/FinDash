@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import InterfaceError, OperationalError
 from django.utils import timezone
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from kombu.exceptions import OperationalError as BrokerUnavailable
 
 from api.services.notification_events import (
@@ -45,6 +46,9 @@ class NotificationTask(Task):
                 argsrepr="(<redacted>)",
                 kwargsrepr="{}",
             ) from None
+        except Exception:
+            self.log_outcome(logging.ERROR, "failed")
+            raise NotificationTaskFailure("Notification task failed.") from None
         self.log_outcome(logging.INFO, "completed", count=count)
         return count
 
@@ -121,3 +125,9 @@ def check_owner_market(owner_id):
 @shared_task(base=NotificationTask, name="notifications.purge")
 def purge():
     return purge_notifications()
+
+
+@shared_task(base=NotificationTask, name="notifications.purge_expired_tokens")
+def purge_expired_tokens():
+    _, counts = OutstandingToken.objects.filter(expires_at__lte=timezone.now()).delete()
+    return counts.get(OutstandingToken._meta.label, 0)

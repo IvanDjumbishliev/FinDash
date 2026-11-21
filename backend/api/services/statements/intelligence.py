@@ -88,8 +88,13 @@ def apply_ai_categories(rows, consent):
                   '{"index": integer, "category": string}. Use general when unsure.',
                 json.dumps(names),
             ],
-            config={"response_mime_type": "application/json", "http_options": {"timeout": 12000}},
+            config={
+                "response_mime_type": "application/json", "max_output_tokens": 2500,
+                "http_options": {"timeout": 12000},
+            },
         )
+        if not isinstance(ai.text, str) or len(ai.text) > 16_384:
+            return "unavailable"
         result = json.loads(ai.text)
         if not isinstance(result, list) or len(result) != len(merchants):
             return "unavailable"

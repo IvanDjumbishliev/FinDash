@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import httpx
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
+from django.core.cache import caches
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.test import TestCase, override_settings
@@ -39,8 +39,8 @@ class CopilotTests(TestCase):
         self.other = users.objects.create_user(username="copilot-other")
         self.client = APIClient()
         self.client.force_authenticate(self.owner)
-        cache.clear()
-        self.addCleanup(cache.clear)
+        caches["throttles"].clear()
+        self.addCleanup(caches["throttles"].clear)
         fake = SimpleNamespace(models=SimpleNamespace(generate_content=Mock()))
         self.generate = fake.models.generate_content
         provider = patch("api.views.assistant.client", fake)
@@ -212,7 +212,7 @@ class CopilotTests(TestCase):
         self.owner.refresh_from_db()
         for part in invalid_calls:
             with self.subTest(name=part.function_call.name, args=part.function_call.args):
-                cache.clear()
+                caches["throttles"].clear()
                 self.generate.reset_mock()
                 self.generate.return_value = turn(call("get_budget_status"), part)
                 with CaptureQueriesContext(connection) as captured:

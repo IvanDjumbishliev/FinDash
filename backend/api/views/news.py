@@ -114,7 +114,7 @@ def load_feed(feed):
         response.raise_for_status()
         stories = read_feed(response.content, category, source)
     except (requests.RequestException, ElementTree.ParseError, ValueError):
-        logger.warning("Could not refresh financial news feed %s", identifier, exc_info=True)
+        logger.warning("Could not refresh financial news feed %s", identifier)
         return cache.get(f"{key}:last-success", []), True
 
     cache.set(key, stories, timeout=600)

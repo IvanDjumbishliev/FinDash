@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from api.models import Stock
+from api.throttles import SensitiveEndpointThrottle
 
 logger = logging.getLogger(__name__)
 FINANCE_URL = "https://query1.finance.yahoo.com"
@@ -101,7 +102,7 @@ def _watchlist_entry(stock):
     try:
         entry["history"] = _stock_history(symbol)
     except (requests.RequestException, ValueError, KeyError, IndexError, TypeError, ZoneInfoNotFoundError):
-        logger.warning("Could not load stock history for %s", symbol, exc_info=True)
+        logger.warning("Stock history provider unavailable")
     if not entry["history"]:
         entry["error"] = "No price history available for this ticker right now."
     return entry
@@ -109,6 +110,8 @@ def _watchlist_entry(stock):
 
 class WatchlistView(views.APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "stock_provider"
 
     def get(self, request):
         stocks = list(Stock.objects.filter(user=request.user).values("ticker", "name"))
@@ -130,7 +133,7 @@ class WatchlistView(views.APIView):
         try:
             stock_info = _stock_info(symbol)
         except (requests.RequestException, ValueError, KeyError, TypeError):
-            logger.warning("Could not validate stock symbol %s", symbol, exc_info=True)
+            logger.warning("Stock quote validation unavailable")
             return Response(
                 {"error": f"Unable to verify ticker {symbol} right now."},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -152,6 +155,8 @@ class WatchlistView(views.APIView):
 
 class StockSearchView(views.APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "stock_provider"
 
     def get(self, request):
         query = (request.GET.get("query") or "").strip()
@@ -163,7 +168,7 @@ class StockSearchView(views.APIView):
         try:
             results = _search_stocks(query)
         except (requests.RequestException, ValueError, KeyError, TypeError):
-            logger.warning("Stock search request failed", exc_info=True)
+            logger.warning("Stock search provider unavailable")
             return Response(
                 {"error": "Stock search is temporarily unavailable. Please try again."},
                 status=status.HTTP_502_BAD_GATEWAY,

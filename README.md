@@ -113,6 +113,10 @@ The [CI workflow](.github/workflows/ci.yml) runs on pull requests and pushes to 
 2. After the workflow has reported both checks, create an active branch ruleset for `main` under **Settings → Rules → Rulesets**, or use branch protection. Require a pull request and require **Backend checks** and **Frontend checks** from GitHub Actions. Require the branch to be up to date before merging and keep the bypass list empty for ordinary contributors. [Required status checks](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)
 3. Keep the deployment provider’s deploy-on-push integration disabled. Before a manual release, verify that both checks succeeded on the **push to `main` for the exact commit** being deployed. If a deployment target and credentials are provided later, make the deployment job depend on both CI jobs for that commit and run it only on `main` pushes. Keep credentials in a protected production environment restricted to `main`. [GitHub deployment environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)
 
+## Security
+
+See [Security and deployment assumptions](SECURITY.md) for authorization, token handling, rate limiting, and remaining risks.
+
 ## Project structure
 
 ```text

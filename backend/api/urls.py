@@ -24,9 +24,7 @@ from .views.goal_scenarios import GoalScenarioDetailView, GoalScenarioListView, 
 from .views.goals import GoalContributionView, GoalDetailView, GoalListView, GoalProjectionView
 from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
-from .views.leaflet_kaufland import LeafletKauflandView
-from .views.leaflet_lidl import LidlLeafletView
-from .views.leaflet_user import LeafletUserView
+from .views.legacy_deals import LegacyLeafletSearchView, LegacyLeafletView
 from .views.news import NewsView
 from .views.notifications import (
     NotificationDetailView, NotificationListView, NotificationMarkAllReadView, NotificationPreferencesView,
@@ -81,10 +79,10 @@ urlpatterns = [
     path(
         "transaction-stats/", TransactionStatsView.as_view(), name="transaction-stats"
     ),
-    path("leaflet/lidl/", LidlLeafletView.as_view()),
-    path("leaflet/kaufland/", LeafletKauflandView.as_view()),
+    path("leaflet/lidl/", LegacyLeafletView.as_view(retailer="lidl")),
+    path("leaflet/kaufland/", LegacyLeafletView.as_view(retailer="kaufland")),
     path("leaflet/billa/", BillaLeafletView.as_view()),
-    path("leaflet/user/", LeafletUserView.as_view()),
+    path("leaflet/user/", LegacyLeafletSearchView.as_view()),
     path("user/profile/", GetProfileView.as_view()),
     path("user/profile/timezone/", ProfileTimezoneView.as_view(), name="profile-timezone"),
     path("analytics/spending-heatmap/", SpendingHeatmapView.as_view(), name="spending-heatmap"),

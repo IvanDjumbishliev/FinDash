@@ -4,12 +4,12 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, main, wait_for
+from statement_wizard import Browser, browser_test_password, main, wait_for
 
 
 def account(api):
     result = requests.post(f"{api}/api/user/register/", json={
-        "username": f"cash-flow-test-{uuid4().hex[:8]}", "password": uuid4().hex,
+        "username": f"cash-flow-test-{uuid4().hex[:8]}", "password": browser_test_password(),
     }, timeout=5)
     result.raise_for_status()
     return result.json()["access"]

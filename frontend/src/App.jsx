@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
@@ -20,17 +20,20 @@ import Notifications from "./pages/Notifications";
 import NotificationSettings from "./pages/NotificationSettings";
 import GroceryOptimizer from "./pages/GroceryOptimizer";
 import CashFlowForecast from "./pages/CashFlowForecast";
-import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
+import { useEffect } from "react";
+import { clearSession } from "./api";
 
 function Logout() {
-  localStorage.removeItem(ACCESS_TOKEN);
-  localStorage.removeItem(REFRESH_TOKEN);
-  return <Navigate to="/login" />;
+  const navigate = useNavigate();
+  useEffect(() => {
+    clearSession();
+    navigate("/login", { replace: true });
+  }, [navigate]);
+  return null;
 }
 
 function RegisterAndLogout() {
-  localStorage.removeItem(ACCESS_TOKEN);
-  localStorage.removeItem(REFRESH_TOKEN);
+  useEffect(() => { clearSession(); }, []);
   return <Register />;
 }
 

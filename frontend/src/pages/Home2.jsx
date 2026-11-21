@@ -26,8 +26,8 @@ function Home() {
             } else {
                 alert("Failed to fetch transactions.");
             }
-        } catch (error) {
-            console.error("Error fetching transactions:", error);
+        } catch {
+            console.warn("Error fetching transactions:");
         }
     };
 
@@ -63,10 +63,10 @@ function Home() {
                 fetchTransactions(); // Refresh the list of transactions
             } else {
                 alert("Failed to save transaction.");
-                console.error("Server error:", response.data);
+                console.warn("Server error:");
             }
-        } catch (error) {
-            console.error("Error submitting the form:", error);
+        } catch {
+            console.warn("Error submitting the form:");
             alert("An error occurred. Please try again.");
         }
     };
@@ -84,13 +84,11 @@ function Home() {
                 alert("Transaction deleted successfully!");
                 fetchTransactions(); // Refresh the list of transactions
             } else {
-                const errorData = response.error;
                 alert("Failed to delete transaction.");
-                console.error("Server error:", errorData);
+                console.warn("Server error:");
             }
         }
-        catch (error) {
-            //console.error("Error deleting the transaction:", error);
+        catch {
             alert("An error occurred. Please try again.");
         } 
     };      
@@ -131,8 +129,8 @@ function Home() {
             } else {
                 throw new Error('Failed to update total budget');
             }
-        } catch (error) {
-            console.error("Error:", error);
+        } catch {
+            console.warn("Error:");
             alert("An error occurred. Please try again.");
         }
     };
@@ -150,8 +148,8 @@ function Home() {
                     localStorage.setItem('incomeCurrency', latestIncome.currency);
                 }
             }
-        } catch (error) {
-            console.error("Error fetching income:", error);
+        } catch {
+            console.warn("Error fetching income:");
         }
     };
     
@@ -169,8 +167,8 @@ function Home() {
                 const data = response.data;
                 setTotalBudget(data.total_budget);
             }
-        } catch (error) {
-            console.error("Error fetching total budget:", error);
+        } catch {
+            console.warn("Error fetching total budget:");
         }
     };
 

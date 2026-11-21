@@ -1,4 +1,6 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -8,10 +10,18 @@ from .services.budgets import budget_progress, parse_month
 
 
 class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)
+
+    def validate(self, attrs):
+        try:
+            validate_password(attrs["password"], user=User(username=attrs["username"]))
+        except ValidationError as error:
+            raise serializers.ValidationError({"password": error.messages}) from None
+        return attrs
+
     class Meta:
         model = User
         fields = ["id", "username", "password"]
-        extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
@@ -19,6 +29,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
+    currency = serializers.RegexField(r"\A[A-Za-z]{3}\Z", default="USD")
+    particulars = serializers.CharField(max_length=1024)
+
+    def validate_currency(self, value):
+        return value.upper()
+
     class Meta:
         model = Transaction
         fields = ["id", "amount", "category", "timestamp", "particulars", "currency", "merchant"]

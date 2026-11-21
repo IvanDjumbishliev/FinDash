@@ -131,7 +131,7 @@ def scrape_lidl(*, catalog=False):
         response.raise_for_status()
         deals = lidl_product_offers(response.text, time(), catalog=True)
     except (requests.RequestException, RuntimeError):
-        logger.warning("Could not load Lidl's current offers", exc_info=not catalog)
+        logger.warning("Could not load Lidl's current offers")
         return []
 
     if deals:
@@ -373,6 +373,24 @@ def fantastico_page_offers(search_text, image_content, width, height):
     return offers
 
 
+def allowed_brochure_origin(url, *domains):
+    if any(character.isspace() or character == "\\" for character in url):
+        return False
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    return (
+        parts.scheme == "https" and parts.username is None and parts.password is None
+        and parts.port in (None, 443)
+        and any(host == domain or host.endswith("." + domain) for domain in domains)
+    )
+
+
+def reject_brochure_redirect(response):
+    if 300 <= response.status_code < 400:
+        raise ValueError("Unexpected retailer redirect.")
+    response.raise_for_status()
+
+
 def scrape_fantastico(*, catalog=False):
     cache_key = "scraped_deals_fantastico_products_v2"
     cached = cache.get(cache_key)
@@ -381,9 +399,9 @@ def scrape_fantastico(*, catalog=False):
 
     try:
         listing = requests.get(
-            FANTASTICO_SOURCE, headers=HEADERS, timeout=10
+            FANTASTICO_SOURCE, headers=HEADERS, timeout=10, allow_redirects=False
         )
-        listing.raise_for_status()
+        reject_brochure_redirect(listing)
         soup = BeautifulSoup(listing.text, "html.parser")
         selector = ".brochure-switch[data-url]"
         current = soup.select_one(f"{selector}.active") or soup.select_one(selector)
@@ -398,12 +416,12 @@ def scrape_fantastico(*, catalog=False):
             if not publication.isascii() or not publication.isdecimal():
                 return []
             flipbook_url = f"https://online.flippingbook.com/view/{publication}/"
-        if urlsplit(flipbook_url).hostname != "online.flippingbook.com":
+        if not allowed_brochure_origin(flipbook_url, "online.flippingbook.com"):
             return []
         flipbook = requests.get(
-            flipbook_url, headers={**HEADERS, "Referer": listing.url}, timeout=10
+            flipbook_url, headers={**HEADERS, "Referer": listing.url}, timeout=10, allow_redirects=False
         )
-        flipbook.raise_for_status()
+        reject_brochure_redirect(flipbook)
 
         policy_match = re.search(
             r"var initialPolicies\s*=\s*(\[.*?\]);", flipbook.text, re.S
@@ -412,6 +430,8 @@ def scrape_fantastico(*, catalog=False):
         if not policy_match or not content_match:
             return []
         content_root = urljoin(flipbook_url, content_match[1]).rstrip("/") + "/"
+        if not allowed_brochure_origin(content_root, "flippingbook.com", "cloudfront.net"):
+            return []
         content_parts = urlsplit(content_root)
         policy = next(
             (
@@ -440,15 +460,16 @@ def scrape_fantastico(*, catalog=False):
                 params=params,
                 headers={**HEADERS, "Referer": flipbook_url},
                 timeout=8,
+                allow_redirects=False,
             )
-            response.raise_for_status()
+            reject_brochure_redirect(response)
             return response
 
         pages = fetch_asset("common/pager.json").json()["pages"]
         defaults = pages["defaults"]
-        page_numbers = sorted(int(key) for key in pages if key.isdecimal())
+        page_numbers = sorted(int(key) for key in pages if key.isdecimal())[:100]
     except (requests.RequestException, ValueError, KeyError):
-        logger.warning("Could not load Fantastico's current brochure", exc_info=not catalog)
+        logger.warning("Could not load Fantastico's current brochure")
         return []
 
     def read_page(number):

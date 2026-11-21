@@ -33,8 +33,8 @@ function Form({ route, method }) {
         localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
         navigate("/");
       }
-    } catch (error) {
-      alert(error);
+    } catch {
+      alert("Authentication failed. Check your details and try again.");
     }
   };
 

@@ -29,10 +29,10 @@ function TransactionForm({ onTransactionAdded }) {
         onTransactionAdded(); // Notify parent to refresh transactions
       } else {
         alert("Failed to save transaction.");
-        console.error("Server error:", response.data);
+        console.warn("Server error:");
       }
-    } catch (error) {
-      console.error("Error submitting the form:", error);
+    } catch {
+      console.warn("Error submitting the form:");
       alert("An error occurred. Please try again.");
     }
   };

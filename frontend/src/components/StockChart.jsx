@@ -25,8 +25,8 @@ const StockChart = ({ symbol }) => {
             price: parseFloat(item.price),
           }))
         );
-      } catch (error) {
-        console.error("Error fetching stock data:", error);
+      } catch {
+        console.warn("Error fetching stock data:");
       } finally {
         setLoading(false);
       }

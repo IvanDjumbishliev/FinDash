@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from secrets import token_urlsafe
 from tempfile import TemporaryDirectory
 from uuid import uuid4
 
@@ -14,6 +15,10 @@ import pymupdf
 import requests
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def browser_test_password():
+    return f"Test!{token_urlsafe(32)}"
 
 
 def serve(database, port, configure=None):
@@ -122,7 +127,7 @@ class Browser:
 
 def run(base, site, driver, firefox, temporary):
     account = requests.post(f"{base}/api/user/register/", json={
-        "username": f"statement-test-{uuid4().hex[:8]}", "password": uuid4().hex,
+        "username": f"statement-test-{uuid4().hex[:8]}", "password": browser_test_password(),
     }, timeout=5)
     assert account.status_code == 201
     token = account.json()["access"]

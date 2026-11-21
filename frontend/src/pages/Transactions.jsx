@@ -21,8 +21,8 @@ export default function Transactions() {
       } else {
         alert("Failed to fetch transactions.");
       }
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
+    } catch {
+      console.warn("Error fetching transactions:");
     }
   };
 
@@ -34,9 +34,9 @@ export default function Transactions() {
         fetchTransactions();
       } else {
         alert("Failed to delete transaction.");
-        console.error("Server error:", response.data);
+        console.warn("Server error:");
       }
-    } catch (error) {
+    } catch {
       alert("An error occurred. Please try again.");
     }
   };

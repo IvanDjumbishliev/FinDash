@@ -5,6 +5,11 @@ map "$status:$uri" $findash_cache_control {
     default "";
 }
 
+map $uri $findash_csp {
+    ~^/(admin|api-auth)(/|$) "frame-ancestors 'none'; base-uri 'self'; object-src 'none'";
+    default "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
+}
+
 log_format findash '$request_method $uri $status $request_time';
 
 server {
@@ -17,6 +22,9 @@ server {
     add_header Cache-Control $findash_cache_control always;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy same-origin always;
+    add_header X-Frame-Options DENY always;
+    add_header Content-Security-Policy $findash_csp always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
 
     location = /healthz/ {
         access_log off;
@@ -32,6 +40,7 @@ server {
         proxy_set_header Host $http_host;
         # The private Nginx service receives this from the trusted TLS edge.
         proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_set_header X-Forwarded-For $http_x_forwarded_for;
         proxy_read_timeout 125s;
     }
 

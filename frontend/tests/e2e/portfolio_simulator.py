@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, ROOT, main, serve, wait_for
+from statement_wizard import Browser, browser_test_password, ROOT, main, serve, wait_for
 
 
 def configure_provider():
@@ -56,7 +56,7 @@ def seed_watchlist(temporary, username):
 def run(api, site, driver, firefox, temporary):
     username = f"portfolio-browser-{uuid4().hex[:8]}"
     account = requests.post(f"{api}/api/user/register/", json={
-        "username": username, "password": uuid4().hex,
+        "username": username, "password": browser_test_password(),
     }, timeout=5)
     account.raise_for_status()
     seed_watchlist(temporary, username)

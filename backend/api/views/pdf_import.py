@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.throttles import SensitiveEndpointThrottle
 from api.models import StatementImport
 from api.services.statements.imports import PREVIEW_LIFETIME, confirm_import, expire_previews, preview_rows, review_import
 from api.services.statements.intelligence import prepare_rows
@@ -36,6 +37,9 @@ def import_data(record, *, include_rows=True):
 
 
 class StatementUploadView(APIView):
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "statement_upload"
+
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
     allowed_formats = frozenset(PARSERS)

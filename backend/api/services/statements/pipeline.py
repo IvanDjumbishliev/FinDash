@@ -53,9 +53,11 @@ class StatementSizeLimit(FileUploadHandler):
 def parse_options(data):
     mapping = data.get("mapping")
     if isinstance(mapping, str):
+        if len(mapping) > 4096:
+            raise StatementError("Column mapping is too large.")
         try:
             mapping = json.loads(mapping)
-        except ValueError as error:
+        except (ValueError, RecursionError) as error:
             raise StatementError("Column mapping must be a JSON object.") from error
     if mapping is not None and not isinstance(mapping, dict):
         raise StatementError("Column mapping must be a JSON object.")

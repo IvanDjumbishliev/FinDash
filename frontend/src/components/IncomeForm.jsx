@@ -55,8 +55,8 @@ function IncomeForm() {
             } else {
                 throw new Error('Failed to update total budget');
             }
-        } catch (error) {
-            console.error("Error:", error);
+        } catch {
+            console.warn("Error:");
             alert("An error occurred. Please try again.");
         }
     };
@@ -74,8 +74,8 @@ function IncomeForm() {
                     localStorage.setItem('incomeCurrency', latestIncome.currency);
                 }
             }
-        } catch (error) {
-            console.error("Error fetching income:", error);
+        } catch {
+            console.warn("Error fetching income:");
         }
     };
 
@@ -86,8 +86,8 @@ function IncomeForm() {
                 const data = response.data;
                 setTotalBudget(data.total_budget);
             }
-        } catch (error) {
-            console.error("Error fetching total budget:", error);
+        } catch {
+            console.warn("Error fetching total budget:");
         }
     };
 

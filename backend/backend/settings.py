@@ -55,6 +55,20 @@ CACHES = {
     }
 }
 
+CACHES["throttles"] = (
+    {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": throttle_cache_url,
+        "KEY_PREFIX": "findash-rate-v2",
+        "OPTIONS": {
+            "socket_timeout": 2, "socket_connect_timeout": 2,
+            "serializer": "backend.privacy.ThrottleRedisSerializer",
+        },
+    }
+    if (throttle_cache_url := env("DJANGO_THROTTLE_CACHE_URL", default=""))
+    else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "findash-throttles"}
+)
+
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
@@ -63,14 +77,28 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
+    "NUM_PROXIES": env("DJANGO_THROTTLE_NUM_PROXIES", default=0, cast=int),
+    "DEFAULT_THROTTLE_RATES": {
+        "authentication": "15/min",
+        "registration": "6/min",
+        "statement_upload": "12/min",
+        "report_generation": "12/min",
+        "report_export": "12/min",
+        "budget_suggestions": "12/min",
+        "retailer": "30/min",
+        "stock_provider": "60/min",
+        "grocery_optimize": "30/min",
+    },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=10),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # Application definition
@@ -84,10 +112,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "api",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 ]
 
 MIDDLEWARE = [
+    "backend.privacy.PrivateAPIResponses",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     *(["whitenoise.middleware.WhiteNoiseMiddleware"] if PRODUCTION else []),
@@ -182,6 +212,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
+DATA_UPLOAD_MAX_NUMBER_FILES = 1
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 500
+
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
@@ -198,6 +231,7 @@ STORAGES = {
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+TEST_RUNNER = "backend.test_runner.IsolatedThrottleTestRunner"
 
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
@@ -208,6 +242,19 @@ CORS_ALLOW_HEADERS = (*default_headers, "x-starting-balance")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 if PRODUCTION:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "filters": {"redact_request": {"()": "backend.privacy.RedactRequestLog"}},
+        "handlers": {
+            "safe_request": {"class": "logging.StreamHandler", "filters": ["redact_request"]},
+        },
+        "loggers": {
+            "django.request": {"handlers": ["safe_request"], "level": "WARNING", "propagate": False},
+            "django.security": {"handlers": ["safe_request"], "level": "WARNING", "propagate": False},
+        },
+    }
+
     SECURE_SSL_REDIRECT = True
     SECURE_REDIRECT_EXEMPT = [r"^healthz/$"]
     SECURE_HSTS_SECONDS = env("DJANGO_HSTS_SECONDS", default=31536000, cast=int)
@@ -254,6 +301,10 @@ CELERY_BEAT_SCHEDULE = {
     "notification-budgets": {
         "task": "notifications.schedule_budgets",
         "schedule": max(60, int(env("NOTIFICATION_BUDGET_INTERVAL_SECONDS", default="900"))),
+    },
+    "expired-authentication-tokens": {
+        "task": "notifications.purge_expired_tokens",
+        "schedule": 86400,
     },
     "notification-retention": {
         "task": "notifications.purge",

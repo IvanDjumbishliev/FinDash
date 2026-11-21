@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import requests
 
-from statement_wizard import Browser, ROOT, main, wait_for
+from statement_wizard import Browser, browser_test_password, ROOT, main, wait_for
 
 
 def seed_catalog(temporary):
@@ -36,7 +36,7 @@ def seed_catalog(temporary):
 def run(api, site, driver, firefox, temporary):
     seed_catalog(temporary)
     account = requests.post(f"{api}/api/user/register/", json={
-        "username": f"grocery-test-{uuid4().hex[:8]}", "password": uuid4().hex,
+        "username": f"grocery-test-{uuid4().hex[:8]}", "password": browser_test_password(),
     }, timeout=5)
     account.raise_for_status()
     browser = Browser(driver, firefox)

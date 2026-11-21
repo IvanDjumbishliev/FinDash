@@ -47,6 +47,7 @@ class BrochureDealTests(SimpleTestCase):
     ):
         current_url = "https://online.flippingbook.com/view/current/"
         listing = Mock(
+            status_code=200,
             url="https://www.fantastico.bg/special-offers",
             text=(
                 '<div class="brochure-switch" data-url="https://online.flippingbook.com/view/old/"></div>'
@@ -54,18 +55,19 @@ class BrochureDealTests(SimpleTestCase):
             ),
         )
         flipbook = Mock(
+            status_code=200,
             text="""
             var initialPolicies = [
-                {"PathPrefix": "://example.com/current/", "KeyId": "key", "Policy": "policy", "Signature": "signature"}
+                {"PathPrefix": "://brochures.flippingbook.com/current/", "KeyId": "key", "Policy": "policy", "Signature": "signature"}
             ];
-            ContentRoot: 'https://example.com/current/',
+            ContentRoot: 'https://brochures.flippingbook.com/current/',
             TotalPages: 1
         """
         )
-        pager = Mock(json=lambda: {"pages": {"defaults": {"width": 581, "height": 836}, "1": {}}})
+        pager = Mock(status_code=200, json=lambda: {"pages": {"defaults": {"width": 581, "height": 836}, "1": {}}})
         search_text = "€|бр.\x02100\x02200\x020\x02112\x0253"
-        search = Mock(content=search_text.encode())
-        page = Mock(content=b"brochure image")
+        search = Mock(status_code=200, content=search_text.encode())
+        page = Mock(status_code=200, content=b"brochure image")
         get.side_effect = [listing, flipbook, pager, search, page]
         extract.return_value = [
             {
@@ -84,9 +86,9 @@ class BrochureDealTests(SimpleTestCase):
         self.assertEqual(
             [call.args[0] for call in get.call_args_list[2:]],
             [
-                "https://example.com/current/common/pager.json",
-                "https://example.com/current/flash/search/search0001.xml",
-                "https://example.com/current/common/pages/html5substrates/page0001_2.webp",
+                "https://brochures.flippingbook.com/current/common/pager.json",
+                "https://brochures.flippingbook.com/current/flash/search/search0001.xml",
+                "https://brochures.flippingbook.com/current/common/pages/html5substrates/page0001_2.webp",
             ],
         )
         extract.assert_called_once_with(search_text, page.content, 581, 836)

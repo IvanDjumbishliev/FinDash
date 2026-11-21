@@ -20,8 +20,8 @@ function Home() {
       } else {
         alert("Failed to fetch transaction stats.");
       }
-    } catch (error) {
-      console.error("Error fetching transaction stats:", error);
+    } catch {
+      console.warn("Error fetching transaction stats:");
     }
   };
 
@@ -31,8 +31,8 @@ function Home() {
       if (response.status === 200) {
         setUser(response.data);
       }
-    } catch (error) {
-      console.log("Error trying to fetch user data: ", error);
+    } catch {
+      console.warn("Error trying to fetch user data: ");
     }
   };
 

@@ -12,6 +12,7 @@ from .csv_parser import ALIASES, column_key, parse_table
 from .normalization import MAX_ERRORS, MAX_ROWS, ParsedStatement, StatementError, normalize_row
 
 MAX_PDF_PAGES = 100
+MAX_EXTRACTED_CHARACTERS = 2_000_000
 TRANSACTIONS_SCHEMA = {
     "type": "array",
     "items": {
@@ -44,8 +45,13 @@ class DelimitedPdfTable:
         headers = None
         records = []
         line_number = 0
+        total_characters = 0
         for page in document:
-            for line in page.get_text("text", sort=True).splitlines():
+            page_text = page.get_text("text", sort=True)
+            total_characters += len(page_text)
+            if total_characters > MAX_EXTRACTED_CHARACTERS:
+                raise StatementError("PDF statement text exceeds the supported size.", status=413)
+            for line in page_text.splitlines():
                 line_number += 1
                 fields = re.split(r";|\t| {2,}", line.strip())
                 if recognized_header(fields):
@@ -92,6 +98,8 @@ def parse_with_gemini(content, options):
                 "http_options": {"timeout": 30000},
             },
         )
+        if not isinstance(response.text, str) or len(response.text) > MAX_EXTRACTED_CHARACTERS:
+            raise ValueError("Statement extraction response exceeds the supported size.")
         extracted = json.loads(response.text, parse_float=Decimal)
     except Exception:
         raise StatementError("Gemini could not parse this PDF. Try a CSV export or try again later.", status=502) from None

@@ -7,7 +7,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from ..models import Transaction, UserProfile
 from api.services.notification_events import check_budgets, transaction_recorded
 from api.services.notifications import after_commit
-from rest_framework.generics import CreateAPIView, ListCreateAPIView, DestroyAPIView
+from api.throttles import SensitiveEndpointThrottle
+from rest_framework.generics import ListCreateAPIView, DestroyAPIView
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework.response import Response
@@ -30,6 +31,9 @@ class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "registration"
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -45,12 +49,6 @@ class CreateUserView(generics.CreateAPIView):
             },
             status=201,
         )
-
-
-class TransactionCreateView(CreateAPIView):
-    queryset = Transaction.objects.all()
-    serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
 
 
 class TransactionListView(ListCreateAPIView):

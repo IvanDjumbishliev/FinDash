@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { Navigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import api from "../api";
-import { REFRESH_TOKEN, ACCESS_TOKEN } from "../constants";
+import { refreshSession } from "../api";
+import { ACCESS_TOKEN } from "../constants";
 
 function ProtectedRoute({ children }) {
   const [isAuthorized, setIsAuthorized] = useState(null);
@@ -19,14 +19,9 @@ function ProtectedRoute({ children }) {
           return;
         }
         if (jwtDecode(token).exp < Date.now() / 1000) {
-          const refresh = localStorage.getItem(REFRESH_TOKEN);
-          const response = await api.post("/api/token/refresh/", { refresh }, { signal: controller.signal });
-          if (controller.signal.aborted) return;
-          if (response.status !== 200) {
-            setIsAuthorized(false);
-            return;
-          }
-          localStorage.setItem(ACCESS_TOKEN, response.data.access);
+          const renewed = await refreshSession(token);
+          if (!controller.signal.aborted) setIsAuthorized(Boolean(renewed));
+          return;
         }
         setIsAuthorized(true);
       } catch {

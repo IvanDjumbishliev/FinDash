@@ -8,6 +8,7 @@ from django.db import DatabaseError, IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.response import Response
 
+from api.throttles import SensitiveEndpointThrottle
 from api.models import GroceryOffer, GroceryRetailer, GroceryShoppingList
 from api.services.grocery_basket import BasketLimit, infer_unit, optimize_basket, requested_product
 from api.services.grocery_catalog import UNIT, normalized, parse_package
@@ -88,6 +89,9 @@ class GroceryBasketInput(serializers.Serializer):
 
 
 class GroceryOptimizeView(PrivateCopilotView):
+    throttle_classes = [SensitiveEndpointThrottle]
+    throttle_scope = "grocery_optimize"
+
     def post(self, request):
         serializer = GroceryBasketInput(data=request.data)
         serializer.is_valid(raise_exception=True)
