@@ -1,1 +1,2 @@
-web: python manage.py runserver 0.0.0.0:8000
+release: DJANGO_ENV=production python manage.py migrate --noinput
+web: DJANGO_ENV=production gunicorn backend.wsgi:application --bind "0.0.0.0:${PORT:-8000}"

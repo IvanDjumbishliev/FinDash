@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "asgiref",
-    "Django",
+    "Django>=5.2.19,<5.3",
+    "gunicorn>=23,<26",
+    "whitenoise>=6.8,<7",
     "django-cors-headers",
     "djangorestframework",
     "djangorestframework-simplejwt",

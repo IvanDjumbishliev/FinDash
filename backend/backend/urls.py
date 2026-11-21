@@ -3,7 +3,10 @@ from django.urls import path, include
 from api.views.views import CreateUserView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from .health import health
+
 urlpatterns = [
+    path("healthz/", health, name="health"),
     path("admin/", admin.site.urls),
     path("api/user/register/", CreateUserView.as_view(), name="register"),
     path("api/token/", TokenObtainPairView.as_view(), name="get_token"),

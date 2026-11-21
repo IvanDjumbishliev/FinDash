@@ -25,49 +25,59 @@ FinDash brings transactions, expense insights, document imports, shopping deals,
 
 ## Quick start
 
-### Backend
+### Docker Compose development
+
+Install Docker with the Compose plugin. Use a separate environment file so existing local configuration stays in place.
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+# Create the file only if it doesn't already exist.
+test -e .env.compose || (umask 077 && cp .env.example .env.compose)
+
+# Run twice and put the two outputs in DJANGO_SECRET_KEY and POSTGRES_PASSWORD.
+python3 -c 'import secrets; print(secrets.token_urlsafe(64))'
+
+docker compose --env-file .env.compose up --build --wait
+docker compose --env-file .env.compose ps -a
 ```
 
-The backend runs at `http://localhost:8000`.
+Open [FinDash](http://localhost:5173). The API is also available directly on port 8000. Change `FRONTEND_PORT` or `BACKEND_PORT` in `.env.compose` if those ports are in use. Vite proxies API calls to Django. The stack starts PostgreSQL, Redis, a one-shot Django migration service, the Django and Vite development servers, a Celery worker, and one Celery Beat scheduler. The migration service exits successfully before application processes start. Source edits to React and Django reload the web servers. Restart the worker and Beat for changes to task code.
 
-### Frontend
+The PostgreSQL data, Redis queue state, and Beat schedule use named volumes. `docker compose --env-file .env.compose down` stops the stack and keeps the volumes. Keep the same Compose project name to reuse its database. The PostgreSQL credentials initialize the database on the first run. Change existing database credentials in PostgreSQL itself before updating the environment file.
+
+### Local development with SQLite
+
+Use Python 3.12, uv, and Node.js 22. The lockfiles used by the containers also work locally.
 
 ```bash
-cd frontend
-npm install
+# In the backend directory
+uv sync --locked
+uv run python manage.py migrate
+uv run python manage.py runserver
+
+# In a separate terminal, from the frontend directory
+npm ci
 npm run dev
 ```
 
-The frontend runs at `http://localhost:5173`.
+Django reads optional settings from `backend/.env`. It uses `backend/db.sqlite3` when `DB_NAME` is unset, or the file specified by `SQLITE_PATH`. To connect to a local PostgreSQL server instead, set `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, and optionally `DB_PORT`. Set `API_KEY` for optional Gemini features. If testing with an explicit `VITE_API_URL`, allow the exact frontend origin using `DJANGO_CORS_ALLOWED_ORIGINS`.
 
-Create `frontend/.env` to override the API origin:
+### Production deployment
 
-```env
-VITE_API_URL=http://localhost:8000
+Build and publish the production images with a unique release tag. The backend image uses Gunicorn and includes collected, fingerprinted Django static files. The frontend image serves the Vite build with Nginx and proxies Django paths under the same origin.
+
+```bash
+docker build --target production -t findash-backend:release-1 backend
+docker build --target production -t findash-frontend:release-1 frontend
 ```
 
-Create `backend/.env` for optional integrations:
+1. Provision persistent PostgreSQL and a private Redis broker. Restrict network access, configure backups for PostgreSQL, and use authenticated TLS connections for managed services. Django defaults to `DB_SSLMODE=verify-full` in production. Mount the database CA and set `DB_SSLROOTCERT` to its container path. Supply the database credentials and `CELERY_BROKER_URL` through your platform’s secret storage.
+2. Set `DJANGO_ENV=production`, a strong shared `DJANGO_SECRET_KEY`, and the exact site hostname in `DJANGO_ALLOWED_HOSTS`. Keep CORS and CSRF origin lists empty for the bundled same-origin setup. If clients use a separate origin, allow the exact frontend scheme, host, and port in `DJANGO_CORS_ALLOWED_ORIGINS`. Add an origin to `DJANGO_CSRF_TRUSTED_ORIGINS` only if cross-origin requests using Django’s cookie authentication are intended.
+3. Put Nginx behind an HTTPS edge that validates the public host, replaces any incoming `X-Forwarded-Proto` with its trusted scheme, and redirects HTTP to HTTPS. Configure HSTS at the edge for the entire site. Keep Nginx and Gunicorn private on the edge’s network. Set `DJANGO_TRUST_PROXY_HEADERS=true` at Django for this topology. Nginx defaults to `FINDASH_BACKEND_UPSTREAM=backend:8000` and the Docker DNS resolver `FINDASH_DNS_RESOLVER=127.0.0.11`. Set these to the backend service and network resolver for your deployment if they differ.
+4. Back up the target database and review `python manage.py migrate --plan` using the new backend image. Run `python manage.py migrate --noinput` in **one release job** with the production database settings. Start or roll out web and worker processes only after the job succeeds. Plan a maintenance window if a future migration is incompatible with the previous application version. Web, worker, and Beat containers start without running migrations.
+5. Run the backend image’s default Gunicorn command, the frontend image, and Celery from the same backend release. Launch workers with `celery -A backend worker --loglevel=INFO` and one scheduler with `celery -A backend beat --loglevel=INFO --schedule=/var/lib/findash/beat/celerybeat-schedule`. Mount writable persistent storage at `/var/lib/findash/beat` for UID 10001.
+6. Run `python manage.py check --deploy` with production settings and check each service’s readiness. The backend `/healthz/` endpoint verifies the database connection. The frontend `/healthz/` verifies Nginx. HSTS subdomain and preload checks may warn until you explicitly enable those policies for a domain that is ready for them.
 
-```env
-API_KEY=your_google_genai_key
-
-# Optional PostgreSQL configuration
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
-DB_HOST=
-DB_PORT=
-```
-
-Without database environment variables, Django automatically uses SQLite.
+The image digests and application lockfiles pin the main build inputs. Refresh them as part of routine security updates. Keep environment files and database backups out of source control and build contexts.
 
 ### Live store deals
 

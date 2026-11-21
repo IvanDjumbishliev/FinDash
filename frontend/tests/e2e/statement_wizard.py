@@ -295,7 +295,7 @@ def main(run_browser=run, server_script=__file__):
             ))
 
         try:
-            launch([sys.executable, server_script, "--serve", temporary + "/test.sqlite3", str(api_port)], ROOT)
+            launch([sys.executable, server_script, "--serve", temporary + "/test.sqlite3", str(api_port)], ROOT, DJANGO_CORS_ALLOWED_ORIGINS=site)
             launch(["node", "node_modules/vite/bin/vite.js", "--host", "127.0.0.1",
                     "--port", str(vite_port), "--strictPort"], ROOT / "frontend", VITE_API_URL=api)
             launch([geckodriver, "--port", str(driver_port), "--profile-root", temporary], ROOT)

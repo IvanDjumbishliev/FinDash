@@ -6,3 +6,7 @@ ENV/
 .venv/
 env.bak/
 venv.bak/
+
+# Local environment files at any directory level
+.env.*
+!.env.example
