@@ -8,6 +8,7 @@ from .views.deals import (
 )
 
 from .views.assistant import AssistantView
+from .views.budget_recommendations import BudgetRecommendationApplyView, BudgetRecommendationView
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
 from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
@@ -55,6 +56,8 @@ urlpatterns = [
     path("budgets/", BudgetListView.as_view(), name="budget-list"),
     path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
     path("budgets/history/", BudgetHistoryView.as_view(), name="budget-history"),
+    path("budgets/recommendations/", BudgetRecommendationView.as_view(), name="budget-recommendations"),
+    path("budgets/recommendations/apply/", BudgetRecommendationApplyView.as_view(), name="budget-recommendations-apply"),
     path("budgets/<int:pk>/", BudgetDetailView.as_view(), name="budget-detail"),
     path("subscriptions/", SubscriptionListView.as_view(), name="subscription-list"),
     path("subscriptions/detect/", SubscriptionDetectView.as_view(), name="subscription-detect"),

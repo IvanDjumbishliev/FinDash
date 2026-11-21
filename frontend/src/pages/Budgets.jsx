@@ -3,6 +3,7 @@ import { FiChevronLeft, FiChevronRight, FiPlus } from "react-icons/fi";
 import api from "../api";
 import BudgetCard from "../components/BudgetCard";
 import BudgetEditor from "../components/BudgetEditor";
+import BudgetRecommendations from "../components/BudgetRecommendations";
 import BudgetSpendingChart from "../components/BudgetSpendingChart";
 import { budgetError, budgetTotals, categoryLabel, currentMonth, historicalBudgetTotals, monthLabel, shiftMonth } from "../budgets";
 import { formatMoney } from "../subscriptions";
@@ -211,6 +212,11 @@ export default function Budgets() {
           </div>
         </section>
       )}
+
+      <BudgetRecommendations key={month} month={month} onApplied={(count) => {
+        setRevision((previous) => previous + 1);
+        setNotice(`${count} budget ${count === 1 ? "suggestion" : "suggestions"} applied.`);
+      }} />
 
       <BudgetSpendingChart periods={periods} month={month} budget={selectedBudget} />
 

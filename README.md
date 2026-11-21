@@ -134,6 +134,12 @@ Budget endpoints require a JWT access token. Create a budget with `POST /api/bud
 - Responses include actual spending, remaining budget, percentage used, and reached thresholds. An empty threshold list disables threshold tracking. History reflects the current transaction records for each saved month.
 - Progress uses the configured Django timezone and exact-currency transactions. Negative amounts count as spending. Recognizable refund credits reduce spending in their recorded month and category. Clearly labeled internal transfers are excluded. Transaction descriptions are used because the transaction model has no refund or transfer type.
 
+### Budget recommendations
+
+- `POST /api/budgets/recommendations/` accepts `period` and optional `use_gemini` (a JSON boolean, default `false`). It uses up to six completed months and requires at least three months of positive net spending for a category in one currency. It returns proposed amounts, statistics, explanations, and a review ID valid for 30 minutes.
+- Gemini only receives category/currency labels, estimates, and aggregate statistics after opt-in for that request. The statistical explanation remains available on provider failure. The model can be overridden with `BUDGET_GEMINI_MODEL` in the process environment.
+- `POST /api/budgets/recommendations/apply/` requires `review_id`, selected `categories`, and `confirmed: true`. It applies the selection as one transaction and consumes the review. If a selected budget changed after generation, the request returns `409` and applies nothing.
+
 ## License
 
 See [LICENSE](LICENSE).

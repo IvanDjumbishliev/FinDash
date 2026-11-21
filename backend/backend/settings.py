@@ -27,6 +27,7 @@ elif env_file.is_file():
 else:
     API_KEY = ""
 API_KEY = API_KEY.strip()
+BUDGET_GEMINI_MODEL = os.getenv("BUDGET_GEMINI_MODEL", "gemini-3.8-flash")
 
 
 # Quick-start development settings - unsuitable for production

@@ -54,21 +54,28 @@ def spending_by_budget(owner, budgets):
     keys = {(budget.period, budget.currency) for budget in budgets}
     first = min(budget.period for budget in budgets)
     last = max(budget.period for budget in budgets)
+    spending, _ = monthly_spending(owner, first, next_month(last), keys)
+    return spending
+
+
+def monthly_spending(owner, start, end, keys=None):
     transactions = Transaction.objects.filter(
-        user=owner, timestamp__gte=month_boundary(first),
-        timestamp__lt=month_boundary(next_month(last)),
+        user=owner, timestamp__gte=month_boundary(start), timestamp__lt=month_boundary(end),
     ).values_list("timestamp", "currency", "category", "amount", "particulars")
 
     spending = defaultdict(lambda: ZERO)
+    observed_months = defaultdict(set)
     for timestamp, currency, category, amount, particulars in transactions.iterator():
         month = timezone.localtime(timestamp).date().replace(day=1)
         currency = currency.strip().upper()
-        if (month, currency) not in keys or INTERNAL_TRANSFER.search(particulars):
+        if (keys is not None and (month, currency) not in keys) or INTERNAL_TRANSFER.search(particulars):
             continue
+        if amount < 0:
+            observed_months[currency].add(month)
         if amount < 0 or (amount > 0 and REFUND.search(particulars)):
             spending[month, currency, category] -= amount
             spending[month, currency, None] -= amount
-    return spending
+    return spending, observed_months
 
 
 def budget_progress(budget, spending):

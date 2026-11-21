@@ -297,3 +297,48 @@
     clip-path: inset(50%);
     white-space: nowrap;
 }
+
+.budget-consent {
+    display: flex;
+    align-items: start;
+    gap: 0.6rem;
+    margin: 0.65rem 0 0.9rem;
+    color: var(--muted);
+    font-size: 0.875rem;
+}
+
+.budget-consent input {
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.16rem;
+    accent-color: var(--primary-color);
+}
+
+.budget-suggestion-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem 0.65rem;
+    padding: 0.6rem;
+    border-radius: 8px;
+    background: var(--field-surface);
+}
+
+.budget-suggestion-stats dt {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.budget-suggestion-stats dd {
+    font-weight: 650;
+}
+
+.budget-suggestion button[aria-pressed="true"] {
+    border-color: var(--violet);
+    background: var(--accent-surface);
+}
+
+.budget-review-actions,
+.budget-approval > .budget-actions {
+    margin-top: 0.75rem;
+}

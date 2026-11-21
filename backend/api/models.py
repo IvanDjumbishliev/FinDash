@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 import datetime
+from uuid import uuid4
 
 
 def get_current_time():
@@ -138,3 +139,10 @@ class Budget(models.Model):
                 name="unique_active_overall_budget",
             ),
         ]
+
+class BudgetSuggestionReview(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budget_suggestion_reviews")
+    period = models.DateField()
+    selections = models.JSONField()
+    expires_at = models.DateTimeField()
