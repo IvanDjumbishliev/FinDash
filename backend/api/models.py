@@ -105,3 +105,36 @@ class SubscriptionPreferences(models.Model):
     renewal_reminders = models.BooleanField(default=False)
     reminder_lead_days = models.PositiveSmallIntegerField(default=3)
     monthly_summary = models.BooleanField(default=False)
+
+
+def default_budget_thresholds():
+    return [50, 80, 100]
+
+
+class Budget(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="budgets")
+    category = models.CharField(max_length=50, choices=Transaction.Category.choices, null=True, blank=True)
+    period = models.DateField(help_text="First day of the calendar month")
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3)
+    alert_thresholds = models.JSONField(default=default_budget_thresholds, blank=True)
+    archived = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-period", "category", "pk"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0), name="budget_amount_positive"),
+            models.CheckConstraint(condition=models.Q(period__day=1), name="budget_period_month_start"),
+            models.UniqueConstraint(
+                fields=["owner", "category", "period"],
+                condition=models.Q(archived=False, category__isnull=False),
+                name="unique_active_category_budget",
+            ),
+            models.UniqueConstraint(
+                fields=["owner", "period"],
+                condition=models.Q(archived=False, category__isnull=True),
+                name="unique_active_overall_budget",
+            ),
+        ]

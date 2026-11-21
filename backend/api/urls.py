@@ -8,6 +8,7 @@ from .views.deals import (
 )
 
 from .views.assistant import AssistantView
+from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
 from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
 from .views.leaflet_lidl import LidlLeafletView
@@ -51,6 +52,10 @@ urlpatterns = [
     path("user/profile/", GetProfileView.as_view()),
     path("chat/", AssistantView.as_view()),
     path("news/", NewsView.as_view(), name="news"),
+    path("budgets/", BudgetListView.as_view(), name="budget-list"),
+    path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
+    path("budgets/history/", BudgetHistoryView.as_view(), name="budget-history"),
+    path("budgets/<int:pk>/", BudgetDetailView.as_view(), name="budget-detail"),
     path("subscriptions/", SubscriptionListView.as_view(), name="subscription-list"),
     path("subscriptions/detect/", SubscriptionDetectView.as_view(), name="subscription-detect"),
     path("subscriptions/planning/", SubscriptionPlanningView.as_view(), name="subscription-planning"),
