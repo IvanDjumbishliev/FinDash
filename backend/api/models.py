@@ -146,3 +146,24 @@ class BudgetSuggestionReview(models.Model):
     period = models.DateField()
     selections = models.JSONField()
     expires_at = models.DateTimeField()
+
+
+class StatementImport(models.Model):
+    class Status(models.TextChoices):
+        NEEDS_MAPPING = "needs_mapping", "Needs mapping"
+        READY = "ready", "Ready"
+        FAILED = "failed", "Failed"
+        IMPORTED = "imported", "Imported"
+        EXPIRED = "expired", "Expired"
+        DISCARDED = "discarded", "Discarded"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="statement_imports")
+    file_format = models.CharField(max_length=3, blank=True)
+    status = models.CharField(max_length=13, choices=Status.choices)
+    parsed_rows = models.JSONField(default=list, blank=True)
+    errors = models.JSONField(default=list, blank=True)
+    row_count = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)

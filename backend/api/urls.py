@@ -15,7 +15,12 @@ from .views.leaflet_kaufland import LeafletKauflandView
 from .views.leaflet_lidl import LidlLeafletView
 from .views.leaflet_user import LeafletUserView
 from .views.news import NewsView
-from .views.pdf_import import UploadBankStatementView
+from .views.pdf_import import (
+    StatementConfirmView,
+    StatementImportDetailView,
+    StatementUploadView,
+    UploadBankStatementView,
+)
 from .views.subscriptions import (
     SubscriptionDetailView,
     SubscriptionDetectView,
@@ -42,6 +47,9 @@ urlpatterns = [
         name="transaction-delete",
     ),
     path("bank-statement/", UploadBankStatementView.as_view()),
+    path("bank-statement/preview/", StatementUploadView.as_view(), name="statement-preview"),
+    path("bank-statement/imports/<uuid:pk>/", StatementImportDetailView.as_view(), name="statement-import"),
+    path("bank-statement/imports/<uuid:pk>/confirm/", StatementConfirmView.as_view(), name="statement-confirm"),
     path("summary/", UserSummaryView.as_view()),
     path(
         "transaction-stats/", TransactionStatsView.as_view(), name="transaction-stats"

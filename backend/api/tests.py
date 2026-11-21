@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -9,6 +10,7 @@ from rest_framework.test import APIClient
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework_simplejwt.tokens import AccessToken
 import requests
+import pymupdf
 
 from api.models import Stock, Transaction
 
@@ -442,63 +444,47 @@ class EndToEndApplicationTests(TestCase):
         self.assertEqual(stats_response.status_code, 200)
         self.assertEqual(stats_response.data, [{"category": "groceries", "amount": 25.5}])
 
+    def synthetic_pdf(self):
+        with pymupdf.open() as document:
+            page = document.new_page()
+            page.insert_text((72, 72), "Synthetic bank statement for tests")
+            return SimpleUploadedFile("statement.pdf", document.tobytes(), content_type="application/pdf")
+
     @override_settings(API_KEY="")
     def test_bank_statement_missing_key_returns_503(self):
-        user = User.objects.create_user(
-            username="statement-user", password="test"
-        )
+        user = User.objects.create_user(username="statement-user", password="test")
         self.client.force_authenticate(user=user)
-        pdf = SimpleUploadedFile(
-            "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
-        )
-
         response = self.client.post(
-            "/api/bank-statement/", {"file": pdf}, format="multipart"
+            "/api/bank-statement/",
+            {"file": self.synthetic_pdf(), "allow_external_processing": "true"},
+            format="multipart",
         )
-
         self.assertEqual(response.status_code, 503)
         self.assertIn("not configured", response.data["error"].lower())
 
     @override_settings(API_KEY="test-key")
     def test_bank_statement_returns_and_persists_parsed_transactions(self):
-        user = User.objects.create_user(
-            username="statement-success-user", password="test"
-        )
+        user = User.objects.create_user(username="statement-success-user", password="test")
         self.client.force_authenticate(user=user)
-        pdf = SimpleUploadedFile(
-            "statement.pdf", b"%PDF-1.4 test", content_type="application/pdf"
-        )
-        parsed = [
-            {
-                "amount": -12.5,
-                "timestamp": "2026-11-19",
-                "category": "groceries",
-                "particulars": "Test market",
-                "currency": "USD",
-            }
-        ]
-        fake_client = SimpleNamespace(
-            files=SimpleNamespace(
-                upload=Mock(return_value=object())
-            ),
-            models=SimpleNamespace(
-                generate_content=Mock(
-                    return_value=SimpleNamespace(
-                        text=__import__("json").dumps(parsed)
-                    )
-                )
-            ),
-        )
+        parsed = [{
+            "amount": -12.5,
+            "timestamp": "2026-11-19",
+            "category": "groceries",
+            "particulars": "Test market",
+            "currency": "USD",
+        }]
 
-        with patch("api.views.pdf_import.client", fake_client):
+        with patch("api.services.statements.pdf_parser.client") as fake_client:
+            fake_client.models.generate_content.return_value = SimpleNamespace(text=json.dumps(parsed))
             response = self.client.post(
-                "/api/bank-statement/", {"file": pdf}, format="multipart"
+                "/api/bank-statement/",
+                {"file": self.synthetic_pdf(), "allow_external_processing": "true"},
+                format="multipart",
             )
+            fake_client.files.upload.assert_not_called()
 
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["response"], parsed)
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(response.data["response"][0]["amount"], "-12.50")
         self.assertTrue(
-            Transaction.objects.filter(
-                user=user, particulars="Test market", amount="-12.50"
-            ).exists()
+            Transaction.objects.filter(user=user, particulars="Test market", amount="-12.50").exists()
         )

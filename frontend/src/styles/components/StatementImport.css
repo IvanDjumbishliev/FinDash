@@ -1,0 +1,64 @@
+.statement-dialog {
+    position: fixed;
+    inset: 0;
+    width: min(calc(100% - 1.5rem), 49rem);
+    max-height: calc(100% - 1.5rem);
+    margin: auto;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--ink);
+}
+
+.statement-dialog::backdrop { background: rgba(9, 15, 27, 0.65); }
+
+.statement-dialog[open],
+.statement-dialog form,
+.statement-dialog fieldset,
+.statement-dialog section {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.statement-dialog fieldset { min-width: 0; border: 0; }
+
+.statement-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    gap: 0.65rem;
+}
+
+.statement-fields label { display: grid; gap: 0.25rem; min-width: 0; }
+.statement-fields :is(input, select) { width: 100%; }
+
+.statement-dialog :is(button, select, input:not([type="checkbox"])) {
+    min-height: 42px;
+    min-width: 0;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--field-surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.statement-dialog button { justify-self: start; }
+.statement-dialog button:disabled { opacity: 0.55; cursor: default; }
+.statement-dialog .statement-primary { background: var(--primary-color); color: white; }
+.statement-dialog :focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.statement-actions, .statement-consent { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.statement-consent { align-items: baseline; flex-wrap: nowrap; }
+.statement-consent input { flex: none; accent-color: var(--primary-color); }
+
+.statement-table { overflow: auto; max-height: 20rem; border: 1px solid var(--border-subtle); }
+.statement-table table { width: 100%; border-collapse: collapse; }
+.statement-table :is(th, td) { padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border-subtle); text-align: left; }
+.statement-table :is(td, th):not(:nth-child(2)) { white-space: nowrap; }
+.statement-table td:nth-child(2) { min-width: 9rem; overflow-wrap: anywhere; }
+
+.statement-error { color: var(--error-color); }
+.statement-errors { padding-left: 1.5rem; }
+
+#statement-column-mapping { margin-top: 0.5rem; }
+#statement-column-mapping[hidden] { display: none; }

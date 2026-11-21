@@ -1,126 +1,125 @@
-import io
-import json
-from django.conf import settings
-from rest_framework import status
-from .client import client
-from rest_framework.views import APIView
+from django.db import DatabaseError
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.request import Request
-from ..models import Transaction
+from rest_framework.views import APIView
+
+from api.models import StatementImport
+from api.services.statements.imports import PREVIEW_LIFETIME, confirm_import, expire_previews
+from api.services.statements.normalization import StatementError
+from api.services.statements.pipeline import PARSERS, StatementSizeLimit, parse_options, upload_content
 
 
-transactions_schema = {
-    "type": "array",
-    "items": {
-        "type": "object",
-        "properties": {
-            "amount": {"type": "number", "description": "The transaction amount"},
-            "timestamp": {
-                "type": "string",
-                # RFC 3339 - standart format for date string
-                "description": "The transaction date and time RFC: 3339",
-            },
-            "category": {
-                "type": "string",
-                "enum": [
-                    "business services",
-                    "shopping",
-                    "entertainment",
-                    "groceries",
-                    "eating out",
-                    "bills",
-                    "transport",
-                    "health",
-                    "travel",
-                    "finance",
-                    "general",
-                ],
-                "description": "The transaction category",
-            },
-            "particulars": {
-                "type": "string",
-                "description": "Additional details about the transaction",
-            },
-            "currency": {
-                "type": "string",
-                "description": "Currency of the transaction (3-letter code)",
-            },
-        },
-        "required": ["amount", "timestamp", "category", "particulars", "currency"],
-        # "additionalProperties": False,
-    },
-}
+def import_data(record):
+    return {
+        "id": str(record.pk),
+        "file_format": record.file_format,
+        "status": record.status,
+        "row_count": record.row_count,
+        "transactions": record.parsed_rows,
+        "errors": record.errors,
+        "expires_at": record.expires_at.isoformat(),
+    }
 
 
-class UploadBankStatementView(APIView):
+class StatementUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    allowed_formats = frozenset(PARSERS)
+    legacy_commit = False
+
+    def post(self, request):
+        expire_previews(request.user)
+        limiter = StatementSizeLimit(request._request)
+        request._request.upload_handlers.insert(0, limiter)
+        file_format = ""
+        parsed = None
+        try:
+            files = [upload for _, uploads in request.FILES.lists() for upload in uploads]
+            if limiter.exceeded:
+                raise StatementError("Statements must be 10 MB or smaller.", status=413)
+            if len(files) != 1 or request.FILES.get("file") is None:
+                raise StatementError("Upload exactly one statement using the file field.")
+            file_format, content = upload_content(files[0], allowed_formats=self.allowed_formats)
+            options = parse_options(request.data)
+            parsed = PARSERS[file_format].parse(content, options)
+        except StatementError as error:
+            failed = self.create_import(request.user, file_format, StatementImport.Status.FAILED, errors=[{"message": str(error)}])
+            response = {**import_data(failed), "error": str(error)}
+            if error.code:
+                response["code"] = error.code
+            return Response(response, status=error.status)
+
+        result_status = StatementImport.Status.READY
+        if parsed.needs_mapping:
+            result_status = StatementImport.Status.NEEDS_MAPPING
+        elif parsed.errors:
+            result_status = StatementImport.Status.FAILED
+        record = self.create_import(
+            request.user, file_format, result_status,
+            errors=parsed.errors, rows=parsed.rows if result_status == StatementImport.Status.READY else [],
+        )
+        data = import_data(record)
+        if parsed.columns and not self.legacy_commit and file_format == "csv":
+            data.update(columns=parsed.columns, mapping=parsed.mapping)
+        if result_status == StatementImport.Status.NEEDS_MAPPING:
+            return Response({**data, "error": "Map the date, description, and amount or debit/credit columns."})
+        if result_status == StatementImport.Status.FAILED:
+            return Response({**data, "error": "Fix the invalid transaction rows before importing."}, status=422)
+        if self.legacy_commit:
+            try:
+                confirm_import(record)
+            except (DatabaseError, StatementError):
+                return Response({**data, "error": "The statement could not be saved."}, status=503)
+            return Response({"response": parsed.rows}, status=201)
+        return Response(data, status=201)
+
+    @staticmethod
+    def create_import(owner, file_format, status, *, errors=None, rows=None):
+        return StatementImport.objects.create(
+            owner=owner, file_format=file_format, status=status,
+            errors=errors or [], parsed_rows=rows or [], row_count=len(rows or []),
+            expires_at=timezone.now() + PREVIEW_LIFETIME,
+        )
+
+
+class UploadBankStatementView(StatementUploadView):
+    """Compatibility endpoint for clients that explicitly submit direct PDF imports."""
+
+    allowed_formats = {"pdf"}
+    legacy_commit = True
+
+
+class StatementImportDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request: Request, *args, **kwargs):
-        if not settings.API_KEY:
-            return Response(
-                {
-                    "error": (
-                        "AI features are not configured. Add API_KEY to backend/.env"
-                    )
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+    @staticmethod
+    def owned_record(request, pk):
+        expire_previews(request.user)
+        return get_object_or_404(StatementImport, pk=pk, owner=request.user)
 
-        if "file" not in request.FILES:
-            return Response({"error": "No file uploaded"}, status=400)
+    def get(self, request, pk):
+        return Response(import_data(self.owned_record(request, pk)))
 
-        uploaded_file = request.FILES["file"]
+    def delete(self, request, pk):
+        record = self.owned_record(request, pk)
+        StatementImport.objects.filter(pk=record.pk, owner=request.user, status__in=[
+            StatementImport.Status.READY, StatementImport.Status.NEEDS_MAPPING,
+        ]).update(status=StatementImport.Status.DISCARDED, parsed_rows=[], updated_at=timezone.now())
+        record.refresh_from_db()
+        return Response(import_data(record))
 
-        if not uploaded_file.name.lower().endswith(".pdf"):
-            return Response({"error": "Uploaded file is not a PDF"}, status=400)
 
-        file_bytes = uploaded_file.read()
+class StatementConfirmView(StatementImportDetailView):
+    http_method_names = ["post", "options"]
 
+    def post(self, request, pk):
+        record = self.owned_record(request, pk)
         try:
-            ai_uploaded_file = client.files.upload(
-                file=(io.BytesIO(file_bytes)),
-                config={"mime_type": "application/pdf"},
-            )
-
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[
-                    ai_uploaded_file,
-                    "In the PDF is a bank statement. Extract the transactions exactly as described.",
-                    "For debit transactions use negative amounts and for credit transactions use positive amounts.",
-                ],
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": transactions_schema,
-                },
-            )
-            parsed_transactions = json.loads(response.text)
-            if not isinstance(parsed_transactions, list):
-                raise ValueError("The AI response was not a transaction array.")
-
-            Transaction.objects.bulk_create(
-                [
-                    Transaction(
-                        amount=transaction["amount"],
-                        timestamp=transaction["timestamp"],
-                        category=transaction["category"],
-                        particulars=transaction["particulars"],
-                        currency=transaction.get("currency", "USD"),
-                        user=request.user,
-                    )
-                    for transaction in parsed_transactions
-                ]
-            )
-        except Exception:
-            return Response(
-                {
-                    "error": (
-                        "The bank statement could not be parsed. "
-                        "Check the PDF or try again later."
-                    )
-                },
-                status=502,
-            )
-
-        return Response({"response": parsed_transactions}, status=201)
+            return Response(import_data(confirm_import(record)))
+        except StatementError as error:
+            return Response({"error": str(error)}, status=error.status)
+        except DatabaseError:
+            return Response({"error": "The statement could not be saved. Try again."}, status=503)

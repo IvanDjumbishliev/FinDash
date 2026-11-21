@@ -9,6 +9,7 @@ import PDF_enter from "../components/PDFEnter";
 function Home() {
   const [transactionStats, setTransactionStats] = useState([]);
   const [user, setUser] = useState(null);
+  const [importRevision, setImportRevision] = useState(0);
 
   const fetchTransactionStats = async () => {
     try {
@@ -47,14 +48,17 @@ function Home() {
           <h1>{user ? `Welcome back, ${user}` : "Welcome to FinDash"}</h1>
           <p>See the full picture, understand your habits, and make your next money move with confidence.</p>
         </div>
-        <PDF_enter />
+        <PDF_enter onImported={() => {
+          fetchTransactionStats();
+          setImportRevision((value) => value + 1);
+        }} />
       </section>
       <section className="dashboard-card">
         <div className="grid">
           <PieChart transactions={transactionStats} />
           <div className="transactions-wrapper">
             <h2>Recent activity</h2>
-            <RecentTransactions limit={10} />
+            <RecentTransactions key={importRevision} limit={10} />
           </div>
         </div>
       </section>

@@ -119,6 +119,15 @@ Major endpoints are served below `/api/`:
 - `POST /api/chat/`
 - `GET|POST /api/stocks/watchlist/`
 
+### Bank statement imports
+
+From the dashboard, select **Upload statement**, choose a PDF or CSV, review the preview, and confirm to save. Files are limited to 10 MiB and 2,000 rows. CSV is parsed locally, with automatic mapping for common English and Bulgarian headers. You can override the mapping, choose day-first or month-first dates, and enter a default currency. The default category is `general` when the statement supplies none.
+
+- `POST /api/bank-statement/preview/` accepts multipart `file`, optional `mapping` (a JSON object mapping transaction fields to header names), `date_order` (`DMY` or `MDY`), `default_currency`, and `allow_external_processing` (`true` for this PDF only). It returns an owner-scoped import ID, status, and either normalized transactions, mapping information, or sanitized errors. No transactions are saved by this endpoint.
+- `GET /api/bank-statement/imports/{id}/` returns the preview or final status. `DELETE` discards a pending import. `POST /api/bank-statement/imports/{id}/confirm/` saves all validated rows atomically. Retrying confirmation for the same ID does not add them again.
+- The legacy `POST /api/bank-statement/` still commits compatible PDFs directly. Layouts the local parser cannot recognize require explicit consent and a configured Gemini key. Gemini receives the PDF inline with the request. FinDash creates no provider Files API upload.
+- The original file is not retained by FinDash. Prepared transaction rows are cleared on confirmation, discard, or expiry. Previews expire after 30 minutes. Owner requests clear expired previews, and deployments can schedule `python manage.py expire_statement_previews` for cleanup during idle periods.
+
 ### Monthly budgets
 
 Budget endpoints require a JWT access token. Create a budget with `POST /api/budgets/`:
