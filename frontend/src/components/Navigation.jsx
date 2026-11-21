@@ -18,6 +18,7 @@ function Navigation() {
           <li><NavLink to="/transactions">Transactions</NavLink></li>
           <li><NavLink to="/budgets">Budgets</NavLink></li>
           <li><NavLink to="/reports">Reports</NavLink></li>
+          <li><NavLink to="/forecast">Forecast</NavLink></li>
           <li><NavLink to="/chat">AI Advisor</NavLink></li>
           <li><NavLink to="/promotions">Deals</NavLink></li>
           <li><NavLink to="/stocks">Stock watchlist</NavLink></li>

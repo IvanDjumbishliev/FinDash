@@ -120,40 +120,77 @@ def weekly_baseline(ledger, recurring_ids, as_of):
     return coverage, list(zip(cap_extremes(income), cap_extremes(expenses), strict=True))
 
 
-def historical_scenarios(weeks, horizon, fixed_net, starting_balance):
+def historical_weeks(ledger, as_of):
+    if not ledger:
+        return []
+    start = max(as_of - timedelta(days=90), min(entry.day for entry in ledger))
+    # Partition backward from the forecast boundary. The earliest week can be partial.
+    buckets = defaultdict(list)
+    for entry in ledger:
+        if entry.day >= start:
+            buckets[(as_of - entry.day).days // 7].append(entry)
+    result = []
+    for index in range((as_of - start).days // 7, -1, -1):
+        end = as_of - timedelta(weeks=index)
+        totals = cash_components(buckets[index])
+        expenses = totals["expense"] - totals["refund"]
+        result.append({
+            "start_date": max(start, end - timedelta(days=6)).isoformat(),
+            "end_date": end.isoformat(),
+            "transaction_count": len(buckets[index]),
+            "income": money(totals["income"]),
+            "net_expenses": money(expenses),
+            "net_cash_flow": money(totals["income"] - expenses),
+        })
+    return result
+
+
+def historical_scenarios(weeks, days, starting_balance):
     if len(weeks) < MIN_SCENARIO_WEEKS:
         return None
-    nets = [income - expenses for income, expenses in weeks]
+    nets = [int((income - expenses) * 100) for income, expenses in weeks]
     if len(set(nets)) < 2:
         return None
 
-    # Sample contiguous two-week blocks to retain short-term patterns and
-    # use the same draws for identical inputs and report comparisons.
+    # Use the same contiguous two-week samples at every point on the forecast path.
+    # Integer sevenths of a cent preserve precision when distributing weekly amounts.
     rng = Random(0)
-    samples = []
+    samples = [[] for _ in days]
     for _ in range(1000):
-        remaining = horizon
-        net = fixed_net
-        while remaining > 0:
+        cumulative = 0
+        for start in range(0, len(days), 14):
             index = rng.randrange(len(nets) - 1)
-            for weekly_net in nets[index:index + 2]:
-                days = min(7, remaining)
-                net += weekly_net * days / 7
-                remaining -= days
-        samples.append(cents(net))
-    samples.sort()
-    low, high = samples[99], samples[899]
-    if low == high:
+            for offset, weekly_net in enumerate(nets[index:index + 2]):
+                position = start + offset * 7
+                elapsed = max(0, min(7, len(days) - position))
+                for day in range(elapsed):
+                    samples[position + day].append(cumulative + weekly_net * (day + 1))
+                cumulative += weekly_net * elapsed
+
+    path = []
+    fixed = ZERO
+    for point, values in zip(days, samples, strict=True):
+        fixed += Decimal(point["scheduled_income"]) - Decimal(point["scheduled_expenses"])
+        values.sort()
+        low, high = (cents(fixed + Decimal(values[index]) / 700) for index in (99, 899))
+        path.append({
+            "date": point["date"],
+            "net_cash_flow": {"lower": money(low), "upper": money(high)},
+            "ending_balance": None if starting_balance is None else {
+                "lower": money(starting_balance + low), "upper": money(starting_balance + high),
+            },
+        })
+    last = path[-1]
+    if last["net_cash_flow"]["lower"] == last["net_cash_flow"]["upper"]:
         return None
     return {
         "method": "historical_two_week_block_bootstrap",
         "label": "Historical scenario range",
         "lower_percentile": 10,
         "upper_percentile": 90,
-        "net_cash_flow": {"lower": money(low), "upper": money(high)},
-        "ending_balance": None if starting_balance is None else {
-            "lower": money(starting_balance + low), "upper": money(starting_balance + high),
-        },
+        "net_cash_flow": last["net_cash_flow"],
+        "ending_balance": last["ending_balance"],
+        "days": path,
     }
 
 
@@ -220,7 +257,7 @@ def project_days(start, horizon, scheduled, weeks, starting_balance):
         "scheduled_only_ending_balance": money(starting_balance + fixed_net) if starting_balance is not None else None,
         "estimated_ending_balance": money(starting_balance + net) if starting_balance is not None and net is not None else None,
     }
-    return days, summary, fixed_net
+    return days, summary
 
 
 def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balance=None, as_of=None):
@@ -244,12 +281,12 @@ def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balan
     schedules, recurring_ids = recurring_schedules(ledger, subscriptions, as_of)
     scheduled, events = forecast_events(schedules, start, end)
     coverage, weeks = weekly_baseline(ledger, recurring_ids, as_of)
-    days, totals, fixed_net = project_days(start, horizon, scheduled, weeks, starting_balance)
+    days, totals = project_days(start, horizon, scheduled, weeks, starting_balance)
     previous = cash_components(ledger)
     first, last = min((item.day for item in ledger), default=None), max((item.day for item in ledger), default=None)
     uncertainty = None
     if weeks is not None and coverage["weeks_with_variable_activity"] >= MIN_SCENARIO_VARIABLE_WEEKS:
-        uncertainty = historical_scenarios(weeks, horizon, fixed_net, starting_balance)
+        uncertainty = historical_scenarios(weeks, days, starting_balance)
 
     limitations = list(LIMITATIONS)
     if weeks is None:
@@ -277,6 +314,7 @@ def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balan
             "recorded_refunds": money(previous["refund"]),
             "recorded_net_expenses": money(previous["expense"] - previous["refund"]),
             "baseline": coverage,
+            "weeks": historical_weeks(ledger, as_of),
         },
         "recurring": events,
         "days": days,

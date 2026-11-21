@@ -127,6 +127,14 @@ class ForecastTests(TestCase):
         self.assertLess(Decimal(scenarios["net_cash_flow"]["lower"]), Decimal(scenarios["net_cash_flow"]["upper"]))
         self.assertEqual(Decimal(scenarios["ending_balance"]["lower"]), balance + Decimal(scenarios["net_cash_flow"]["lower"]))
 
+        self.assertEqual(len(scenarios["days"]), 60)
+        self.assertEqual(scenarios["days"][-1]["net_cash_flow"], scenarios["net_cash_flow"])
+        self.assertEqual(scenarios["days"][-1]["ending_balance"], scenarios["ending_balance"])
+        self.assertEqual([day["date"] for day in scenarios["days"]], [day["date"] for day in result["days"]])
+        for day in scenarios["days"]:
+            with self.subTest(day=day["date"]):
+                self.assertEqual(Decimal(day["ending_balance"]["upper"]), balance + Decimal(day["net_cash_flow"]["upper"]))
+
         outlier.amount = "-100000"
         outlier.save(update_fields=["amount"])
         after = self.forecast(horizon=60, starting_balance=balance)
@@ -223,3 +231,20 @@ class ForecastTests(TestCase):
         self.assertEqual(result["status"], "estimated")
         self.assertEqual(result["history"]["baseline"]["weeks_with_variable_activity"], 3)
         self.assertIsNone(result["uncertainty"])
+
+    def test_chart_history_stops_at_today_and_excludes_out_of_window_activity(self):
+        self.record(self.as_of - timedelta(days=91), "999", "Older than chart")
+        self.record(self.as_of - timedelta(days=90), "100", "First chart day")
+        self.record(self.as_of - timedelta(days=7), "-10", "Previous week")
+        self.record(self.as_of - timedelta(days=6), "-12", "Latest week purchase")
+        self.record(self.as_of, "2", "Refund")
+        result = self.forecast()
+        weeks = result["history"]["weeks"]
+        self.assertEqual(len(weeks), 13)
+        self.assertEqual(weeks[0]["start_date"], (self.as_of - timedelta(days=90)).isoformat())
+        self.assertEqual(weeks[0]["net_cash_flow"], "100.00")
+        self.assertEqual(weeks[-2]["net_cash_flow"], "-10.00")
+        self.assertEqual(weeks[-1]["end_date"], self.as_of.isoformat())
+        self.assertEqual(weeks[-1]["net_cash_flow"], "-10.00")
+        self.assertEqual(weeks[-1]["transaction_count"], 2)
+        self.assertEqual(result["history"]["recorded_income"], "1099.00")

@@ -13,6 +13,7 @@ import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
 import Reports from "./pages/Reports";
+import CashFlowForecast from "./pages/CashFlowForecast";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 function Logout() {
@@ -93,6 +94,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forecast"
+            element={
+              <ProtectedRoute>
+                <CashFlowForecast />
               </ProtectedRoute>
             }
           />

@@ -159,6 +159,11 @@ by default. An optional `from-date=YYYY-MM-DD` can cover up to 366 days through 
 
 ### Cash flow forecast
 
+Open **Forecast** to compare recorded and projected weekly cash flow, switch
+between horizons, and inspect upcoming recurring payments. Apply an optional
+starting balance to change the trajectory from cumulative cash flow to an
+estimated balance. Both chart panels offer accessible data tables.
+
 `GET /api/forecast/cash-flow/?horizon=60&currency=EUR` returns the authenticated
 account's daily estimates beginning tomorrow in its configured timezone.
 Supported horizons are 30, 60, and 90 days, with 30 as the default. The
@@ -189,8 +194,10 @@ balance, balance fields are null and the forecast reports cash flow only.
   These are not calibrated confidence intervals. Missing ledger activity,
   schedule changes, and unknown accounts can materially change outcomes.
 
-The response includes historical totals and coverage, scheduled series, daily
-projections, horizon totals, assumptions, and limitations.
+The response includes historical totals and coverage, up to 13 weeks of recorded
+chart values in `history.weeks`, scheduled series, daily projections, horizon
+totals, assumptions, and limitations. When available, `uncertainty.days` contains
+scenario bounds for each date using the same simulated paths as the final range.
 
 ### Financial reports
 
