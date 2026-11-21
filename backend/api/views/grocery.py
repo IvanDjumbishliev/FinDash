@@ -3,13 +3,15 @@ import unicodedata
 from dataclasses import replace
 from decimal import Decimal
 
-from django.db import DatabaseError
+from django.contrib.auth import get_user_model
+from django.db import DatabaseError, IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.response import Response
 
-from api.models import GroceryRetailer
+from api.models import GroceryOffer, GroceryRetailer, GroceryShoppingList
 from api.services.grocery_basket import BasketLimit, infer_unit, optimize_basket, requested_product
-from api.services.grocery_catalog import UNIT, parse_package
+from api.services.grocery_catalog import UNIT, normalized, parse_package
+from api.services.grocery_matching import describe
 
 from .assistant import PrivateCopilotView, StrictBooleanField
 
@@ -60,9 +62,18 @@ class GroceryBasketInput(serializers.Serializer):
     currency = serializers.ChoiceField(choices=("EUR", "BGN"), default="EUR")
     allow_multi_store = StrictBooleanField(default=True)
     max_stores = serializers.IntegerField(min_value=1, max_value=len(GroceryRetailer.values), default=3)
+    retailers = serializers.ListField(
+        child=serializers.ChoiceField(choices=GroceryRetailer.values),
+        allow_empty=False, max_length=len(GroceryRetailer.values), default=list(GroceryRetailer.values),
+    )
     overhead_per_store = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal(0), default=Decimal("0.00"),
     )
+
+    def validate_retailers(self, retailers):
+        if len(set(retailers)) != len(retailers):
+            raise serializers.ValidationError("Select each retailer once.")
+        return retailers
 
     def validate_items(self, items):
         seen = set()
@@ -87,3 +98,98 @@ class GroceryOptimizeView(PrivateCopilotView):
         except DatabaseError:
             return Response({"error": "The grocery catalog is temporarily unavailable."}, status=503)
         return Response(result)
+
+
+class GroceryCatalogQuery(serializers.Serializer):
+    q = serializers.CharField(min_length=2, max_length=100)
+    retailers = serializers.CharField(required=False, max_length=32)
+
+    def validate_retailers(self, value):
+        selected = value.split(",")
+        if any(key not in GroceryRetailer.values for key in selected):
+            raise serializers.ValidationError("Choose supported retailers.")
+        return selected
+
+    currency = serializers.ChoiceField(choices=("EUR", "BGN"), default="EUR")
+
+
+class GroceryCatalogView(PrivateCopilotView):
+    def get(self, request):
+        serializer = GroceryCatalogQuery(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        query = serializer.validated_data
+        term = normalized(query["q"])
+        if not term:
+            return Response([])
+        family = requested_product(query["q"]).category
+        offers = GroceryOffer.objects.current().filter(
+            currency=query["currency"], retailer__in=query.get("retailers", GroceryRetailer.values),
+            requires_membership=False, availability_status="advertised",
+        )
+        suggestions = []
+        for offer in offers.order_by("-last_successful_update", "pk")[:6000].iterator():
+            product = describe(offer)
+            if (term not in offer.normalized_name and term not in normalized(offer.product_name)
+                    and term not in product.brand and term != product.title
+                    and not (family and product.category == family and term == family)):
+                continue
+            if product.ambiguous or not product.quantity or not product.unit:
+                continue
+            suggestions.append({
+                "id": offer.pk, "name": offer.product_name, "brand": offer.brand,
+                "retailer": offer.retailer, "quantity": format(product.quantity.normalize(), "f"),
+                "unit": product.unit, "image_url": offer.image_url,
+                "price": str(offer.price), "currency": offer.currency,
+                "expires_on": offer.expires_on, "last_successful_update": offer.last_successful_update,
+            })
+            if len(suggestions) == 12:
+                break
+        return Response(suggestions)
+
+
+class ShoppingListInput(GroceryBasketInput):
+    name = serializers.CharField(max_length=80)
+
+
+class ShoppingListOutput(serializers.ModelSerializer):
+    class Meta:
+        model = GroceryShoppingList
+        fields = ("id", "name", "settings", "created_at")
+
+
+class GroceryShoppingListView(PrivateCopilotView):
+    def get(self, request):
+        records = GroceryShoppingList.objects.filter(owner=request.user)
+        return Response(ShoppingListOutput(records, many=True).data)
+
+    def post(self, request):
+        serializer = ShoppingListInput(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data.copy()
+        name = data.pop("name")
+        data["overhead_per_store"] = str(data["overhead_per_store"])
+        data["max_stores"] = min(data["max_stores"], len(data["retailers"]))
+        data["items"] = [
+            {
+                "name": row["name"], "quantity": format(row["quantity"], "f"), "unit": row["product"].unit,
+                "preferred_brand": row["preferred_brand"], "allow_substitutions": row["allow_substitutions"],
+            }
+            for row in data["items"]
+        ]
+        try:
+            with transaction.atomic():
+                owner = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+                if GroceryShoppingList.objects.filter(owner=owner).count() >= 50:
+                    return Response({"name": ["Delete a saved list before adding another."]}, status=400)
+                record = GroceryShoppingList.objects.create(owner=owner, name=name, settings=data)
+        except IntegrityError:
+            return Response({"name": ["A shopping list with this name already exists."]}, status=400)
+        return Response(ShoppingListOutput(record).data, status=201)
+
+
+class GroceryShoppingListDetailView(PrivateCopilotView):
+    def delete(self, request, pk):
+        deleted, _ = GroceryShoppingList.objects.filter(owner=request.user, pk=pk).delete()
+        if not deleted:
+            return Response({"error": "Shopping list not found."}, status=404)
+        return Response(status=204)

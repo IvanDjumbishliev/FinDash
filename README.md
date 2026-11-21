@@ -332,6 +332,20 @@ single-retailer basket in the observed catalog with the same shopping
 list, currency, and overhead. These are estimates from advertised offers
 with limited coverage and unverified store-level stock.
 
+#### Grocery basket page
+
+Open **Grocery basket** to search current advertised offers, edit quantities
+and substitutions, and limit the retailers used for comparison. Complete
+plans show an estimated total. For partial plans, the checklist includes
+only matched packages and separately shows missing items.
+
+`GET /api/grocery/catalog/?q=milk&currency=EUR&retailers=lidl,kaufland`
+returns up to 12 suggestions. `POST /api/grocery/optimize/` accepts an optional
+`retailers` array. `GET|POST /api/grocery/lists/` lists or saves the current
+account's named lists and comparison settings. `DELETE /api/grocery/lists/{id}/`
+deletes a saved list. Saved lists hold inputs and can be optimized against
+the current catalog each time they are loaded.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`

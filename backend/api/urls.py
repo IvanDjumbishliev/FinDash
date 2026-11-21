@@ -16,7 +16,7 @@ from .views.forecast_scenarios import (
     CashFlowScenarioDetailView, CashFlowScenarioListView, CashFlowScenarioPreviewView,
 )
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
-from .views.grocery import GroceryOptimizeView
+from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
 from .views.leaflet_lidl import LidlLeafletView
@@ -51,6 +51,9 @@ urlpatterns = [
     path("deals/kaufland/", KauflandDealsView.as_view()),
     path("deals/fantastico/", FantasticoDealsView.as_view()),
     path("grocery/optimize/", GroceryOptimizeView.as_view(), name="grocery-optimize"),
+    path("grocery/catalog/", GroceryCatalogView.as_view(), name="grocery-catalog"),
+    path("grocery/lists/", GroceryShoppingListView.as_view(), name="grocery-lists"),
+    path("grocery/lists/<int:pk>/", GroceryShoppingListDetailView.as_view(), name="grocery-list-detail"),
     path("transactions/", TransactionListView.as_view()),
     path(
         "transaction/<int:pk>/",

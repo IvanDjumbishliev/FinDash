@@ -321,3 +321,16 @@ class GroceryMatchReview(models.Model):
             models.UniqueConstraint(fields=["left", "right"], name="grocery_review_unique_pair"),
             models.CheckConstraint(condition=models.Q(left_id__lt=models.F("right_id")), name="grocery_review_ordered_pair"),
         ]
+
+
+class GroceryShoppingList(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="grocery_shopping_lists")
+    name = models.CharField(max_length=80)
+    settings = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "name"], name="grocery_shopping_list_owner_name"),
+        ]

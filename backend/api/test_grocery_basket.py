@@ -151,3 +151,36 @@ class GroceryBasketTests(TestCase):
                     ]
                     cost, units, used = cheapest_packages(packs, goal, WorkLimit())
                     self.assertEqual((cost, sum(count for _, count in used), units), min(feasible))
+
+    def test_catalog_search_retailer_filter_and_freshness_metadata(self):
+        offer = self.offer("Прясно мляко 1 л", retailer="lidl", image_url="https://example.com/milk.jpg")
+        self.offer("Milk 1 l", retailer="kaufland", price="1.00")
+        self.offer("Milk 1 l", retailer="lidl", expires_on=self.now.date() - timedelta(days=1))
+        with patch("api.services.grocery_basket.timezone.now", return_value=self.now):
+            search = self.client.get("/api/grocery/catalog/", {"q": "milk", "retailers": "lidl"})
+        self.assertEqual(search.status_code, 200)
+        self.assertEqual([row["id"] for row in search.data], [offer.pk])
+        self.assertEqual(search.data[0]["image_url"], offer.image_url)
+        self.assertEqual(search.data[0]["quantity"], "1")
+        result = self.optimize([self.item("Milk", 1)], retailers=["lidl"]).data
+        self.assertEqual(len(result["single_retailer_baskets"]), 1)
+        self.assertEqual(result["max_stores"], 1)
+        package = result["best_basket"]["lines"][0]["packages"][0]
+        self.assertEqual(package["last_successful_update"], self.now)
+        self.assertEqual(package["image_url"], offer.image_url)
+        self.assertEqual(self.optimize([self.item("Milk", 1)], retailers=[]).status_code, 400)
+
+    def test_saved_lists_round_trip_canonical_quantity_and_isolate_owners(self):
+        url = "/api/grocery/lists/"
+        payload = {"name": "Weekly groceries", "items": [self.item("Rice", 1300, unit="g")], "retailers": ["lidl"]}
+        created = self.client.post(url, payload, format="json")
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.data["settings"]["items"][0]["unit"], "kg")
+        self.assertEqual(Decimal(created.data["settings"]["items"][0]["quantity"]), Decimal("1.3"))
+        self.assertEqual(self.client.get(url).data[0]["name"], payload["name"])
+        other = APIClient()
+        other.force_authenticate(get_user_model().objects.create_user(username="other-shopper"))
+        target = f"{url}{created.data['id']}/"
+        self.assertEqual(other.get(url).data, [])
+        self.assertEqual(other.delete(target).status_code, 404)
+        self.assertEqual(self.client.delete(target).status_code, 204)

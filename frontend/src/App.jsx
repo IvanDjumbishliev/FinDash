@@ -13,6 +13,7 @@ import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
 import Reports from "./pages/Reports";
+import GroceryOptimizer from "./pages/GroceryOptimizer";
 import CashFlowForecast from "./pages/CashFlowForecast";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
@@ -64,6 +65,10 @@ function App() {
                 <Promotions />
               </ProtectedRoute>
             }
+          />
+          <Route
+            path="/grocery"
+            element={<ProtectedRoute><GroceryOptimizer /></ProtectedRoute>}
           />
           <Route
             path="/stocks"

@@ -133,11 +133,12 @@ class Pack:
     preferred: bool
 
 
-def basket_snapshot(currency, *, now=None):
+def basket_snapshot(currency, *, retailers=None, now=None):
     now = now or timezone.now()
     # Old observations are useful for explaining why a recently advertised item is missing.
     current = GroceryOffer.objects.current(now=now).filter(pk=OuterRef("pk"))
     observations = list(GroceryOffer.objects.filter(
+        retailer__in=retailers if retailers is not None else GroceryRetailer.values,
         last_successful_update__gte=now - timedelta(days=30),
     ).annotate(is_current=Exists(current)).order_by("pk")[:MAX_CATALOG_ROWS + 1])
     if len(observations) > MAX_CATALOG_ROWS:
@@ -262,6 +263,7 @@ def build_basket(items, options, retailers, overhead, work, memo):
                         Decimal("0.000001"), rounding=ROUND_HALF_UP,
                     ), "f"), "availability_status": pack.offer.availability_status,
                     "match": pack.match, "source_url": pack.offer.source_url, "expires_on": pack.offer.expires_on,
+                    "image_url": pack.offer.image_url, "last_successful_update": pack.offer.last_successful_update,
                 }
                 for pack, count in sorted(counts, key=lambda value: value[0].offer.pk)
             ],
@@ -285,12 +287,14 @@ def basket_rank(plan):
 
 
 def optimize_basket(items, *, currency="EUR", allow_multi_store=True, max_stores=3,
-                    overhead_per_store=Decimal("0.00"), now=None):
+                    overhead_per_store=Decimal("0.00"), retailers=None, now=None):
     now = now or timezone.now()
-    snapshot = basket_snapshot(currency, now=now)
+    selected = GroceryRetailer.values if retailers is None else retailers
+    retailers = tuple(retailer for retailer in GroceryRetailer.values if retailer in selected)
+    max_stores = min(max_stores, len(retailers))
+    snapshot = basket_snapshot(currency, retailers=retailers, now=now)
     results = [choices_for(item, snapshot) for item in items]
     options = [entry[0] for entry in results]
-    retailers = tuple(GroceryRetailer.values)
     work = WorkLimit()
     memo = {}
     singles = [build_basket(items, options, (retailer,), overhead_per_store, work, memo) for retailer in retailers]
