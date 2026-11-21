@@ -27,6 +27,7 @@ elif env_file.is_file():
 else:
     API_KEY = ""
 API_KEY = API_KEY.strip()
+COPILOT_GEMINI_MODEL = os.getenv("COPILOT_GEMINI_MODEL", "gemini-3.8-flash")
 BUDGET_GEMINI_MODEL = os.getenv("BUDGET_GEMINI_MODEL", "gemini-3.8-flash")
 STATEMENT_GEMINI_MODEL = os.getenv("STATEMENT_GEMINI_MODEL", "gemini-3.8-flash")
 

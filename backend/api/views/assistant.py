@@ -1,110 +1,72 @@
 from django.conf import settings
-from rest_framework import status
+from django.db import DatabaseError
+from rest_framework import serializers, status
+from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
-from ..models import Transaction
+from api.services.copilot import CopilotUnavailable, answer_question
+from api.services.copilot_tools import InvalidToolCall
+
 from .client import client
-import csv
-import io
 
-prompt = """
-    You are an intelligent financial assistant chatbot analyzing personal transaction data. Your role is to:
 
-    1. Process and understand transaction data in the following format:
-    - amount: numerical value
-    - timestamp: ISO format datetime
-    - category: transaction category
-    - particulars: transaction description
-    - currency: three-letter currency code
+class CopilotThrottle(UserRateThrottle):
+    scope = "copilot"
+    rate = "12/min"
 
-    2. Core Capabilities:
-    - Analyze spending patterns
-    - Categorize transactions
-    - Provide budget insights
-    - Calculate total spending by category
-    - Identify unusual transactions
-    - Offer personalized financial advice
 
-    3. Interaction Style:
-    - Professional yet friendly tone
-    - Act welcoming and provide natural and human-like responses.
-    - Clear and concise responses
-    - Use bullet points for lists
-    - Format currency values consistently
-    - Include relevant transaction dates in responses
-    - Proactively suggest insights
+class PromptField(serializers.CharField):
+    def to_internal_value(self, data):
+        if not isinstance(data, str):
+            self.fail("invalid")
+        return super().to_internal_value(data)
 
-    4. Response Format:
-    - Always start with a direct answer to the query
-    - Include relevant numerical data
-    - Provide context when needed
-    - End with actionable advice when applicable
-    - Never provide information in your response the user hasn't asked for
 
-    5. Special Considerations:
-    - Flag unusual spending patterns
-    - Highlight recurring transactions
-    - Consider transaction timing and frequency
-    - Compare spending across different time periods
-    - Account for different currencies
-
-    Remember to maintain user privacy and provide accurate calculations in all responses.
-    Do not tell the user your thinking process
-"""
+class CopilotRequestSerializer(serializers.Serializer):
+    prompt = PromptField(max_length=2000)
+    consent = serializers.JSONField(required=False, allow_null=True)
 
 
 class AssistantView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [CopilotThrottle]
+    parser_classes = [JSONParser]
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request):
         if not settings.API_KEY:
             return Response(
-                {
-                    "error": (
-                        "AI features are not configured. Add API_KEY to backend/.env"
-                    )
-                },
+                {"error": "AI features are not configured. Add API_KEY to backend/.env"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        user_prompt = request.data.get("prompt")
-        if not user_prompt:
-            return Response({"error": "Prompt is required"}, status=400)
+        serializer = CopilotRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if data.get("consent") is not True:
+            return Response(
+                {"error": "Consent is required to send your prompt and relevant financial data to Gemini."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-        transactions = Transaction.objects.filter(user=request.user)
+        try:
+            answer = answer_question(client, settings.COPILOT_GEMINI_MODEL, request.user, data["prompt"])
+        except InvalidToolCall:
+            return Response(
+                {"error": "The assistant requested an invalid tool or arguments. Please rephrase and retry."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except CopilotUnavailable as error:
+            return Response(
+                {"error": "The assistant is temporarily unavailable. Please try again."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS if error.rate_limited else status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except DatabaseError:
+            return Response(
+                {"error": "Financial records are temporarily unavailable. Please try again."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
-        # create a in memory file
-        csvfile = io.StringIO()
-
-        fieldnames = ["amount", "timestamp", "category", "particulars", "currency"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        # logs the first row containging the field names
-        writer.writeheader()
-
-        writer.writerows(
-            [
-                {
-                    "amount": transaction.amount,
-                    "timestamp": transaction.timestamp,
-                    "category": transaction.category,
-                    "particulars": transaction.particulars,
-                    "currency": transaction.currency,
-                }
-                for transaction in transactions
-            ]
-        )
-
-        response = client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
-                prompt,
-                user_prompt,
-                csvfile.getvalue(),
-            ],
-        )
-
-        return Response(response.text, status=201)
+        return Response(answer, status=status.HTTP_201_CREATED, headers={"Cache-Control": "no-store"})

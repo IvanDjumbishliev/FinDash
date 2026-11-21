@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -92,13 +92,10 @@ class AIEndpointTests(TestCase):
         )
 
     @override_settings(API_KEY=None)
-    def test_summary_returns_503_when_api_key_is_missing_even_without_transactions(self):
+    def test_summary_is_available_without_api_key(self):
         response = self.client.get("/api/summary/")
-        self.assertEqual(response.status_code, 503)
-        self.assertEqual(
-            response.data,
-            {"error": "AI features are not configured. Add API_KEY to backend/.env"},
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
 
     @override_settings(API_KEY="test-key")
     def test_lazy_client_uses_supported_google_genai_sdk(self):
@@ -112,58 +109,6 @@ class AIEndpointTests(TestCase):
             self.assertIs(lazy_client.models, fake_sdk_client.models)
 
         client_factory.assert_called_once_with(api_key="test-key")
-
-    @override_settings(API_KEY="test-key")
-    def test_chat_uses_google_genai_generate_content(self):
-        fake_client = SimpleNamespace(
-            models=SimpleNamespace(
-                generate_content=Mock(
-                    return_value=SimpleNamespace(text="Helpful answer")
-                )
-            )
-        )
-        with patch("api.views.assistant.client", fake_client):
-            response = self.client.post(
-                "/api/chat/", {"prompt": "How can I save?"}, format="json"
-            )
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data, "Helpful answer")
-        fake_client.models.generate_content.assert_called_once()
-        call = fake_client.models.generate_content.call_args.kwargs
-        self.assertEqual(call["model"], "gemini-2.0-flash")
-        self.assertIsInstance(call["contents"], list)
-
-    @override_settings(API_KEY="test-key")
-    def test_summary_uses_google_genai_generate_content(self):
-        Transaction.objects.create(
-            user=self.user,
-            amount="12.50",
-            category=Transaction.Category.GROCERIES,
-            particulars="Groceries",
-            currency="USD",
-        )
-        fake_client = SimpleNamespace(
-            models=SimpleNamespace(
-                generate_content=Mock(
-                    return_value=SimpleNamespace(
-                        text='[{"title":"Spending","description":"Track groceries."}]'
-                    )
-                )
-            )
-        )
-        with patch("api.views.user_summary.client", fake_client):
-            response = self.client.get("/api/summary/")
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data[0]["title"], "Spending")
-        fake_client.models.generate_content.assert_called_once()
-        call = fake_client.models.generate_content.call_args.kwargs
-        self.assertEqual(call["model"], "gemini-2.0-flash")
-        self.assertIn(
-            "response_schema",
-            call["config"],
-        )
 
 
 class ScrapedDealsEndpointTests(TestCase):

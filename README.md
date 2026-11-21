@@ -119,6 +119,34 @@ Major endpoints are served below `/api/`:
 - `POST /api/chat/`
 - `GET|POST /api/stocks/watchlist/`
 
+### Financial Copilot
+
+Send an authenticated JSON request to `POST /api/chat/` with a prompt and explicit
+consent for that request.
+
+```json
+{"prompt":"Compare my spending in September and October 2026.","consent":true}
+```
+
+The response remains a JSON string with status `201`. Requests without the JSON
+boolean `consent: true` receive `403` when Gemini is configured. Consent covers sending
+the prompt and relevant financial tool results to Gemini. The existing chat UI
+needs consent wiring before it can call this endpoint. Set `COPILOT_GEMINI_MODEL`
+to override the server's default model.
+
+Gemini can request spending summaries, category breakdowns, recent transactions,
+period comparisons, current budget status, and active confirmed subscription
+estimates. Dates are inclusive in the user's account timezone. Each date range
+can span up to 366 days, and recent transaction results are limited to 20 rows.
+Spending aggregates keep currencies separate, ignore identified internal
+transfers, and deduct recognized refunds. Tools pass structured financial values
+and omit descriptions, merchants, references, and uploaded files. Financial goals
+are unavailable. The server validates each tool call before executing it.
+
+`GET /api/summary/` computes dashboard insights locally, using the last 30 days
+by default. An optional `from-date=YYYY-MM-DD` can cover up to 366 days through today.
+It retains the dashboard's array of insight titles and descriptions.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`
