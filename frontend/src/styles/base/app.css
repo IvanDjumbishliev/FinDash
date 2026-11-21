@@ -268,9 +268,14 @@ body {
   padding: 18px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1050px) {
   .nav-container { height: auto; min-height: 76px; flex-wrap: wrap; }
   .nav-links { order: 3; width: 100%; overflow-x: auto; padding: 8px 0 12px; }
+  .nav-links li { flex: 0 0 auto; }
+  .nav-links a { display: block; white-space: nowrap; }
+}
+
+@media (max-width: 900px) {
   .dashboard-hero { align-items: flex-start; flex-direction: column; }
   .dashboard-hero h1 { font-size: 2.25rem; }
 }

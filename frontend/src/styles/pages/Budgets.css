@@ -1,0 +1,299 @@
+.budget-page {
+    --budget-safe: #08754b;
+    --budget-near: #945500;
+    --budget-chart-spent: #168078;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 1.2rem;
+}
+
+[data-theme="dark"] .budget-page {
+    --budget-safe: #78e0ab;
+    --budget-near: #ffd28b;
+    --budget-chart-spent: #5bd0bf;
+}
+
+.budget-hero,
+.budget-heading,
+.budget-card-heading,
+.budget-card-detail,
+.budget-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.budget-hero,
+.budget-heading,
+.budget-card-heading,
+.budget-card-detail {
+    justify-content: space-between;
+}
+
+.budget-hero {
+    padding: clamp(1rem, 4vw, 2rem);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    background: linear-gradient(125deg, var(--surface), var(--accent-surface));
+}
+
+.budget-hero h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.045em;
+}
+
+.budget-hero p,
+.budget-muted,
+.budget-card-detail,
+.budget-card-amount span {
+    color: var(--muted);
+}
+
+.budget-heading {
+    margin-bottom: 0.75rem;
+}
+
+.budget-panel,
+.budget-feedback {
+    min-width: 0;
+    padding: clamp(0.9rem, 2vw, 1.25rem);
+    background: var(--panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    overflow-wrap: anywhere;
+}
+
+.budget-panel h2,
+.budget-metric h3 {
+    font-size: 1.05rem;
+}
+
+.budget-metrics,
+.budget-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 0.75rem;
+}
+
+.budget-metrics + .budget-muted,
+.budget-panel > .budget-muted {
+    margin-top: 0.45rem;
+}
+
+.budget-metric p {
+    margin-top: 0.3rem;
+    font-size: clamp(1.3rem, 3vw, 1.75rem);
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.budget-metric small {
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.budget-card {
+    --budget-state: var(--budget-safe);
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.budget-card[data-selected="true"] { border-color: var(--violet); }
+.budget-card[data-tone="near"] { --budget-state: var(--budget-near); }
+.budget-card[data-tone="over"] { --budget-state: var(--error-color); }
+
+.budget-state {
+    color: var(--budget-state);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.budget-card-amount strong {
+    font-size: 1.45rem;
+}
+
+.budget-progress {
+    overflow: hidden;
+    height: 0.55rem;
+    border-radius: 999px;
+    background: var(--border-subtle);
+}
+
+.budget-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--budget-state);
+    transform-origin: left;
+    animation: budget-fill 420ms ease-out;
+}
+
+@keyframes budget-fill {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+.budget-muted,
+.budget-card-detail {
+    font-size: 0.875rem;
+}
+
+.budget-card .budget-actions {
+    margin-top: auto;
+    padding-top: 0.35rem;
+}
+
+.budget-page :is(button, select),
+.budget-dialog input {
+    min-height: 42px;
+    max-width: 100%;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 9px;
+    background: var(--field-surface);
+    color: var(--ink);
+    font: inherit;
+}
+
+.budget-page button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.budget-page button:disabled { opacity: 0.55; cursor: default; }
+.budget-page button:not(:disabled):hover { border-color: var(--violet); }
+.budget-page :is(button, input, select, summary):focus-visible {
+    outline: 2px solid var(--violet);
+    outline-offset: 2px;
+}
+
+.budget-page .budget-primary {
+    color: white;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    font-weight: 700;
+}
+
+.budget-page .budget-delete,
+.budget-metric [data-negative="true"] {
+    color: var(--error-color);
+}
+
+.budget-chart {
+    overflow: hidden;
+    min-width: 0;
+    margin: 0.7rem 0;
+}
+
+.budget-spending {
+    scroll-margin-top: 7rem;
+}
+
+.budget-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.6rem;
+}
+
+.budget-legend span::before {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-right: 0.35rem;
+    border-radius: 2px;
+    background: var(--violet);
+    content: "";
+}
+
+.budget-legend span:nth-child(2)::before { background: var(--budget-chart-spent); }
+
+.budget-history-list,
+.budget-chart-data {
+    margin-top: 0.6rem;
+    list-style: none;
+}
+
+.budget-history-list li,
+.budget-chart-data li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    border-top: 1px solid var(--border-subtle);
+    padding: 0.55rem 0;
+}
+
+.budget-feedback {
+    margin: 0.6rem 0;
+    background: var(--accent-surface);
+}
+.budget-feedback button, .budget-empty button { margin-top: 0.55rem; }
+.budget-error { border-color: var(--error-color); }
+.budget-skeleton {
+    min-height: 6.5rem;
+    background: var(--accent-surface);
+    animation: budget-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes budget-pulse {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .budget-progress span, .budget-skeleton { animation: none; }
+}
+
+.budget-dialog {
+    position: fixed;
+    inset: 0;
+    width: min(calc(100% - 2rem), 34rem);
+    max-height: calc(100% - 2rem);
+    margin: auto;
+    padding: clamp(1rem, 4vw, 1.5rem);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    color: var(--ink);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+}
+
+.budget-dialog::backdrop { background: rgba(9, 15, 27, 0.65); }
+
+.budget-dialog form,
+.budget-dialog fieldset {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.budget-dialog fieldset {
+    min-width: 0;
+    border: 0;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+}
+
+.budget-dialog label {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.budget-dialog :is(input, select) { width: 100%; }
+.budget-dialog small { color: var(--muted); }
+.budget-wide { grid-column: 1 / -1; }
+
+.budget-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}

@@ -16,6 +16,7 @@ function Navigation() {
         <ul className="nav-links">
           <li><NavLink to="/" end>Overview</NavLink></li>
           <li><NavLink to="/transactions">Transactions</NavLink></li>
+          <li><NavLink to="/budgets">Budgets</NavLink></li>
           <li><NavLink to="/chat">AI Advisor</NavLink></li>
           <li><NavLink to="/promotions">Deals</NavLink></li>
           <li><NavLink to="/stocks">Stock watchlist</NavLink></li>

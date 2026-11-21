@@ -11,6 +11,7 @@ import Promotions from "./pages/Promotions";
 import Stocks from "./pages/Stocks";
 import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
+import Budgets from "./pages/Budgets";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
 
 function Logout() {
@@ -75,6 +76,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <News />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/budgets"
+            element={
+              <ProtectedRoute>
+                <Budgets />
               </ProtectedRoute>
             }
           />
