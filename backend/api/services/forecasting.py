@@ -51,10 +51,10 @@ def read_ledger(owner, start, end, zone, currency):
         user=owner, currency__iexact=currency,
         timestamp__gte=datetime.combine(start - timedelta(days=1), time.min, UTC),
         timestamp__lte=datetime.combine(end + timedelta(days=1), time.max, UTC),
-    ).order_by().values_list("pk", "timestamp", "amount", "particulars", "merchant", "normalized_merchant")
+    ).order_by().values_list("pk", "timestamp", "amount", "particulars", "merchant", "normalized_merchant", "category")
 
     result = []
-    for index, (pk, timestamp, amount, description, merchant, normalized) in enumerate(
+    for index, (pk, timestamp, amount, description, merchant, normalized, category) in enumerate(
         rows[:MAX_LEDGER_ROWS + 1].iterator()
     ):
         if index == MAX_LEDGER_ROWS:
@@ -68,7 +68,7 @@ def read_ledger(owner, start, end, zone, currency):
             kind = "refund" if REFUND.search(description) else "income"
         label, identity = merchant_names(merchant or description)
         _, stored_identity = merchant_names(normalized)
-        result.append(LedgerEntry(pk, day, abs(amount), kind, label, stored_identity or identity))
+        result.append(LedgerEntry(pk, day, abs(amount), kind, label, stored_identity or identity, category))
     return result
 
 
@@ -118,6 +118,17 @@ def weekly_baseline(ledger, recurring_ids, as_of):
     if not enough:
         return coverage, None
     return coverage, list(zip(cap_extremes(income), cap_extremes(expenses), strict=True))
+
+
+def variable_category_rates(ledger, recurring_ids, as_of, week_count):
+    start = as_of - timedelta(weeks=week_count)
+    totals = defaultdict(lambda: [ZERO] * week_count)
+    for entry in ledger:
+        if start <= entry.day < as_of and entry.id not in recurring_ids and entry.kind in ("expense", "refund"):
+            index = (entry.day - start).days // 7
+            totals[entry.category][index] += entry.amount if entry.kind == "expense" else -entry.amount
+    rates = {key: cents(sum(cap_extremes(values), ZERO) / week_count) for key, values in totals.items()}
+    return {key: money(value) for key, value in sorted(rates.items()) if value > ZERO and key in Transaction.Category.values}
 
 
 def historical_weeks(ledger, as_of):
@@ -211,6 +222,7 @@ def forecast_events(schedules, start, end):
             "label": schedule.label, "kind": schedule.kind, "amount": money(schedule.amount),
             "frequency": schedule.frequency, "source": schedule.source,
             "observations": schedule.observations, "dates": [day.isoformat() for day in dates],
+            **({"subscription_id": schedule.subscription_id} if schedule.subscription_id is not None else {}),
         })
     return totals, sorted(events, key=lambda event: (event["dates"][0], event["kind"], event["label"]))
 
@@ -260,7 +272,9 @@ def project_days(start, horizon, scheduled, weeks, starting_balance):
     return days, summary
 
 
-def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balance=None, as_of=None):
+def build_cash_flow_forecast(
+    owner, *, horizon=30, currency=None, starting_balance=None, as_of=None, include_uncertainty=True,
+):
     """Estimate cash flow from the owner's recorded ledger, independent of HTTP."""
     if horizon not in HORIZONS:
         raise ValueError("Unsupported forecast horizon.")
@@ -285,13 +299,13 @@ def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balan
     previous = cash_components(ledger)
     first, last = min((item.day for item in ledger), default=None), max((item.day for item in ledger), default=None)
     uncertainty = None
-    if weeks is not None and coverage["weeks_with_variable_activity"] >= MIN_SCENARIO_VARIABLE_WEEKS:
+    if include_uncertainty and weeks is not None and coverage["weeks_with_variable_activity"] >= MIN_SCENARIO_VARIABLE_WEEKS:
         uncertainty = historical_scenarios(weeks, days, starting_balance)
 
     limitations = list(LIMITATIONS)
     if weeks is None:
         limitations.append("Variable cash flow needs at least eight completed weeks with activity in at least half; only scheduled flows are available.")
-    elif uncertainty is None:
+    elif include_uncertainty and uncertainty is None:
         limitations.append("An illustrative range needs sixteen completed weeks, variable activity in at least eight, and variation in weekly net cash flow.")
     return {
         "as_of": as_of.isoformat(),
@@ -320,6 +334,11 @@ def build_cash_flow_forecast(owner, *, horizon=30, currency=None, starting_balan
         "days": days,
         "totals": totals,
         "uncertainty": uncertainty,
+        "scenario_options": {
+            "weekly_variable_expenses_by_category": variable_category_rates(
+                ledger, recurring_ids, as_of, coverage["complete_weeks"],
+            ) if weeks is not None else {},
+        },
         "assumptions": ASSUMPTIONS,
         "limitations": limitations,
     }

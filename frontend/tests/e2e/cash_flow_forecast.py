@@ -122,6 +122,28 @@ def run(api, site, driver, firefox, _temporary):
                 !!doc.querySelector('.forecast-path svg.recharts-surface');
         """))
 
+        browser.change("#forecast-balance", "500")
+        assert browser.click("Apply balance")
+        wait_for(lambda: browser.execute("return document.querySelector('#forecast-path-title')?.textContent.includes('Estimated balance');"))
+        browser.change(".forecast-scenario-fields fieldset:nth-child(5) input", "25")
+        browser.change(".forecast-scenario-fields fieldset:nth-child(6) input", "600")
+        assert browser.click("Compare scenario")
+        wait_for(lambda: browser.execute("""
+            return document.querySelector('.forecast-scenario-comparison')?.textContent.includes('75.00') &&
+                document.querySelectorAll('.forecast-scenario-comparison .recharts-line-curve').length === 2;
+        """))
+        browser.change(".forecast-saved-scenarios input", "Purchase test")
+        assert browser.click("Save scenario")
+        wait_for(lambda: browser.execute("return document.querySelector('.forecast-saved-scenarios ul')?.textContent.includes('Purchase test');"))
+        assert browser.click("Reset scenario")
+        wait_for(lambda: browser.execute("return !document.querySelector('.forecast-scenario-comparison');"))
+        assert browser.click("Load Purchase test")
+        wait_for(lambda: browser.execute("return document.querySelector('.forecast-scenario-comparison')?.textContent.includes('75.00');"))
+        browser.change(".forecast-scenario-fields fieldset:nth-child(5) input", "50")
+        wait_for(lambda: browser.execute("return document.querySelector('.forecast-scenario-comparison')?.textContent.includes('50.00');"))
+        assert browser.click("Delete Purchase test")
+        wait_for(lambda: browser.execute("return document.querySelector('.forecast-saved-scenarios').textContent.includes('No scenarios saved yet.');"))
+
         browser.execute("localStorage.setItem('access', arguments[0]);", empty_token)
         browser.navigate(f"{site}/forecast")
         wait_for(lambda: browser.execute("return !!document.querySelector('.forecast-insufficient');"))
@@ -129,7 +151,7 @@ def run(api, site, driver, firefox, _temporary):
             return document.querySelector('.forecast-kpis').textContent.includes('Scheduled income') &&
                 !document.querySelector('.forecast-path svg.recharts-surface');
         """)
-        print("Passed historical and projected charts, daily band, keyboard horizons, private balance, recurring payments, retry, sparse state, and 390 px layout.")
+        print("Passed historical and projected charts, daily band, keyboard horizons, private balance, recurring payments, retry, sparse state, 390 px layout, and scenario comparison, save, reset, load, live edits, and deletion.")
     finally:
         browser.close()
 

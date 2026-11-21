@@ -199,6 +199,30 @@ chart values in `history.weeks`, scheduled series, daily projections, horizon
 totals, assumptions, and limitations. When available, `uncertainty.days` contains
 scenario bounds for each date using the same simulated paths as the final range.
 
+#### What-if scenarios
+
+Use **What-if scenarios** on the forecast page to compare the baseline against
+a monthly income increase, a variable category cut, a new weekly or monthly
+expense, an omitted confirmed subscription, a one-time purchase, or an
+alternate starting balance. Day 1 means the first forecast day. Omitted
+subscriptions continue to exist and are only excluded from the comparison.
+
+`POST /api/forecast/cash-flow/scenarios/preview/` accepts `horizon`, `currency`,
+optional baseline `starting_balance`, and a `changes` object. Supported changes
+are `monthly_income` and `purchase` (each with `amount` and optional `day`),
+`recurring_expense` (also accepts `frequency`), `spending_reduction` (with
+`category` and integer `percent`), `remove_subscription_id`, and a hypothetical
+`starting_balance`. The response includes both daily paths, ending differences,
+and notes for changes that cannot be modeled. A category reduction applies to
+positive estimated variable expenses and is capped at the daily variable amount.
+A balance difference needs a baseline starting balance.
+
+`GET|POST /api/forecast/cash-flow/scenarios/` lists or saves named assumptions.
+Saving accepts `name`, `horizon`, `currency`, and `changes`. Loading reruns the
+assumptions against current data. `DELETE /api/forecast/cash-flow/scenarios/{id}/`
+deletes a saved scenario. Simulation writes no financial records. Scenario paths
+are hypothetical estimates and do not include uncertainty bounds.
+
 ### Financial reports
 
 Open **Reports** and select a month and optionally a three-letter currency.

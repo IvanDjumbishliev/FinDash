@@ -205,3 +205,18 @@ class CopilotPreferences(models.Model):
     history_enabled = models.BooleanField(default=False)
     history = models.JSONField(default=list, blank=True)
     revision = models.PositiveBigIntegerField(default=0)
+
+
+class CashFlowScenario(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="cash_flow_scenarios")
+    name = models.CharField(max_length=80)
+    horizon = models.PositiveSmallIntegerField()
+    currency = models.CharField(max_length=3)
+    changes = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "name"], name="cash_flow_scenario_owner_name"),
+        ]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiActivity, FiCalendar, FiInfo, FiRepeat } from "react-icons/fi";
 import api from "../api";
+import ForecastScenarios from "../components/ForecastScenarios";
 import { CashFlowComparison, ForecastTrajectory } from "../components/CashFlowCharts";
 import { balanceInput, forecastMetrics, horizons, recurringPayments } from "../cashFlowForecast";
 import { displayDate, displayRange, money } from "../copilotPresentation";
@@ -51,6 +52,7 @@ export default function CashFlowForecast() {
     <header className="forecast-heading">
       <span><FiActivity aria-hidden="true" /></span>
       <div><h1>Cash flow forecast</h1><p>See what may come in, what may go out, and how your balance could change.</p></div>
+      <a className="forecast-scenario-jump" href="#forecast-scenarios-title">What-if scenarios</a>
     </header>
 
     <section className="forecast-panel forecast-controls" aria-label="Forecast options">
@@ -126,5 +128,6 @@ export default function CashFlowForecast() {
         <h3>Limitations</h3><ul>{data.limitations.map((item) => <li key={item}>{item}</li>)}</ul>
       </details>
     </div>}
+    <ForecastScenarios data={data} onHorizonChange={setHorizon} />
   </main>;
 }

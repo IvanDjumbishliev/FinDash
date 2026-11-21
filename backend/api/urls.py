@@ -12,6 +12,9 @@ from .views.reports import FinancialReportPDFView, FinancialReportView
 from .views.assistant import AssistantView, CopilotHistoryView, CopilotSettingsView
 from .views.budget_recommendations import BudgetRecommendationApplyView, BudgetRecommendationView
 from .views.forecast import CashFlowForecastView
+from .views.forecast_scenarios import (
+    CashFlowScenarioDetailView, CashFlowScenarioListView, CashFlowScenarioPreviewView,
+)
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
 from .views.leaflet_billa import BillaLeafletView
 from .views.leaflet_kaufland import LeafletKauflandView
@@ -75,6 +78,9 @@ urlpatterns = [
     path("chat/", AssistantView.as_view()),
     path("reports/", FinancialReportView.as_view(), name="financial-report"),
     path("forecast/cash-flow/", CashFlowForecastView.as_view(), name="cash-flow-forecast"),
+    path("forecast/cash-flow/scenarios/", CashFlowScenarioListView.as_view(), name="cash-flow-scenarios"),
+    path("forecast/cash-flow/scenarios/preview/", CashFlowScenarioPreviewView.as_view(), name="cash-flow-scenario-preview"),
+    path("forecast/cash-flow/scenarios/<int:pk>/", CashFlowScenarioDetailView.as_view(), name="cash-flow-scenario-detail"),
     path("reports/pdf/", FinancialReportPDFView.as_view(), name="financial-report-pdf"),
     path("chat/settings/", CopilotSettingsView.as_view()),
     path("chat/history/", CopilotHistoryView.as_view()),

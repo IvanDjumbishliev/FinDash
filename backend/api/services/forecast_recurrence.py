@@ -23,6 +23,7 @@ class LedgerEntry:
     kind: str
     merchant: str
     identity: str
+    category: str
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class Schedule:
     first: date
     source: str
     observations: int | None = None
+    subscription_id: int | None = None
 
     def due_at(self, periods):
         months, days, _, _ = CADENCES[self.frequency]
@@ -82,6 +84,7 @@ def subscription_schedule(subscription):
         anchor=subscription.billing_anchor_day or (31 if end_of_month(first) else first.day),
         first=first,
         source="confirmed_subscription",
+        subscription_id=subscription.pk,
     )
 
 
