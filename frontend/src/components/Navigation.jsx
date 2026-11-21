@@ -1,10 +1,11 @@
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
+import { useNotificationInbox } from "./notificationContext";
 import { NavLink, Link } from "react-router-dom";
-import { ACCESS_TOKEN } from "../constants";
 import "../styles/components/Navigation.css";
 
 function Navigation() {
-  const isLoggedIn = Boolean(localStorage.getItem(ACCESS_TOKEN));
+  const isLoggedIn = useNotificationInbox().account !== null;
 
   return (
     <nav className="nav-container">
@@ -29,6 +30,7 @@ function Navigation() {
         </ul>
       )}
       <div className="nav-actions">
+        {isLoggedIn && <NotificationBell />}
         <ThemeToggle />
         {isLoggedIn ? (
           <Link className="btn-nav btn-outline" to="/logout">Log out</Link>

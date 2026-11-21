@@ -524,6 +524,12 @@ Budget, spending, import, and report events run after successful writes. Spendin
 
 Set `NOTIFICATION_RETENTION_DAYS` to control how long inbox entries remain visible and stored. The default is 90 days. Deduplication records retain an event hash without message content so an expired alert cannot reappear. Delivery is through the in-app inbox.
 
+#### Notification center
+
+Open the navigation bell for recent alerts, or visit `/notifications` for retained history and `/notifications/settings` to manage alert categories and watchlist price rules. The browser uses the existing authenticated HTTP endpoints. It refreshes every 30 seconds while visible and online, backs off on failures, and refreshes immediately after reconnecting or returning to the tab. JWTs travel in authorization headers.
+
+Run the polling tests with `npm test` from `frontend/`. Run the browser workflow with `backend/.venv/bin/python frontend/tests/e2e/notifications.py` from the repository root with Firefox and geckodriver available. Both browser binaries can also be set via `FIREFOX_BIN` and `GECKODRIVER_BIN`.
+
 #### Local workers and scheduled checks
 
 Start Redis locally. For example, run this in a separate terminal with Docker installed.

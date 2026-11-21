@@ -14,6 +14,8 @@ import News from "./pages/News";
 import Subscriptions from "./pages/Subscriptions";
 import Budgets from "./pages/Budgets";
 import Reports from "./pages/Reports";
+import Notifications from "./pages/Notifications";
+import NotificationSettings from "./pages/NotificationSettings";
 import GroceryOptimizer from "./pages/GroceryOptimizer";
 import CashFlowForecast from "./pages/CashFlowForecast";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "./constants";
@@ -115,6 +117,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
           <Route
             path="/subscriptions"
             element={

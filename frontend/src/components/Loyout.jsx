@@ -1,17 +1,28 @@
-import React from 'react';
+import { useSyncExternalStore } from "react";
 import { Link } from 'react-router-dom';
 import { Outlet } from "react-router";
 import Navigation from "./Navigation";
+import { NotificationProvider } from "./NotificationInbox";
+import { notificationAccount } from "./notificationContext";
+import "../styles/components/Notifications.css";
 import { FaInstagram, FaDiscord, FaFacebook } from 'react-icons/fa';
 import '../styles/components/Footer.css';
 
+function subscribeToStorage(listener) {
+    window.addEventListener("storage", listener);
+    return () => window.removeEventListener("storage", listener);
+}
+
 export default function Footer() {
+    const account = useSyncExternalStore(subscribeToStorage, notificationAccount);
     return (
         <div className="fade-in">
-            <header className="header">
-                <Navigation />
-            </header>
-            <Outlet />
+            <NotificationProvider key={account} account={account}>
+                <header className="header">
+                    <Navigation />
+                </header>
+                <Outlet />
+            </NotificationProvider>
             <footer className="footer">
                 <div className="footer-content">
                     <div className="footer-section">
