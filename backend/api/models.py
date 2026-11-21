@@ -197,3 +197,11 @@ class MerchantCategoryRule(models.Model):
                 fields=["owner", "normalized_merchant"], name="unique_merchant_category_rule"
             ),
         ]
+
+
+class CopilotPreferences(models.Model):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="copilot_preferences")
+    sharing_enabled = models.BooleanField(default=True)
+    history_enabled = models.BooleanField(default=False)
+    history = models.JSONField(default=list, blank=True)
+    revision = models.PositiveBigIntegerField(default=0)

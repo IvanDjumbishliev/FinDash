@@ -121,31 +121,41 @@ Major endpoints are served below `/api/`:
 
 ### Financial Copilot
 
-Send an authenticated JSON request to `POST /api/chat/` with a prompt and explicit
-consent for that request.
+The **Financial Copilot** page uses the existing account and transaction ledger.
+Check the consent box to allow Gemini to process your question and limited
+conversation context for this session. **Privacy settings** can disable Gemini
+sharing entirely, enable saved history, or delete the saved conversation.
+History is off by default. Turning it off deletes the saved conversation.
+FinDash retains up to 24 turns for the account when history is enabled and uses
+the latest four for follow-ups. With history off, the tab keeps a signed,
+account-bound context token that expires an hour after issuance.
 
-```json
-{"prompt":"Compare my spending in September and October 2026.","consent":true}
-```
+- `POST /api/chat/` accepts JSON such as
+  `{"prompt":"How much did I spend on groceries last month?","consent":true}`.
+  Include the previous `context_token` on follow-ups when history is off.
+  A successful `201` returns `answer`, `metrics`, inclusive `date_ranges`,
+  optional `visualization` metadata, and `context_token` (null when history is saved).
+- `GET|PATCH /api/chat/settings/` reads or updates the boolean fields
+  `sharing_enabled` and `history_enabled`. Sharing is available by default,
+  with explicit consent still required for each request.
+- `GET|DELETE /api/chat/history/` reads or clears the authenticated user's
+  saved turns. Deleting also invalidates previous context tokens.
+- Chat errors include a code and a user-facing message. Refresh the conversation
+  after a `409` stale context response. Timeouts and transient transport or server
+  failures allow one automatic retry. Gemini rate limits are returned as `429`.
 
-The response remains a JSON string with status `201`. Requests without the JSON
-boolean `consent: true` receive `403` when Gemini is configured. Consent covers sending
-the prompt and relevant financial tool results to Gemini. The existing chat UI
-needs consent wiring before it can call this endpoint. Set `COPILOT_GEMINI_MODEL`
-to override the server's default model.
-
-Gemini can request spending summaries, category breakdowns, recent transactions,
-period comparisons, current budget status, and active confirmed subscription
-estimates. Dates are inclusive in the user's account timezone. Each date range
-can span up to 366 days, and recent transaction results are limited to 20 rows.
-Spending aggregates keep currencies separate, ignore identified internal
-transfers, and deduct recognized refunds. Tools pass structured financial values
-and omit descriptions, merchants, references, and uploaded files. Financial goals
-are unavailable. The server validates each tool call before executing it.
+Gemini selects read-only tools using the current question and up to four prior
+questions with inferred date ranges. FinDash calculates amounts and writes
+answers locally. The provider receives no tool results, merchant names,
+transaction descriptions, or uploaded statements from the ledger. Questions
+can contain information the user types. Spending calculations use the account
+timezone, keep currencies separate, exclude identified internal transfers,
+and deduct recognized refunds. Subscription costs are estimates. Each
+date range can span up to 366 days, and recent transactions are capped at 20 rows.
+Set `COPILOT_GEMINI_MODEL` to override the server's default model.
 
 `GET /api/summary/` computes dashboard insights locally, using the last 30 days
 by default. An optional `from-date=YYYY-MM-DD` can cover up to 366 days through today.
-It retains the dashboard's array of insight titles and descriptions.
 
 ### Spending heatmap
 

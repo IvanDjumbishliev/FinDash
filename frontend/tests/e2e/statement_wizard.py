@@ -16,7 +16,7 @@ import requests
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def serve(database, port):
+def serve(database, port, configure=None):
     os.environ["DJANGO_SETTINGS_MODULE"] = "backend.settings"
     os.environ["API_KEY"] = ""
     sys.path.insert(0, str(ROOT / "backend"))
@@ -28,6 +28,8 @@ def serve(database, port):
         "ENGINE": "django.db.backends.sqlite3", "NAME": database,
     }
     django.setup()
+    if configure:
+        configure()
     call_command("migrate", verbosity=0)
     call_command("runserver", f"127.0.0.1:{port}", use_reloader=False)
 
@@ -277,7 +279,7 @@ def run(base, site, driver, firefox, temporary):
         browser.close()
 
 
-def main(run_browser=run):
+def main(run_browser=run, server_script=__file__):
     firefox = os.getenv("FIREFOX_BIN") or shutil.which("firefox")
     geckodriver = os.getenv("GECKODRIVER_BIN") or shutil.which("geckodriver")
     if not firefox or not geckodriver:
@@ -293,7 +295,7 @@ def main(run_browser=run):
             ))
 
         try:
-            launch([sys.executable, __file__, "--serve", temporary + "/test.sqlite3", str(api_port)], ROOT)
+            launch([sys.executable, server_script, "--serve", temporary + "/test.sqlite3", str(api_port)], ROOT)
             launch(["node", "node_modules/vite/bin/vite.js", "--host", "127.0.0.1",
                     "--port", str(vite_port), "--strictPort"], ROOT / "frontend", VITE_API_URL=api)
             launch([geckodriver, "--port", str(driver_port), "--profile-root", temporary], ROOT)

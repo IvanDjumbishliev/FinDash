@@ -88,7 +88,7 @@ class AIEndpointTests(TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertEqual(
             response.data,
-            {"error": "AI features are not configured. Add API_KEY to backend/.env"},
+            {"code": "not_configured", "error": "AI features are not configured. Add API_KEY to backend/.env"},
         )
 
     @override_settings(API_KEY=None)

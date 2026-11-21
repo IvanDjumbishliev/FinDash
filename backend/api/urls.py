@@ -8,7 +8,7 @@ from .views.deals import (
 )
 
 from .views.spending_heatmap import ProfileTimezoneView, SpendingHeatmapDayView, SpendingHeatmapView
-from .views.assistant import AssistantView
+from .views.assistant import AssistantView, CopilotHistoryView, CopilotSettingsView
 from .views.budget_recommendations import BudgetRecommendationApplyView, BudgetRecommendationView
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
 from .views.leaflet_billa import BillaLeafletView
@@ -71,6 +71,8 @@ urlpatterns = [
     path("analytics/spending-heatmap/", SpendingHeatmapView.as_view(), name="spending-heatmap"),
     path("analytics/spending-heatmap/day/", SpendingHeatmapDayView.as_view(), name="spending-heatmap-day"),
     path("chat/", AssistantView.as_view()),
+    path("chat/settings/", CopilotSettingsView.as_view()),
+    path("chat/history/", CopilotHistoryView.as_view()),
     path("news/", NewsView.as_view(), name="news"),
     path("budgets/", BudgetListView.as_view(), name="budget-list"),
     path("budgets/overview/", BudgetOverviewView.as_view(), name="budget-overview"),
