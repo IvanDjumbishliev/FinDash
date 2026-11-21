@@ -157,6 +157,35 @@ Set `COPILOT_GEMINI_MODEL` to override the server's default model.
 `GET /api/summary/` computes dashboard insights locally, using the last 30 days
 by default. An optional `from-date=YYYY-MM-DD` can cover up to 366 days through today.
 
+### Financial reports
+
+Open **Reports** and select a month and optionally a three-letter currency.
+The report contains recorded income, expenses net of recognized refunds, cash
+flow, category changes, the largest recorded expenses, and budget performance.
+Internal transfers are excluded. Month-to-date reports use the comparable days
+of the previous month. Subscription estimates reflect active confirmed
+subscriptions as of generation. Financial goal tracking is currently unavailable.
+
+- `POST /api/reports/` accepts optional `month` (`YYYY-MM`), `currency`, and
+  `ai_consent` (JSON boolean, default false). The default month uses the account
+  timezone and the default currency uses the profile or USD. The response
+  contains `report` and `export_token`.
+- `POST /api/reports/pdf/` accepts that response unchanged and returns an
+  attachment. The export token is account-bound and expires after one hour.
+  Export reuses the preview and makes no Gemini request.
+- Reports are generated on demand and kept only in the browser preview and in
+  PDFs users download. **Clear preview** removes the current in-app preview.
+
+Optional Gemini interpretation receives only qualitative trend signals and
+category names after explicit consent. Copilot's sharing setting applies.
+Gemini failures leave the deterministic report and PDF export available.
+AI interpretation is for information only.
+
+Set a private, stable `DJANGO_SECRET_KEY` in the environment or `backend/.env`
+for deployments. Django uses a process-local random key when it is omitted,
+so JWTs and export tokens expire on restart and do not work across workers.
+Existing sessions using the former bundled key must sign in again.
+
 ### Spending heatmap
 
 `GET /api/analytics/spending-heatmap/?start=2026-01-01&end=2026-01-31&currency=EUR`

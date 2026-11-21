@@ -76,10 +76,10 @@ def money(amount):
 class FinancialTools:
     """Read-only financial projections bound to a server-authenticated account."""
 
-    def __init__(self, owner):
+    def __init__(self, owner, *, now=None):
         self.owner = owner
         self.zone = account_timezone(owner)
-        self.today = timezone.localdate(timezone=self.zone)
+        self.today = timezone.localdate(value=now, timezone=self.zone)
 
     def _spending(self, start, end):
         # The padded UTC window covers local dates even when a clock rolls back at midnight.
@@ -220,13 +220,15 @@ class FinancialTools:
             ],
         }
 
-    def get_subscription_summary(self):
+    def get_subscription_summary(self, *, currency=None):
         active = Subscription.objects.filter(
             owner=self.owner, status=Subscription.Status.CONFIRMED,
             currency__regex=rf"^{CURRENCY_PATTERN}$", billing_frequency__in=PER_YEAR,
         ).exclude(tracking_status__in=[
             Subscription.TrackingStatus.PAUSED, Subscription.TrackingStatus.CANCELED,
         ])
+        if currency is not None:
+            active = active.filter(currency=currency)
         annual_amount = Case(*[
             When(billing_frequency=frequency, then=F("estimated_amount") * count)
             for frequency, count in PER_YEAR.items()

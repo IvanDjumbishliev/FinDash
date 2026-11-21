@@ -15,17 +15,16 @@ from datetime import timedelta
 import os
 
 from decouple import Config, RepositoryEnv
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env_file = BASE_DIR / ".env"
-if os.getenv("API_KEY") is not None:
-    API_KEY = os.environ["API_KEY"]
-elif env_file.is_file():
-    API_KEY = Config(RepositoryEnv(str(env_file)))("API_KEY", default="")
-else:
-    API_KEY = ""
+local_config = Config(RepositoryEnv(str(env_file))) if env_file.is_file() else None
+API_KEY = os.getenv("API_KEY")
+if API_KEY is None:
+    API_KEY = local_config("API_KEY", default="") if local_config else ""
 API_KEY = API_KEY.strip()
 COPILOT_GEMINI_MODEL = os.getenv("COPILOT_GEMINI_MODEL", "gemini-3.8-flash")
 BUDGET_GEMINI_MODEL = os.getenv("BUDGET_GEMINI_MODEL", "gemini-3.8-flash")
@@ -36,7 +35,9 @@ STATEMENT_GEMINI_MODEL = os.getenv("STATEMENT_GEMINI_MODEL", "gemini-3.8-flash")
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-nma=xi6x2p-crjg^ifqqkapyu1qjd0l=+wn)-rijk_o%$!k3w_"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or (
+    local_config("DJANGO_SECRET_KEY", default="") if local_config else ""
+) or get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
