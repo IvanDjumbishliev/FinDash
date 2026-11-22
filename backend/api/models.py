@@ -283,6 +283,7 @@ class GroceryOffer(models.Model):
     measurement_unit = models.CharField(max_length=4, choices=Unit.choices, blank=True)
     pack_count = models.PositiveIntegerField(null=True)
     unit_price = models.DecimalField(max_digits=24, decimal_places=6, null=True)
+    discount_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     starts_on = models.DateField(null=True)
     expires_on = models.DateField(null=True)
     starts_at = models.DateTimeField(null=True)
@@ -386,6 +387,7 @@ class NotificationCategory(models.TextChoices):
     STATEMENT_IMPORT = "statement_import", "Statement import"
     FINANCIAL_REPORT = "financial_report", "Financial report"
     STOCK_THRESHOLD = "stock_threshold", "Stock threshold"
+    GROCERY_DEAL = "grocery_deal", "Grocery deal"
 
 
 def default_notification_categories():
@@ -565,3 +567,42 @@ class ReceiptItem(models.Model):
 
     class Meta:
         ordering = ["pk"]
+
+
+class ShoppingPersonalization(models.Model):
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="shopping_personalization")
+    automatic_enabled = models.BooleanField(default=False)
+    preferred_retailers = models.JSONField(default=list, blank=True)
+    category_interests = models.JSONField(default=list, blank=True)
+
+
+class ProductPreference(models.Model):
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        INFERRED = "inferred", "Inferred"
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="product_preferences")
+    product = models.ForeignKey(GroceryOffer, null=True, blank=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=255)
+    normalized_name = models.CharField(max_length=255)
+    source = models.CharField(max_length=8, choices=Source.choices, default=Source.MANUAL)
+    favorite = models.BooleanField(default=True)
+    preferred_brand = models.CharField(max_length=120, blank=True)
+    preferred_quantity = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True)
+    preferred_unit = models.CharField(max_length=4, choices=GroceryOffer.Unit.choices, blank=True)
+    minimum_discount = models.PositiveSmallIntegerField(null=True, blank=True)
+    notifications_enabled = models.BooleanField(default=False)
+    excluded = models.BooleanField(default=False)
+    muted = models.BooleanField(default=False)
+    last_purchase_date = models.DateField(null=True, blank=True)
+    purchase_frequency = models.PositiveIntegerField(default=0)
+    last_notified_offer = models.ForeignKey(
+        GroceryOffer, null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+    )
+
+    class Meta:
+        ordering = ["-favorite", "normalized_name", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "normalized_name"], name="user_product_identity_unique"),
+            models.CheckConstraint(condition=models.Q(minimum_discount__lte=100), name="product_discount_at_most_100"),
+        ]

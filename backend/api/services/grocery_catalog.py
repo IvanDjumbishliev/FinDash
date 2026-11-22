@@ -156,6 +156,8 @@ def normalize_offer(row, observed_at):
     price, currency = observed_price(metadata)
     product_id, offer_id = identifier(metadata.get("product_id")), identifier(metadata.get("offer_id"))
     membership = metadata.get("membership") is True
+    discount = row.get("discount_percent")
+    discount = discount if type(discount) is int and 0 <= discount <= 100 else None
     unit_price = (
         (price / quantity).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
         if price is not None and currency and quantity else None
@@ -174,7 +176,7 @@ def normalize_offer(row, observed_at):
         "starts_at": starts_at, "expires_at": expires_at, "image_url": web_url(row.get("image_url")),
         "source_url": source, "last_successful_update": observed_at,
         "availability_status": "advertised" if price is not None else "unverified",
-        "requires_membership": membership,
+        "requires_membership": membership, "discount_percent": discount,
     }
 
 

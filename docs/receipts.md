@@ -26,3 +26,13 @@ Images and OCR text are processed in memory and discarded after the request. Wit
 
 
 Open **Receipt history and spending** from the scanner, or visit `/receipts/history`. Search by store, product, or date to filter the saved receipts and receipt statistics. A product search selects receipts containing the product. Breakdowns include all items from those receipts. Signed refunds reduce product and category totals. Printed receipt totals and item totals are displayed separately because taxes, discounts, and incomplete item details can create differences. Receipt statistics are a separate view of purchases and should never be added to bank-ledger totals. All suggestions require an explicit link action.
+
+## My Products
+
+Open **More → My Products** or visit `/my-products`. Save products by name or favorite a catalog offer. Matching advertised offers honor the selected supermarkets, category interests, package, brand, and configured discount threshold. An unknown discount cannot satisfy a configured threshold. Excluded or muted products are suppressed.
+
+Receipt personalization is opt-in. It suggests recognized staples purchased on at least three distinct days in the last 180 days. Approve or reject each suggestion. Turning personalization off stops receipt analysis and preserves prior decisions. Clearing inferred preferences removes those decisions while keeping receipts and manual products. If personalization remains on, the same receipt evidence can produce new suggestions.
+
+Per-product alerts are off by default. Successful runs of `manage.py refresh_grocery_catalog` check the refreshed retailer for matching offers and create private in-app notifications, subject to notification settings. Receipt data and preferences stay in FinDash. Retailer integrations fetch public offers without sending user preferences.
+
+Authenticated endpoints are rooted at `/api/grocery/my-products/`. GET returns the library, settings, suggestions, and matching offers. POST adds a manual product. PATCH or DELETE `{id}/` edits or removes it. PATCH `settings/` updates personalization controls. POST `suggestions/` accepts `normalized_name` and an `approve` or `reject` decision, and DELETE `suggestions/` clears inferred preferences.

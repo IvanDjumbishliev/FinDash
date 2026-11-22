@@ -81,6 +81,10 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_SETTINGS": {"persistAuthorization": False},
     "ENUM_NAME_OVERRIDES": {
         "TransactionCategoryEnum": "api.models.Transaction.Category",
+        "GroceryRetailerEnum": "api.models.GroceryRetailer",
+        "GroceryMeasurementUnitEnum": "api.models.GroceryOffer.Unit",
+        "ReceiptSourceEnum": "api.models.Receipt.Source",
+        "ProductInterestSourceEnum": "api.models.ProductPreference.Source",
         "EuroLevCurrencyEnum": "api.models.Receipt.Currency",
     },
 }

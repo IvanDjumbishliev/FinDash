@@ -1,0 +1,22 @@
+.my-products { display: grid; gap: 1rem; }
+.product-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
+.product-panel { display: block; }
+.product-panel h2, .product-panel h3 { margin: 0; }
+.product-section-title { display: flex; gap: 0.65rem; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.product-section-title > span { font-size: 0.8rem; color: var(--muted); }
+.product-note { color: var(--muted); }
+.product-list { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.product-list > li { background: var(--accent-surface); border: 1px solid var(--border-subtle); border-radius: 9px; padding: 0.75rem; overflow-wrap: anywhere; }
+.product-list li p { margin: 0.4rem 0; }
+.product-list h3 svg { color: var(--violet); vertical-align: middle; }
+.product-offers { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.product-editor fieldset, .product-settings-fields { border: 0; margin: 0.75rem 0 0; padding: 0; min-width: 0; }
+.product-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); gap: 0.6rem; }
+.product-fields input, .product-fields select { width: 100%; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 7px; padding: 0.5rem; background: var(--field-surface); color: var(--ink); display: block; font: inherit; }
+.product-toggles, .product-choices { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; margin: 0.8rem 0; }
+.product-choices { border: 1px solid var(--border-color); border-radius: 8px; }
+.product-clear, .product-error { padding: 0.65rem; border-radius: 8px; border: 1px solid var(--border-color); margin: 0.65rem 0; }
+.product-clear p { margin: 0 0 0.5rem; }
+.my-products :is(input, select, button):focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.my-products button:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 800px) { .product-layout { grid-template-columns: minmax(0, 1fr); } }

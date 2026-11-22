@@ -18,6 +18,7 @@ MESSAGES = {
     NotificationCategory.UNUSUAL_SPENDING: ("Unusual spending detected", "Review a payment that differs from recent spending patterns."),
     NotificationCategory.STATEMENT_IMPORT: ("Statement import completed", "Your statement transactions are ready to review in FinDash."),
     NotificationCategory.FINANCIAL_REPORT: ("Financial report generated", "A financial report was generated in FinDash."),
+    NotificationCategory.GROCERY_DEAL: ("Matching grocery offer", "Review the advertised offer in My Products."),
     NotificationCategory.STOCK_THRESHOLD: ("Watchlist price threshold reached", "Check your price alerts in FinDash."),
 }
 

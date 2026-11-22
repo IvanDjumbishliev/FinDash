@@ -6,6 +6,7 @@ export const categories = {
   unusual_spending: { label: "Unusual spending", description: "When a transaction stands out from your recent spending." },
   statement_import: { label: "Statement imports", description: "When a bank statement import completes." },
   financial_report: { label: "Financial reports", description: "When a financial report is generated." },
+  grocery_deal: { label: "Grocery deals", description: "When a catalog refresh finds an advertised offer for a product with alerts enabled." },
   stock_threshold: { label: "Stock price thresholds", description: "When a fresh quote meets a watchlist price rule and market checks are enabled." },
 };
 

@@ -10,7 +10,7 @@ const primary = [["/", "Overview"], ["/transactions", "Transactions"], ["/budget
 const extra = [
   { name: "Planning", links: [["/reports", "Reports"], ["/forecast", "Forecast"], ["/chat", "AI Advisor"], ["/subscriptions", "Subscriptions"]] },
   { name: "Markets and shopping", links: [["/stocks", "Stock watchlist"], ["/portfolios", "Simulator"], ["/news", "News"],
-    ["/promotions", "Deals"], ["/grocery", "Grocery basket"], ["/receipts", "Receipt scanner"], ["/receipts/history", "Receipt history"]] },
+    ["/promotions", "Deals"], ["/grocery", "Grocery basket"], ["/my-products", "My Products"], ["/receipts", "Receipt scanner"], ["/receipts/history", "Receipt history"]] },
 ];
 
 function Navigation() {
