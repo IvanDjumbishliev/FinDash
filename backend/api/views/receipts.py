@@ -1,3 +1,4 @@
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.core import signing
@@ -11,13 +12,16 @@ from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
+from django.core.exceptions import TooManyFilesSent
 
 from api.models import GroceryOffer, Receipt, ReceiptItem, Transaction
 from api.services.grocery_catalog import normalized
 from api.services.grocery_matching import classify
 from api.services.receipts import (
-    MAX_BYTES, MAX_ITEMS, ReceiptScanError, extract_receipt, receipt_fingerprint, receipt_image, recognize_receipt,
+    MAX_BYTES, MAX_IMAGES, MAX_ITEMS, SOFIA, ReceiptScanError, prepare_receipt_images, product_identity,
+    receipt_fingerprint, scan_receipt,
 )
+from api.services.statements.intelligence import merchant_identity
 from api.throttles import SensitiveEndpointThrottle
 
 from .assistant import PrivateCopilotView
@@ -44,15 +48,18 @@ class BoundedReceiptUpload(MemoryFileUploadHandler):
 
 
 class ReceiptPreviewUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
+    file = serializers.ListField(child=serializers.FileField(), min_length=1, max_length=MAX_IMAGES)
     source = serializers.ChoiceField(choices=Receipt.Source.choices, default=Receipt.Source.UPLOAD)
     date_order = serializers.ChoiceField(choices=["DMY", "MDY"], default="DMY")
+    allow_ai = serializers.ChoiceField(choices=["true", "false"], default="false")
 
 
 class ReceiptPreviewSerializer(serializers.Serializer):
     token = serializers.CharField(allow_null=True)
     receipt = serializers.DictField(allow_null=True)
     duplicate_id = serializers.UUIDField(allow_null=True)
+    possible_duplicate_ids = serializers.ListField(child=serializers.UUIDField())
+    ai_status = serializers.ChoiceField(choices=["not_requested", "not_configured", "unavailable", "used"])
     status = serializers.ChoiceField(choices=["review_required", "duplicate"])
 
 
@@ -149,6 +156,21 @@ class ReceiptPrivateView(PrivateCopilotView):
     throttle_scope = "receipt_scan"
 
 
+def possible_duplicates(receipts, preview):
+    if not all(preview.get(field) for field in ("merchant", "currency", "purchase_date")) or preview["total"] is None:
+        return []
+    merchant, identity = merchant_identity(preview["merchant"])
+    day = date.fromisoformat(preview["purchase_date"])
+    if not 1900 <= day.year < 9999:
+        return []
+    starts = datetime.combine(day, time.min, tzinfo=SOFIA)
+    return list(receipts.filter(
+        normalized_merchant=identity or normalized(merchant),
+        currency=preview["currency"], total=preview["total"],
+        purchased_at__gte=starts, purchased_at__lt=starts + timedelta(days=1),
+    ).values_list("pk", flat=True)[:5])
+
+
 class ReceiptPreviewView(ReceiptPrivateView):
     parser_classes = [MultiPartParser]
 
@@ -156,19 +178,28 @@ class ReceiptPreviewView(ReceiptPrivateView):
     def post(self, request):
         handler = BoundedReceiptUpload(request._request)
         request._request.upload_handlers = [handler]
-        payload = request.data
+        try:
+            payload = request.data
+        except TooManyFilesSent as error:
+            raise ValidationError({"file": "Upload up to three receipt images."}) from error
         if handler.exceeded:
-            return Response({"detail": "Receipt images must be 8 MB or smaller."}, status=413)
-        if len(request.FILES.getlist("file")) != 1 or len(request.FILES) != 1:
-            raise ValidationError({"file": "Upload exactly one receipt image."})
-        upload = ReceiptPreviewUploadSerializer(data=payload)
+            return Response({"detail": "Receipt images must total 8 MB or smaller."}, status=413)
+        files = request.FILES.getlist("file")
+        if len(request.FILES) != 1 or not files:
+            raise ValidationError({"file": "Upload receipt images using the file field."})
+        if any(len(payload.getlist(field)) > 1 or field in request.FILES for field in ("allow_ai", "date_order", "source")):
+            raise ValidationError("Provide one value for each scan option.")
+        options = {field: payload[field] for field in ("allow_ai", "date_order", "source") if field in payload}
+        upload = ReceiptPreviewUploadSerializer(data={**options, "file": files})
         upload.is_valid(raise_exception=True)
         source = upload.validated_data
         try:
-            digest, image = receipt_image(source["file"])
+            digest, pages = prepare_receipt_images(source["file"])
             owner_receipts = Receipt.objects.filter(owner=request.user)
             duplicate = owner_receipts.filter(image_digest=digest).values_list("pk", flat=True).first()
-            scanned = None if duplicate else extract_receipt(recognize_receipt(image), source["date_order"])
+            scanned, ai_status = (None, "not_requested") if duplicate else scan_receipt(
+                pages, date_order=source["date_order"], consent=source["allow_ai"] == "true",
+            )
         except ReceiptScanError as error:
             return Response({"detail": str(error)}, status=error.status)
         token = None if duplicate else signing.dumps(
@@ -176,6 +207,8 @@ class ReceiptPreviewView(ReceiptPrivateView):
         )
         return Response({
             "token": token, "receipt": scanned, "duplicate_id": duplicate,
+            "possible_duplicate_ids": possible_duplicates(owner_receipts, scanned) if scanned else [],
+            "ai_status": ai_status,
             "status": "duplicate" if duplicate else "review_required",
         })
 
@@ -206,7 +239,7 @@ class ReceiptConfirmationView(ReceiptPrivateView):
             product = products.get(product_id)
             if product_id and product is None:
                 raise ValidationError({"items": "A selected catalog product no longer exists."})
-            name = normalized(item["original_description"])[:255]
+            name = product_identity(item["original_description"])
             suggested_category, _, _ = classify(name, "")
             item["category"] = item.get("category") or (product.category if product else "") or suggested_category
             item["brand"] = item.get("brand") or (product.brand if product else "")

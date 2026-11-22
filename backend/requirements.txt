@@ -13,6 +13,8 @@ psycopg2-binary
 python-decouple
 beautifulsoup4
 google-genai
+pydantic>=2,<3
+pillow-heif>=1,<2
 yfinance
 requests>=2.33,<3
 rapidocr-onnxruntime

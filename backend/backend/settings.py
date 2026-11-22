@@ -45,6 +45,7 @@ API_KEY = env("API_KEY", default="").strip()
 COPILOT_GEMINI_MODEL = env("COPILOT_GEMINI_MODEL", default="gemini-3.8-flash")
 BUDGET_GEMINI_MODEL = env("BUDGET_GEMINI_MODEL", default="gemini-3.8-flash")
 STATEMENT_GEMINI_MODEL = env("STATEMENT_GEMINI_MODEL", default="gemini-3.8-flash")
+RECEIPT_GEMINI_MODEL = env("RECEIPT_GEMINI_MODEL", default=COPILOT_GEMINI_MODEL)
 
 # Persistent sessions work across Gunicorn workers and do not depend on the task broker.
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
@@ -230,7 +231,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-DATA_UPLOAD_MAX_NUMBER_FILES = 1
+DATA_UPLOAD_MAX_NUMBER_FILES = 3
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 500
 
 STATIC_URL = "/static/"

@@ -26,7 +26,7 @@ Django reads process environment variables first, then `backend/.env`. Compose u
 | Variable | Purpose |
 | --- | --- |
 | `API_KEY` | Optional server-side Gemini credential. An empty value disables provider calls. |
-| `COPILOT_GEMINI_MODEL`, `BUDGET_GEMINI_MODEL`, `STATEMENT_GEMINI_MODEL` | Gemini model overrides. Their defaults are defined in Django settings. |
+| `COPILOT_GEMINI_MODEL`, `BUDGET_GEMINI_MODEL`, `STATEMENT_GEMINI_MODEL`, `RECEIPT_GEMINI_MODEL` | Gemini model overrides. Their defaults are defined in Django settings. |
 | `GROCERY_CATALOG_RETAILERS` | Comma-separated retailer IDs for catalog refresh. An empty list keeps retailer refreshes opt-in. |
 | `CELERY_BROKER_URL` | Redis task broker. Local default is `redis://127.0.0.1:6379/0`. Production requires an explicit URL. |
 | `NOTIFICATION_RETENTION_DAYS` | Inbox retention in days. Defaults to 90. |
