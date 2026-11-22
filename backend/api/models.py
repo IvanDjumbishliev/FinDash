@@ -504,3 +504,64 @@ class GoalScenario(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["goal", "name"], name="goal_scenario_unique_name"),
         ]
+
+
+class Receipt(models.Model):
+    class Source(models.TextChoices):
+        CAMERA = "camera", "Camera"
+        GALLERY = "gallery", "Gallery"
+        UPLOAD = "upload", "Upload"
+
+    class Currency(models.TextChoices):
+        EUR = "EUR", "EUR"
+        BGN = "BGN", "BGN"
+
+    class Status(models.TextChoices):
+        CONFIRMED = "confirmed", "Confirmed"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="receipts")
+    merchant = models.CharField(max_length=255)
+    normalized_merchant = models.CharField(max_length=255)
+    purchased_at = models.DateTimeField()
+    currency = models.CharField(max_length=3, choices=Currency.choices)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    discounts = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    tax_total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2)
+    reference = models.CharField(max_length=128, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.CONFIRMED)
+    source = models.CharField(max_length=7, choices=Source.choices)
+    transaction = models.OneToOneField(
+        Transaction, null=True, blank=True, on_delete=models.SET_NULL, related_name="receipt",
+    )
+    image_digest = models.CharField(max_length=64, editable=False)
+    fingerprint = models.CharField(max_length=64, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-purchased_at", "-id"]
+        indexes = [models.Index(fields=["owner", "-purchased_at"], name="receipt_owner_purchased_idx")]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "image_digest"], name="receipt_owner_image_unique"),
+            models.UniqueConstraint(fields=["owner", "fingerprint"], name="receipt_owner_details_unique"),
+        ]
+
+
+class ReceiptItem(models.Model):
+    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name="items")
+    original_description = models.CharField(max_length=255)
+    normalized_name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True)
+    unit = models.CharField(max_length=4, choices=GroceryOffer.Unit.choices, blank=True)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    line_total = models.DecimalField(max_digits=12, decimal_places=2)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    category = models.CharField(max_length=120, blank=True)
+    brand = models.CharField(max_length=120, blank=True)
+    confidence = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    product = models.ForeignKey(GroceryOffer, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        ordering = ["pk"]

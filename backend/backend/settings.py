@@ -78,7 +78,10 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_DIST": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.35.1",
     "SWAGGER_UI_FAVICON_HREF": "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.35.1/favicon-32x32.png",
     "SWAGGER_UI_SETTINGS": {"persistAuthorization": False},
-    "ENUM_NAME_OVERRIDES": {"TransactionCategoryEnum": "api.models.Transaction.Category"},
+    "ENUM_NAME_OVERRIDES": {
+        "TransactionCategoryEnum": "api.models.Transaction.Category",
+        "EuroLevCurrencyEnum": "api.models.Receipt.Currency",
+    },
 }
 
 REST_FRAMEWORK = {
@@ -102,6 +105,7 @@ REST_FRAMEWORK = {
         "budget_suggestions": "12/min",
         "retailer": "30/min",
         "stock_provider": "60/min",
+        "receipt_scan": "15/min",
         "grocery_optimize": "30/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",

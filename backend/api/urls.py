@@ -39,6 +39,7 @@ from .views.pdf_import import (
     UploadBankStatementView,
 )
 from .views.statement_review import MerchantRuleDetailView, MerchantRuleListView
+from .views.receipts import (ReceiptConfirmationView, ReceiptDetailView, ReceiptListView, ReceiptPreviewView, ReceiptReconciliationView)
 from .views.subscriptions import (
     SubscriptionDetailView,
     SubscriptionDetectView,
@@ -69,6 +70,11 @@ urlpatterns = [
         TransactionDeleteView.as_view(),
         name="transaction-delete",
     ),
+    path("receipts/", ReceiptListView.as_view(), name="receipt-list"),
+    path("receipts/preview/", ReceiptPreviewView.as_view(), name="receipt-preview"),
+    path("receipts/confirm/", ReceiptConfirmationView.as_view(), name="receipt-confirm"),
+    path("receipts/<uuid:pk>/", ReceiptDetailView.as_view(), name="receipt-detail"),
+    path("receipts/<uuid:pk>/reconciliation/", ReceiptReconciliationView.as_view(), name="receipt-reconciliation"),
     path("bank-statement/", UploadBankStatementView.as_view()),
     path("bank-statement/preview/", StatementUploadView.as_view(), name="statement-preview"),
     path("bank-statement/imports/", StatementHistoryView.as_view(), name="statement-history"),
