@@ -10,7 +10,7 @@ const primary = [["/", "Overview"], ["/transactions", "Transactions"], ["/budget
 const extra = [
   { name: "Planning", links: [["/reports", "Reports"], ["/forecast", "Forecast"], ["/chat", "AI Advisor"], ["/subscriptions", "Subscriptions"]] },
   { name: "Markets and shopping", links: [["/stocks", "Stock watchlist"], ["/portfolios", "Simulator"], ["/news", "News"],
-    ["/promotions", "Deals"], ["/grocery", "Grocery basket"], ["/receipts", "Receipt scanner"]] },
+    ["/promotions", "Deals"], ["/grocery", "Grocery basket"], ["/receipts", "Receipt scanner"], ["/receipts/history", "Receipt history"]] },
 ];
 
 function Navigation() {
@@ -62,7 +62,7 @@ function Navigation() {
             {extra.map(({ name, links }) => <div key={name}>
               <p>{name}</p>
               <ul>{links.map(([path, label]) => <li key={path}>
-                <NavLink to={path} onClick={() => setOpen(false)}>{label}</NavLink>
+                <NavLink to={path} end={path === "/receipts"} onClick={() => setOpen(false)}>{label}</NavLink>
               </li>)}</ul>
             </div>)}
           </div>

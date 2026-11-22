@@ -29,3 +29,12 @@ test("sends only reviewed fields and preserves original date offset and currency
     "2026-07-23T16:00:00+03:00");
   assert.throws(() => confirmationBody("signed-token", { ...fields, date: "2026-03-29", time: "03:30" }), /valid purchase date/);
 });
+
+test("editing saved UTC timestamps shows the Sofia purchase date without changing the instant", () => {
+  const source = { merchant: "Market", currency: "EUR", total: "5.00", purchased_at: "2026-11-20T22:30:00Z",
+    items: [{ original_description: "Bread", line_total: "5.00" }] };
+  const fields = reviewFields(source);
+  assert.equal(fields.date, "2026-11-21");
+  assert.equal(fields.time, "00:30:00");
+  assert.equal(confirmationBody(undefined, fields).purchased_at, source.purchased_at);
+});

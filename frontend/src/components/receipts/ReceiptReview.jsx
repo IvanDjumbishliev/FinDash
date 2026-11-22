@@ -52,7 +52,7 @@ const receiptFields = [
   ["reference", "Receipt reference", "text", 128],
 ];
 
-export default function ReceiptReview({ fields, setFields, onContinue, onCancel, onBack, duplicate, aiStatus }) {
+export default function ReceiptReview({ fields, setFields, onContinue, onCancel, onBack, duplicate, aiStatus, submitLabel = "Continue to confirmation", cancelLabel = "Cancel import", busy = false }) {
   function setField(key, value) {
     setFields((current) => ({ ...current, [key]: value }));
   }
@@ -60,7 +60,15 @@ export default function ReceiptReview({ fields, setFields, onContinue, onCancel,
   function changeItem(key, name, value) {
     setFields((current) => ({
       ...current,
-      items: current.items.map((item) => item.key === key ? { ...item, [name]: value } : item),
+      items: current.items.map((item) => {
+        if (item.key !== key) return item;
+        const updated = { ...item, [name]: value };
+        if (name === "original_description") {
+          updated.product = null;
+          updated.brand = "";
+        }
+        return updated;
+      }),
     }));
   }
 
@@ -86,6 +94,7 @@ export default function ReceiptReview({ fields, setFields, onContinue, onCancel,
       <ul>{fields.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
     </details>}
 
+    <fieldset className="receipt-editor-fields" disabled={busy}>
     <div className="receipt-form-grid">
       {receiptFields.map(([key, label, type, maxLength]) => <label key={key}>{label}
         {key === "currency" ? <select name={key} value={fields[key] ?? ""} required onChange={(event) => setField(key, event.target.value)}>
@@ -135,10 +144,11 @@ export default function ReceiptReview({ fields, setFields, onContinue, onCancel,
       </div>}
     <ReceiptTotals receipt={fields} />
     <div className="receipt-actions">
-      <button className="dash-button dash-primary" type="submit">Continue to confirmation</button>
-      <button className="dash-button" type="button" onClick={onBack}>Back to photos</button>
-      <button className="dash-button" type="button" onClick={onCancel}>Cancel import</button>
+      <button className="dash-button dash-primary" type="submit">{busy ? "Saving…" : submitLabel}</button>
+      {onBack && <button className="dash-button" type="button" onClick={onBack}>Back to photos</button>}
+      <button className="dash-button" type="button" onClick={onCancel}>{cancelLabel}</button>
     </div>
+    </fieldset>
   </form>;
 }
 
@@ -147,7 +157,10 @@ ReceiptReview.propTypes = {
   setFields: PropTypes.func.isRequired,
   onContinue: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
-  onBack: PropTypes.func.isRequired,
+  onBack: PropTypes.func,
   duplicate: PropTypes.bool.isRequired,
-  aiStatus: PropTypes.string.isRequired,
+  aiStatus: PropTypes.string,
+  submitLabel: PropTypes.string,
+  cancelLabel: PropTypes.string,
+  busy: PropTypes.bool,
 };

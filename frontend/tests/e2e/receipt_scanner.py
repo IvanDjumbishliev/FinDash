@@ -198,7 +198,40 @@ def run(base, site, driver, firefox, _temporary):
                 && doc.documentElement.scrollWidth <= 320;
         """))
         assert count() == 1
-        print("Passed desktop drop, rotation, edits, totals, cancel, explicit save, duplicate handling and 320px camera/gallery inputs.")
+        payment = requests.post(f"{base}/api/transactions/", headers=headers, json={
+            "amount": "-3.25", "currency": "EUR", "category": "groceries",
+            "timestamp": "2026-11-23T11:40:00Z", "particulars": "Sample Market",
+        }, timeout=5)
+        payment.raise_for_status()
+        browser.navigate(f"{site}/receipts/history?receipt={saved[0]['id']}")
+        wait_for(lambda: browser.click("Find matching payments"))
+        wait_for(lambda: browser.execute("return !!document.querySelector('.receipt-match-list input');"))
+        assert not browser.click("Link selected payment")
+        browser.execute("document.querySelector('.receipt-match-list input').click();")
+        assert browser.click("Link selected payment")
+        wait_for(lambda: browser.execute("""
+            return document.querySelector('.receipt-payment').textContent.includes('Linked to a matching transaction.')
+                && document.querySelector('.receipt-stat-summary')?.textContent.includes('1 of 1');
+        """))
+        browser.change('input[name="product"]', "Reviewed milk")
+        assert browser.click("Search receipts")
+        wait_for(lambda: browser.execute("return document.querySelector('.receipt-history-list')?.textContent.includes('Sample Market');"))
+        assert browser.click("Edit receipt")
+        browser.change('input[name="receipt-item-original_description-0"]', "Corrected product")
+        assert browser.click("Save corrections")
+        wait_for(lambda: browser.execute("""
+            return document.querySelector('.receipt-saved-items')?.textContent.includes('Corrected product')
+                && !document.querySelector('.receipt-history-list');
+        """))
+        assert browser.click("Clear filters")
+        wait_for(lambda: browser.execute("return document.querySelector('.receipt-stat-lists')?.textContent.includes('corrected product');"))
+        assert browser.click("Delete receipt")
+        assert count() == 1
+        assert browser.click("Confirm deletion")
+        wait_for(lambda: count() == 0)
+        ledger = requests.get(f"{base}/api/transactions/", headers=headers, timeout=5).json()
+        assert any(row["id"] == payment.json()["id"] for row in ledger)
+        print("Passed desktop drop, rotation, edits, totals, cancel, explicit save, duplicates, 320px camera/gallery inputs, history filters, correction, payment linking and deletion.")
     finally:
         browser.close()
 

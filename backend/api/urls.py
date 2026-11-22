@@ -39,7 +39,7 @@ from .views.pdf_import import (
     UploadBankStatementView,
 )
 from .views.statement_review import MerchantRuleDetailView, MerchantRuleListView
-from .views.receipts import (ReceiptConfirmationView, ReceiptDetailView, ReceiptListView, ReceiptPreviewView, ReceiptReconciliationView)
+from .views.receipts import (ReceiptConfirmationView, ReceiptDetailView, ReceiptListView, ReceiptPreviewView, ReceiptReconciliationView, ReceiptStatisticsView)
 from .views.subscriptions import (
     SubscriptionDetailView,
     SubscriptionDetectView,
@@ -71,6 +71,7 @@ urlpatterns = [
         name="transaction-delete",
     ),
     path("receipts/", ReceiptListView.as_view(), name="receipt-list"),
+    path("receipts/statistics/", ReceiptStatisticsView.as_view(), name="receipt-statistics"),
     path("receipts/preview/", ReceiptPreviewView.as_view(), name="receipt-preview"),
     path("receipts/confirm/", ReceiptConfirmationView.as_view(), name="receipt-confirm"),
     path("receipts/<uuid:pk>/", ReceiptDetailView.as_view(), name="receipt-detail"),

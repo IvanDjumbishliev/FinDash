@@ -223,3 +223,48 @@
   .receipt-remove-item { margin-top: 1.3rem; }
   .receipt-remove-item span { margin: 0; }
 }
+
+.receipt-editor-fields {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.receipt-history > .receipt-panel, .receipt-history-grid { margin: 1rem 0; }
+.receipt-history-grid { display: grid; gap: 1rem; }
+.receipt-filter-actions { margin-top: 0.8rem; }
+.receipt-history-list, .receipt-breakdown { padding: 0; list-style: none; }
+.receipt-history-list { display: grid; gap: 0.5rem; }
+.receipt-history-list a {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.7rem;
+  color: var(--ink);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+.receipt-history-list a[aria-current="true"] { border-color: var(--violet); background: var(--accent-surface); }
+.receipt-history-list small, .receipt-breakdown small, .receipt-match-list small { display: block; color: var(--muted); }
+.receipt-breakdown { display: grid; gap: 0.35rem; }
+.receipt-breakdown li { border-bottom: 1px solid var(--border-subtle); padding: 0.4rem 0; min-width: 0; }
+.receipt-breakdown li > div { display: flex; justify-content: space-between; gap: 0.75rem; overflow-wrap: anywhere; }
+.receipt-breakdown meter { width: 100%; height: 0.45rem; accent-color: var(--violet); }
+.receipt-stat-currency { border-top: 1px solid var(--border-subtle); margin-top: 1rem; }
+.receipt-stat-summary, .receipt-stat-lists { display: grid; gap: 0.8rem; }
+.receipt-stat-summary { grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr)); }
+.receipt-stat-summary > div { border-radius: 8px; background: var(--accent-surface); padding: 0.65rem; }
+.receipt-stat-summary dt { color: var(--muted); }
+.receipt-stat-summary dd { margin: 0.25rem 0; font-weight: 750; }
+.receipt-payment, .receipt-delete { margin-top: 1rem; }
+.receipt-match-list { border: 1px solid var(--border-color); border-radius: 8px; margin: 0.8rem 0 0; }
+.receipt-match-list label { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.5rem 0; }
+.receipt-match-list label input { margin-top: 0.25rem; }
+
+@media (min-width: 650px) {
+  .receipt-stat-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 960px) {
+  .receipt-history-grid:has(> :nth-child(2)) { grid-template-columns: minmax(14rem, 1fr) minmax(0, 3fr); }
+  .receipt-history .receipt-table { min-width: 690px; }
+}

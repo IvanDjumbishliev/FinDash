@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FiCheckCircle, FiFileText } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../api";
 import ReceiptUpload, { ReceiptPhoto } from "../components/receipts/ReceiptUpload";
@@ -149,6 +150,7 @@ export default function Receipts() {
     <header className="market-heading">
       <h1>Smart Receipt Scanner</h1>
       <p>Scan a shopping receipt, check each item, and save the reviewed purchase.</p>
+      <Link to="/receipts/history" className="dash-link">Receipt history and spending</Link>
     </header>
     <ol className="receipt-steps" aria-label="Receipt import progress">
       {steps.map(([id, title], index) => <li key={id} aria-current={step === id ? "step" : undefined}
@@ -196,7 +198,10 @@ export default function Receipts() {
             <p>{receipt.items.length} {receipt.items.length === 1 ? "item" : "items"} · {money(receipt.total, receipt.currency)}</p></div>
         </div>
         <p className="receipt-muted">{receipt.duplicate ? "This purchase already exists in your receipts." : "Your reviewed receipt and items were saved."}</p>
-        <button className="dash-button dash-primary" type="button" onClick={reset}>Scan another receipt</button>
+        <div className="receipt-actions">
+          <button className="dash-button dash-primary" type="button" onClick={reset}>Scan another receipt</button>
+          <Link className="dash-link" to={`/receipts/history?receipt=${receipt.id}`}>View saved receipt</Link>
+        </div>
       </>}
     </section>
   </main>;

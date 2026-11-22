@@ -21,6 +21,7 @@ from api.services.receipts import (
     MAX_BYTES, MAX_IMAGES, MAX_ITEMS, SOFIA, ReceiptScanError, prepare_receipt_images, product_identity,
     receipt_fingerprint, scan_receipt,
 )
+from api.services.receipt_history import filter_receipts, matching_transactions, receipt_statistics
 from api.services.statements.intelligence import merchant_identity
 from api.throttles import SensitiveEndpointThrottle
 
@@ -118,13 +119,12 @@ class ReceiptSerializer(serializers.ModelSerializer):
                     and payment.amount == -receipt.total and payment.currency.strip().upper() == receipt.currency)
 
 
-class ReceiptConfirmationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=512, write_only=True)
+class ReceiptCorrectionSerializer(serializers.ModelSerializer):
     items = ReviewedReceiptItemSerializer(many=True, allow_empty=False, max_length=MAX_ITEMS)
 
     class Meta:
         model = Receipt
-        fields = ("token", "merchant", "purchased_at", "currency", "subtotal", "discounts", "tax_total",
+        fields = ("merchant", "purchased_at", "currency", "subtotal", "discounts", "tax_total",
                   "total", "reference", "items")
         validators = []
 
@@ -132,6 +132,66 @@ class ReceiptConfirmationSerializer(serializers.ModelSerializer):
         if not normalized(value) or not value.isprintable():
             raise ValidationError("Enter a valid merchant name.")
         return value
+
+
+    def validate_purchased_at(self, value):
+        if not 1900 <= value.year < 9999:
+            raise ValidationError("Choose a purchase date between 1900 and 9998.")
+        return value
+
+
+class ReceiptConfirmationSerializer(ReceiptCorrectionSerializer):
+    token = serializers.CharField(max_length=512, write_only=True)
+
+    class Meta(ReceiptCorrectionSerializer.Meta):
+        fields = ("token", *ReceiptCorrectionSerializer.Meta.fields)
+
+
+class ReceiptHistoryFilters(serializers.Serializer):
+    store = serializers.CharField(max_length=120, required=False)
+    product = serializers.CharField(max_length=120, required=False)
+    start = serializers.DateField(required=False)
+    end = serializers.DateField(required=False)
+
+    def validate(self, attrs):
+        for field in ("store", "product"):
+            if field in attrs and not normalized(attrs[field]):
+                raise ValidationError({field: "Enter a store or product name."})
+        for field in ("start", "end"):
+            if field in attrs and not 1900 <= attrs[field].year < 9999:
+                raise ValidationError({field: "Choose a date between 1900 and 9998."})
+        if "start" in attrs and "end" in attrs and attrs["start"] > attrs["end"]:
+            raise ValidationError({"end": "End date must be on or after the start date."})
+        return attrs
+
+
+class ReceiptBreakdownSerializer(serializers.Serializer):
+    name = serializers.CharField(allow_blank=True)
+    total = serializers.CharField()
+    line_count = serializers.IntegerField()
+
+
+class ReceiptStatisticsSerializer(serializers.Serializer):
+    currency = serializers.CharField()
+    total = serializers.CharField()
+    item_total = serializers.CharField()
+    receipt_count = serializers.IntegerField()
+    linked_count = serializers.IntegerField()
+    categories = ReceiptBreakdownSerializer(many=True)
+    categories_truncated = serializers.BooleanField()
+    products = ReceiptBreakdownSerializer(many=True)
+    products_truncated = serializers.BooleanField()
+
+
+class ReceiptMatchSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    merchant = serializers.CharField()
+    timestamp = serializers.DateTimeField()
+    amount = serializers.CharField()
+    currency = serializers.CharField()
+    days_apart = serializers.IntegerField()
+    merchant_match = serializers.ChoiceField(choices=["exact", "partial", "unknown"])
+    confidence = serializers.ChoiceField(choices=["high", "review"])
 
 
 class ReceiptReconciliationSerializer(serializers.Serializer):
@@ -213,6 +273,22 @@ class ReceiptPreviewView(ReceiptPrivateView):
         })
 
 
+def build_receipt_items(items):
+    products = GroceryOffer.objects.in_bulk({item["product_id"] for item in items if item.get("product_id")})
+    rows = []
+    for item in items:
+        product_id = item.pop("product_id", None)
+        product = products.get(product_id)
+        if product_id and product is None:
+            raise ValidationError({"items": "A selected catalog product no longer exists."})
+        name = product_identity(item["original_description"])
+        suggested_category, _, _ = classify(name, "")
+        item["category"] = item.get("category") or (product.category if product else "") or suggested_category
+        item["brand"] = item.get("brand") or (product.brand if product else "")
+        rows.append(ReceiptItem(**item, normalized_name=name, product=product))
+    return rows
+
+
 class ReceiptConfirmationView(ReceiptPrivateView):
     @extend_schema(request=ReceiptConfirmationSerializer, responses={200: ReceiptSerializer, 201: ReceiptSerializer})
     def post(self, request):
@@ -232,18 +308,7 @@ class ReceiptConfirmationView(ReceiptPrivateView):
         duplicate = Q(image_digest=preview["digest"]) | Q(fingerprint=fingerprint)
         if existing := owner_receipts.filter(duplicate).first():
             return receipt_response(request, existing.pk)
-        products = GroceryOffer.objects.in_bulk({item["product_id"] for item in items if item.get("product_id")})
-        rows = []
-        for item in items:
-            product_id = item.pop("product_id", None)
-            product = products.get(product_id)
-            if product_id and product is None:
-                raise ValidationError({"items": "A selected catalog product no longer exists."})
-            name = product_identity(item["original_description"])
-            suggested_category, _, _ = classify(name, "")
-            item["category"] = item.get("category") or (product.category if product else "") or suggested_category
-            item["brand"] = item.get("brand") or (product.brand if product else "")
-            rows.append(ReceiptItem(**item, normalized_name=name, product=product))
+        rows = build_receipt_items(items)
         try:
             with transaction.atomic():
                 new_receipt = owner_receipts.create(
@@ -270,8 +335,25 @@ class ReceiptListView(PrivateCopilotView, generics.ListAPIView):
     pagination_class = ReceiptPagination
     queryset = Receipt.objects.none()
 
+    @extend_schema(parameters=[ReceiptHistoryFilters])
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
     def get_queryset(self):
-        return receipt_queryset(self.request.user)
+        return filter_receipts(receipt_queryset(self.request.user), history_filters(self.request))
+
+
+def history_filters(request):
+    form = ReceiptHistoryFilters(data=request.query_params)
+    form.is_valid(raise_exception=True)
+    return form.validated_data
+
+
+class ReceiptStatisticsView(PrivateCopilotView):
+    @extend_schema(parameters=[ReceiptHistoryFilters], responses=ReceiptStatisticsSerializer(many=True))
+    def get(self, request):
+        queryset = filter_receipts(Receipt.objects.filter(owner=request.user), history_filters(request))
+        return Response(receipt_statistics(queryset))
 
 
 class ReceiptDetailView(PrivateCopilotView, generics.RetrieveDestroyAPIView):
@@ -281,8 +363,49 @@ class ReceiptDetailView(PrivateCopilotView, generics.RetrieveDestroyAPIView):
     def get_queryset(self):
         return receipt_queryset(self.request.user)
 
+    @extend_schema(request=ReceiptCorrectionSerializer, responses=ReceiptSerializer)
+    def patch(self, request, pk):
+        form = ReceiptCorrectionSerializer(data=request.data, partial=True)
+        form.is_valid(raise_exception=True)
+        details = dict(form.validated_data)
+        corrected_items = details.pop("items", None)
+        if corrected_items is not None:
+            item_form = ReviewedReceiptItemSerializer(data=request.data["items"], many=True, allow_empty=False, max_length=MAX_ITEMS)
+            item_form.is_valid(raise_exception=True)
+            corrected_items = item_form.validated_data
+        try:
+            with transaction.atomic():
+                receipt = get_object_or_404(Receipt.objects.select_for_update(), owner=request.user, pk=pk)
+                for key, value in details.items():
+                    setattr(receipt, key, value)
+                identity = {key: getattr(receipt, key) for key in ("merchant", "purchased_at", "currency", "total", "reference")}
+                items = corrected_items if corrected_items is not None else list(
+                    receipt.items.values("original_description", "line_total"),
+                )
+                receipt.normalized_merchant, receipt.fingerprint = receipt_fingerprint(identity, items)
+                if Receipt.objects.filter(owner=request.user, fingerprint=receipt.fingerprint).exclude(pk=pk).exists():
+                    raise ReceiptConflict("These corrections match an existing receipt.")
+                if receipt.transaction_id and {"currency", "total"} & details.keys():
+                    if not ReceiptSerializer().get_reconciliation_valid(receipt):
+                        receipt.transaction = None
+                receipt.save(update_fields=[*details, "normalized_merchant", "fingerprint", "transaction", "updated_at"])
+                if corrected_items is not None:
+                    rows = build_receipt_items(corrected_items)
+                    for row in rows:
+                        row.receipt = receipt
+                    receipt.items.all().delete()
+                    ReceiptItem.objects.bulk_create(rows)
+        except IntegrityError as error:
+            raise ReceiptConflict("The receipt could not be updated because a conflicting change was saved.") from error
+        return receipt_response(request, pk)
+
 
 class ReceiptReconciliationView(PrivateCopilotView):
+    @extend_schema(responses=ReceiptMatchSerializer(many=True))
+    def get(self, request, pk):
+        receipt = get_object_or_404(Receipt, owner=request.user, pk=pk)
+        return Response(ReceiptMatchSerializer(matching_transactions(receipt), many=True).data)
+
     @extend_schema(request=ReceiptReconciliationSerializer, responses=ReceiptSerializer)
     def patch(self, request, pk):
         form = ReceiptReconciliationSerializer(data=request.data)

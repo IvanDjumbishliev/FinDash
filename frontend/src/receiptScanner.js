@@ -61,12 +61,24 @@ export function receiptTotals(items, total) {
   };
 }
 
+const sofiaClock = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+});
+
+function sofiaWallTime(timestamp) {
+  const date = new Date(timestamp);
+  if (!timestamp || Number.isNaN(date.valueOf())) return "";
+  const parts = Object.fromEntries(sofiaClock.formatToParts(date).map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 export function reviewFields(receipt) {
-  const timestamp = receipt.purchased_at;
+  const timestamp = sofiaWallTime(receipt.purchased_at);
   return {
     ...receipt,
-    date: timestamp?.slice(0, 10) || receipt.purchase_date || "",
-    time: timestamp?.slice(11, 19) || "",
+    date: timestamp.slice(0, 10) || receipt.purchase_date || "",
+    time: timestamp.slice(11, 19),
     items: receipt.items.map((item, index) => ({ ...item, key: index })),
   };
 }
@@ -74,19 +86,11 @@ export function reviewFields(receipt) {
 function purchaseTimestamp(fields) {
   const { date, time, purchased_at: original } = fields;
   if (!date || !time) return null;
-  if (original && date === original.slice(0, 10) && time === original.slice(11, 19)) return original;
   // Edited Bulgarian receipt times follow Europe/Sofia, independent of the browser's timezone.
   const wallTime = `${date}T${time.length === 5 ? `${time}:00` : time}`;
-  const format = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  });
-  const matches = ["+02:00", "+03:00"].map((offset) => `${wallTime}${offset}`).filter((iso) => {
-    const actual = new Date(iso);
-    if (Number.isNaN(actual.valueOf())) return false;
-    const parts = Object.fromEntries(format.formatToParts(actual).map(({ type, value }) => [type, value]));
-    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}` === wallTime;
-  });
+  if (wallTime === sofiaWallTime(original)) return original;
+  const matches = ["+02:00", "+03:00"].map((offset) => `${wallTime}${offset}`)
+    .filter((iso) => sofiaWallTime(iso) === wallTime);
   return matches.find((iso) => iso.slice(-6) === original?.slice(-6)) || matches.at(-1) || null;
 }
 
@@ -146,4 +150,10 @@ export function receiptApiError(error, fallback) {
     if (value && typeof value === "object") queue.push(...Object.values(value));
   }
   return fallback;
+}
+
+const localDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "Europe/Sofia" });
+
+export function receiptDate(value) {
+  return localDate.format(new Date(value));
 }
