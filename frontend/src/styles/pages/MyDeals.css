@@ -1,0 +1,74 @@
+.my-deals-hero .dash-actions { margin-left: auto; }
+.my-deals-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 305px);
+  align-items: start;
+  gap: 1rem;
+}
+.my-deals-results, .my-deals-sidebar { display: grid; gap: 0.8rem; min-width: 0; }
+.my-deals-retailers, .my-deals-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.my-deals-retailers > div {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+}
+.my-deals-retailers > div[data-status="stale"] { border-style: dashed; }
+.my-deals-retailers > div > span:not(.grocery-retailer-mark), .my-deals-muted { color: var(--muted); font-size: 0.86rem; margin: 0; }
+.my-deals-filters button[aria-pressed="true"] { border-color: var(--violet); background: var(--accent-surface); font-weight: 750; }
+.my-deals-filters button span { color: var(--muted); }
+.my-deal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  align-items: stretch;
+  gap: 0.75rem;
+}
+.my-deal-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.my-deal-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; align-items: center; }
+.my-deal-card-head .grocery-product-image { width: 62px; height: 62px; }
+.my-deal-card h3 { margin: 0.35rem 0 0; }
+.my-deal-price { display: flex; gap: 0.6rem 1rem; flex-wrap: wrap; margin: 0; }
+.my-deal-price dt { font-size: 0.78rem; color: var(--muted); }
+.my-deal-price dd { margin: 0.2rem 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.my-deal-price > div:first-child dd { font-size: 1.35rem; color: var(--ink); }
+.my-deal-history, .my-deals-status, .my-deals-empty {
+  padding: 0.7rem;
+  background: var(--accent-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin: 0;
+}
+.my-deal-history p, .my-deal-explanation p { margin: 0.25rem 0 0; font-size: 0.83rem; }
+.my-deal-explanation summary { cursor: pointer; font-size: 0.88rem; font-weight: 650; }
+.my-deal-explanation ul { margin: 0.4rem 0 0; padding-inline-start: 1.15rem; font-size: 0.83rem; }
+.my-deal-card .my-deal-actions { margin-top: auto; }
+.my-deals-page .dash-primary { background: var(--primary-color); color: #fff; border-color: transparent; }
+.my-deals-stores, .my-deals-product-list { display: grid; gap: 0.45rem; margin: 0.65rem 0; }
+.my-deals-stores label { display: flex; align-items: center; gap: 0.45rem; }
+.my-deals-product-list { padding: 0; list-style: none; }
+.my-deals-product-list li { display: flex; gap: 0.55rem; justify-content: space-between; align-items: center; overflow-wrap: anywhere; }
+.my-deals-sidebar .my-deals-muted { margin-top: 0.45rem; }
+.my-deals-sidebar .dash-link { display: inline-flex; margin-top: 0.65rem; }
+.my-deals-alert-toggle { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.65rem; }
+.my-deals-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 850px) {
+  .my-deals-layout { grid-template-columns: minmax(0, 1fr); }
+  .my-deals-sidebar { grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+}
+@media (max-width: 500px) {
+  .my-deals-hero .dash-actions { margin-left: 0; }
+  .my-deals-retailers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .my-deals-retailers .grocery-retailer-mark { white-space: normal; }
+}

@@ -99,7 +99,7 @@ function ProfileSettings({ settings, retailers, categories, onSave, onClear, bus
         {" "}Suggest products I often buy
       </label>
       <p className="product-note">Uses your confirmed FinDash receipts. Preferences stay in FinDash.</p>
-      <div className="product-deal-settings">
+      <div className="product-deal-settings" id="deal-alert-settings">
         <label><input type="checkbox" checked={form.deal_alerts_enabled}
           onChange={(event) => update("deal_alerts_enabled", event.target.checked)} /> Enable in-app deal alerts</label>
         <div className="product-fields">

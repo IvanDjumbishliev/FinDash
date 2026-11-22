@@ -51,3 +51,12 @@ Authenticated endpoints are rooted at `/api/grocery/my-products/`. GET returns t
 - If receipt personalization is on, a comparable confirmed receipt may supply a historical price per kg or liter. FinDash sends no savings claim. Retailer coverage depends on the catalog’s last successful refresh.
 
 `PUT /api/grocery/personalized-deals/{preference_id}/offers/{offer_id}/review/` accepts `{"decision":"accept"}` for an uncertain candidate or `{"decision":"reject"}` to hide a match. Accepted candidates remain comparable. Send DELETE to the same path to undo either correction. Decisions are private and rechecked when product evidence changes.
+
+
+### My Deals dashboard
+
+Open **More → My Deals** or visit `/my-deals`. Promotions and the Grocery Optimizer also link to the dashboard. It shows matching offers, lower-than-receipt unit prices, expiring offers, and candidates for review. Price comparisons show the prior confirmed receipt date and price, and describe the difference per unit. An advertised percentage is shown separately when the retailer publishes it.
+
+Catalog badges distinguish current, stale, and unavailable retailer data. Offers are omitted when their catalog snapshot is stale. **Add to shopping list** rechecks the selected catalog package on the server, then adds the product and package quantity to the account's draft list for the current browser tab. The optimizer calculates its own current prices when comparing the basket.
+
+The deals response includes image and expiration metadata, retailer catalog status, and the difference between the historical and current unit prices where available. `GET /api/grocery/catalog/{id}/` validates a catalog package for the optimizer handoff, including advertised price, expiry, and public eligibility.

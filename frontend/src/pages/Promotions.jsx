@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import api from "../api";
 import Deals from "../components/Deals";
 import DealSearcher from "../components/DealSearcher";
@@ -33,6 +34,7 @@ export default function Promotions() {
 
   return (
     <div className="promotions-container fade-in">
+      <Link className="dash-button dash-primary" to="/my-deals">Explore My Deals</Link>
       <Deals stores={stores} results={results} />
       <DealSearcher stores={stores} results={results} />
     </div>

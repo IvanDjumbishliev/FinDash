@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from api.models import GroceryOffer, GroceryRetailer, PersonalizedOfferReview, ProductPreference
 from api.services.grocery_matching import describe
-from api.services.personalized_deals import assess, discount_met, input_signature, interest_product, personalize
+from api.services.personalized_deals import assess, catalog_status, discount_met, input_signature, interest_product, personalize
 
 from .assistant import PrivateCopilotView
 from .product_preferences import product_settings
@@ -25,11 +25,14 @@ class PersonalizedDealsQuery(serializers.Serializer):
 class HistoricalPriceSerializer(serializers.Serializer):
     unit_price = serializers.DecimalField(max_digits=24, decimal_places=6)
     purchased_at = serializers.DateTimeField()
+    difference = serializers.DecimalField(max_digits=24, decimal_places=6)
 
 
 class PersonalizedOfferSerializer(serializers.Serializer):
     offer_id = serializers.IntegerField()
     product_name = serializers.CharField()
+    normalized_name = serializers.CharField()
+    image_url = serializers.CharField(allow_blank=True)
     retailer = serializers.ChoiceField(choices=GroceryRetailer.choices)
     brand = serializers.CharField(allow_blank=True)
     quantity = serializers.DecimalField(max_digits=14, decimal_places=6)
@@ -39,6 +42,7 @@ class PersonalizedOfferSerializer(serializers.Serializer):
     currency = serializers.ChoiceField(choices=["EUR", "BGN"])
     requires_membership = serializers.BooleanField()
     expires_on = serializers.DateField()
+    expires_at = serializers.DateTimeField(allow_null=True)
     observed_at = serializers.DateTimeField()
     relation = serializers.ChoiceField(choices=["exact", "comparable", "needs_review"])
     confidence = serializers.DecimalField(max_digits=4, decimal_places=3)
@@ -58,9 +62,17 @@ class PersonalizedInterestSerializer(serializers.Serializer):
     review = PersonalizedOfferSerializer(many=True)
 
 
+class CatalogStatusSerializer(serializers.Serializer):
+    retailer = serializers.ChoiceField(choices=GroceryRetailer.choices)
+    last_success_at = serializers.DateTimeField(allow_null=True)
+    status = serializers.ChoiceField(choices=["fresh", "stale", "unavailable"])
+    refresh_failed = serializers.BooleanField()
+
+
 class PersonalizedDealsSerializer(serializers.Serializer):
     interests = PersonalizedInterestSerializer(many=True)
     catalog_truncated = serializers.BooleanField()
+    retailers = CatalogStatusSerializer(many=True)
 
 
 class PersonalizedReviewSerializer(serializers.Serializer):
@@ -75,8 +87,9 @@ class PersonalizedDealsView(PrivateCopilotView):
             query["membership_retailers"] = request.query_params.getlist("membership_retailers")
         form = PersonalizedDealsQuery(data=query)
         form.is_valid(raise_exception=True)
-        result = personalize(request.user, product_settings(request.user), **form.validated_data)
-        return Response(PersonalizedDealsSerializer(result).data)
+        now = timezone.now()
+        result = personalize(request.user, product_settings(request.user), now=now, **form.validated_data)
+        return Response(PersonalizedDealsSerializer({**result, "retailers": catalog_status(now)}).data)
 
 
 class PersonalizedOfferReviewView(PrivateCopilotView):

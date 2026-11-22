@@ -236,6 +236,9 @@ class GroceryCatalogRefresh(models.Model):
     offer_count = models.PositiveIntegerField(default=0)
 
 
+GROCERY_CATALOG_FRESHNESS_HOURS = 48
+
+
 class GroceryOfferQuerySet(models.QuerySet):
     def current(self, *, now=None):
         from datetime import timedelta
@@ -247,7 +250,7 @@ class GroceryOfferQuerySet(models.QuerySet):
         today = now.astimezone(ZoneInfo("Europe/Sofia")).date()
         return self.filter(
             starts_on__lte=today, expires_on__gte=today,
-            last_successful_update__gte=now - timedelta(hours=48),
+            last_successful_update__gte=now - timedelta(hours=GROCERY_CATALOG_FRESHNESS_HOURS),
             last_successful_update=models.Subquery(
                 GroceryCatalogRefresh.objects.filter(retailer=models.OuterRef("retailer")).values("last_success_at")[:1],
             ),

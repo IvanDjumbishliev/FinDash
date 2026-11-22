@@ -28,7 +28,7 @@ from .views.product_preferences import (
     ProductLibraryView, ProductPreferenceDetailView, ProductSettingsView, ProductSuggestionView,
     ProductTrackedOfferDetailView, ProductTrackedOfferView,
 )
-from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
+from .views.grocery import (GroceryCatalogDetailView, GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
 from .views.legacy_deals import LegacyLeafletSearchView, LegacyLeafletView
 from .views.news import NewsView
@@ -77,6 +77,7 @@ urlpatterns = [
     path("grocery/my-products/settings/", ProductSettingsView.as_view(), name="my-product-settings"),
     path("grocery/my-products/suggestions/", ProductSuggestionView.as_view(), name="my-product-suggestions"),
     path("grocery/catalog/", GroceryCatalogView.as_view(), name="grocery-catalog"),
+    path("grocery/catalog/<int:pk>/", GroceryCatalogDetailView.as_view(), name="grocery-catalog-detail"),
     path("grocery/lists/", GroceryShoppingListView.as_view(), name="grocery-lists"),
     path("grocery/lists/<int:pk>/", GroceryShoppingListDetailView.as_view(), name="grocery-list-detail"),
     path("transactions/", TransactionListView.as_view()),

@@ -26,6 +26,7 @@ const Receipts = lazy(() => import("./pages/Receipts"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
+const MyDeals = lazy(() => import("./pages/MyDeals"));
 const MyProducts = lazy(() => import("./pages/MyProducts"));
 const GroceryOptimizer = lazy(() => import("./pages/GroceryOptimizer"));
 const CashFlowForecast = lazy(() => import("./pages/CashFlowForecast"));
@@ -129,6 +130,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/my-deals" element={<ProtectedRoute><MyDeals /></ProtectedRoute>} />
           <Route path="/my-products" element={<ProtectedRoute><MyProducts /></ProtectedRoute>} />
           <Route path="/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
           <Route path="/receipts/history" element={<ProtectedRoute><ReceiptHistory /></ProtectedRoute>} />

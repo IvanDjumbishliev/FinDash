@@ -16,7 +16,7 @@ export function ProductImage({ src }) {
   const [failed, setFailed] = useState(false);
   const safe = typeof src === "string" && /^https?:\/\//i.test(src);
   return <span className="grocery-product-image">
-    {safe && !failed ? <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    {safe && !failed ? <img src={src} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
       : <FiShoppingBag aria-hidden="true" />}
   </span>;
 }

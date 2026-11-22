@@ -8,7 +8,7 @@ from hashlib import sha256
 from django.db.models import Q
 from django.utils import timezone
 
-from api.models import GroceryOffer, GroceryRetailer, PersonalizedOfferReview, ProductPreference, Receipt, ReceiptItem
+from api.models import GROCERY_CATALOG_FRESHNESS_HOURS, GroceryCatalogRefresh, GroceryOffer, GroceryRetailer, PersonalizedOfferReview, ProductPreference, Receipt, ReceiptItem
 from api.services.grocery_basket import infer_unit, shopping_match
 from api.services.grocery_catalog import normalized
 from api.services.grocery_matching import compare_products, describe
@@ -126,6 +126,22 @@ def rank_key(entry, preferred_retailers):
     )
 
 
+
+def catalog_status(now):
+    last_refreshes = GroceryCatalogRefresh.objects.in_bulk()
+    cutoff = now - timedelta(hours=GROCERY_CATALOG_FRESHNESS_HOURS)
+    result = []
+    for retailer in GroceryRetailer.values:
+        refresh = last_refreshes.get(retailer)
+        last_success = refresh.last_success_at if refresh else None
+        result.append({
+            "retailer": retailer, "last_success_at": last_success,
+            "status": ("unavailable" if last_success is None else "stale" if last_success < cutoff else "fresh"),
+            "refresh_failed": bool(refresh and refresh.status == "unavailable"),
+        })
+    return result
+
+
 def personalize(owner, settings, *, currency, membership_retailers, include_review, now=None,
                 alerts_only=False, match_filter=None):
     now = now or timezone.now()
@@ -183,12 +199,15 @@ def personalize(owner, settings, *, currency, membership_retailers, include_revi
             historical = history.get((pref.normalized_name, product.brand, product.unit)) if product.brand and same_definition else None
             entry = {
                 "offer_id": offer.pk, "product_name": offer.product_name, "retailer": offer.retailer,
+                "normalized_name": product_identity(offer.normalized_name), "image_url": offer.image_url,
                 "brand": offer.brand, "quantity": product.quantity, "unit": product.unit, "price": offer.price,
                 "unit_price": product.unit_price, "currency": currency, "requires_membership": offer.requires_membership,
-                "expires_on": offer.expires_on, "observed_at": offer.last_successful_update, "relation": relation,
+                "expires_on": offer.expires_on, "expires_at": offer.expires_at,
+                "observed_at": offer.last_successful_update, "relation": relation,
                 "confidence": confidence, "brand_match": brand_match, "quantity_match": quantity_match,
                 "user_reviewed": user_reviewed, "discount_percent": offer.discount_percent,
                 "historical": {"unit_price": historical[0].quantize(Decimal("0.000001")),
+                               "difference": historical[0].quantize(Decimal("0.000001")) - product.unit_price,
                                "purchased_at": historical[1]} if historical else None,
             }
             if match_filter and not match_filter(pref, entry):

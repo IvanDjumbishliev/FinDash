@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { FiArrowRight, FiMinus, FiPlus, FiSearch, FiShoppingCart, FiTrash2 } from "react-icons/fi";
+import { Link } from "react-router-dom";
 import api from "../api";
 import GroceryBasketResults, { ProductImage, RetailerMark } from "../components/GroceryBasketResults";
 import { money } from "../copilotPresentation";
 import { basketSettings, errorText, retailerIds, units } from "../groceryOptimizer";
+import { useNotificationInbox } from "../components/notificationContext";
+import { defaultGroceryItem as defaultItem, groceryDraft, storeGroceryDraft } from "../groceryDraft";
 import "../styles/pages/GroceryOptimizer.css";
 
 const endpoint = "/api/grocery/";
 const initialOptions = { retailers: retailerIds, max_stores: 3, allow_multi_store: true, overhead_per_store: "0.00", currency: "EUR" };
-const defaultItem = { quantity: "1", unit: "", preferred_brand: "", allow_substitutions: true };
 
 export default function GroceryOptimizer() {
-  const [items, setItems] = useState([]);
-  const [options, setOptions] = useState(initialOptions);
+  const { account } = useNotificationInbox();
+  const [draft] = useState(() => groceryDraft(account));
+  const [items, setItems] = useState(() => draft?.items || []);
+  const [options, setOptions] = useState(() => ({ ...initialOptions, ...draft?.options }));
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState(null);
   const [dropdown, setDropdown] = useState(false);
@@ -25,13 +29,17 @@ export default function GroceryOptimizer() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const id = useRef(0);
+  const id = useRef(items.reduce((largest, item) => Math.max(largest, item.id), 0));
   const searchInput = useRef(null);
   const resultsHeading = useRef(null);
   const term = query.trim();
   const selectedStores = options.retailers.join(",");
   const searchKey = `${options.currency}:${selectedStores}:${term}`;
   const suggestions = (search?.key === searchKey ? search.items : []).filter((offer) => options.retailers.includes(offer.retailer));
+
+  useEffect(() => {
+    storeGroceryDraft(account, { items, options });
+  }, [account, items, options]);
 
   useEffect(() => {
     if (term.length < 2) return;
@@ -68,7 +76,7 @@ export default function GroceryOptimizer() {
   function addItem(offer) {
     if ((!offer && !term) || items.length >= 40) return;
     const item = offer ? {
-      ...defaultItem, name: offer.name, quantity: offer.quantity, unit: offer.unit,
+      ...defaultItem, offer_id: offer.id, name: offer.name, quantity: offer.quantity, unit: offer.unit,
       preferred_brand: offer.brand || "", image_url: offer.image_url,
     } : { ...defaultItem, name: term };
     changeList([...items, { ...item, id: ++id.current }]);
@@ -160,7 +168,8 @@ export default function GroceryOptimizer() {
     <header className="grocery-hero">
       <div className="grocery-hero-icon"><FiShoppingCart aria-hidden="true" /></div>
       <div><h1>Grocery basket optimizer</h1>
-        <p>Build your list and compare the cost of buying whole packs across retailers.</p></div>
+        <p>Build your list and compare the cost of buying whole packs across retailers.</p>
+        <Link className="dash-link" to="/my-deals">My Deals</Link></div>
       <div className="grocery-hero-stores">{retailerIds.map((id) => <RetailerMark key={id} id={id} />)}</div>
     </header>
 
@@ -212,7 +221,7 @@ export default function GroceryOptimizer() {
             <div className="grocery-edit-main">
               <ProductImage key={item.image_url} src={item.image_url} />
               <label>Product<input value={item.name} maxLength={180}
-                onChange={(event) => editItem(item.id, { name: event.target.value, image_url: "" })} /></label>
+                onChange={(event) => editItem(item.id, { name: event.target.value, image_url: "", offer_id: null })} /></label>
               <button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => changeList(items.filter((row) => row.id !== item.id))}><FiTrash2 aria-hidden="true" /></button>
             </div>
             <div className="grocery-edit-fields">

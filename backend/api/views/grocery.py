@@ -5,6 +5,8 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import DatabaseError, IntegrityError, transaction
+from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -117,6 +119,44 @@ class GroceryCatalogQuery(serializers.Serializer):
     currency = serializers.ChoiceField(choices=("EUR", "BGN"), default="EUR")
 
 
+
+class CatalogPackageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    brand = serializers.CharField(allow_blank=True)
+    retailer = serializers.ChoiceField(choices=GroceryRetailer.choices)
+    quantity = serializers.CharField()
+    unit = serializers.ChoiceField(choices=GroceryOffer.Unit.choices)
+    image_url = serializers.CharField(allow_blank=True)
+    price = serializers.CharField()
+    currency = serializers.ChoiceField(choices=["EUR", "BGN"])
+    expires_on = serializers.DateField()
+    last_successful_update = serializers.DateTimeField()
+
+
+def catalog_package(offer, product):
+    return {
+        "id": offer.pk, "name": offer.product_name, "brand": offer.brand,
+        "retailer": offer.retailer, "quantity": format(product.quantity.normalize(), "f"),
+        "unit": product.unit, "image_url": offer.image_url, "price": str(offer.price),
+        "currency": offer.currency, "expires_on": offer.expires_on,
+        "last_successful_update": offer.last_successful_update,
+    }
+
+
+class GroceryCatalogDetailView(PrivateCopilotView):
+    @extend_schema(responses=CatalogPackageSerializer)
+    def get(self, request, pk):
+        offer = get_object_or_404(
+            GroceryOffer.objects.current(), pk=pk, retailer__in=GroceryRetailer.values,
+            requires_membership=False, availability_status="advertised", currency__in=("EUR", "BGN"), price__gt=0,
+        )
+        product = describe(offer)
+        if product.ambiguous or not product.unit or not product.quantity or product.quantity > 1000 or len(offer.product_name) > 180:
+            raise serializers.ValidationError({"detail": "This package cannot be added to a shopping list."})
+        return Response(CatalogPackageSerializer(catalog_package(offer, product)).data)
+
+
 class GroceryCatalogView(PrivateCopilotView):
     def get(self, request):
         serializer = GroceryCatalogQuery(data=request.query_params)
@@ -139,13 +179,7 @@ class GroceryCatalogView(PrivateCopilotView):
                 continue
             if product.ambiguous or not product.quantity or not product.unit:
                 continue
-            suggestions.append({
-                "id": offer.pk, "name": offer.product_name, "brand": offer.brand,
-                "retailer": offer.retailer, "quantity": format(product.quantity.normalize(), "f"),
-                "unit": product.unit, "image_url": offer.image_url,
-                "price": str(offer.price), "currency": offer.currency,
-                "expires_on": offer.expires_on, "last_successful_update": offer.last_successful_update,
-            })
+            suggestions.append(catalog_package(offer, product))
             if len(suggestions) == 12:
                 break
         return Response(suggestions)

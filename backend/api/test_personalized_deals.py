@@ -157,3 +157,31 @@ class PersonalizedDealsTests(TestCase):
         self.assertEqual(result[0]["offer_id"], typo.pk)
         self.assertEqual(result[0]["relation"], "comparable")
         self.assertLess(float(result[0]["confidence"]), 1)
+
+    def test_catalog_status_marks_unavailable_and_stale_without_exposing_stale_offers(self):
+        self.preferred("milk")
+        offer = self.offer(image_url="https://example.com/photo.png")
+        GroceryCatalogRefresh.objects.create(
+            retailer="kaufland", last_attempt_at=self.now, last_success_at=self.now - timedelta(days=3), status="unavailable",
+        )
+        data = self.client.get(URL).data
+        status = {row["retailer"]: row for row in data["retailers"]}
+        self.assertEqual(status["lidl"]["status"], "fresh")
+        self.assertEqual(status["kaufland"]["status"], "stale")
+        self.assertTrue(status["kaufland"]["refresh_failed"])
+        self.assertEqual(status["fantastico"]["status"], "unavailable")
+        self.assertEqual(data["interests"][0]["matches"][0]["image_url"], offer.image_url)
+
+    def test_optimizer_package_handoff_requires_a_current_nonmembership_offer(self):
+        offer = self.offer()
+        url = f"/api/grocery/catalog/{offer.pk}/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((response.data["name"], response.data["quantity"], response.data["unit"]), ("Milk 1 L", "1", "l"))
+        offer.requires_membership = True
+        offer.save(update_fields=["requires_membership"])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        offer.requires_membership = False
+        offer.expires_on = self.day - timedelta(days=1)
+        offer.save(update_fields=["requires_membership", "expires_on"])
+        self.assertEqual(self.client.get(url).status_code, 404)
