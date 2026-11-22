@@ -1,13 +1,13 @@
 import PropTypes from "prop-types";
 import "../styles/components/TransactionList.css";
 
-function TransactionList({ transactions, handleDelete }) {
+function TransactionList({ transactions, handleDelete, deleting = false }) {
   return (
     <div>
       <h2>All Transactions</h2>
       <ul className="transaction-list">
-        {transactions.map((transaction, index) => (
-          <li key={index} className="transaction-item">
+        {transactions.map((transaction) => (
+          <li key={transaction.id} className="transaction-item">
             <strong>Amount:</strong> {transaction.amount} {transaction.currency}{" "}
             <br />
             <strong>Category:</strong> {transaction.category} <br />
@@ -17,7 +17,9 @@ function TransactionList({ transactions, handleDelete }) {
             <strong>Time:</strong>{" "}
             {new Date(transaction.timestamp).toLocaleString()}
             <button
+              type="button"
               className="delete-btn"
+              disabled={deleting}
               onClick={() => handleDelete(transaction.id)}
             >
               Delete
@@ -40,6 +42,7 @@ TransactionList.propTypes = {
     timestamp: PropTypes.string,
   })).isRequired,
   handleDelete: PropTypes.func.isRequired,
+  deleting: PropTypes.bool,
 };
 
 export default TransactionList;

@@ -10,24 +10,27 @@ from rest_framework.response import Response
 from api.models import Budget, CopilotPreferences, FinancialGoal, GroceryOffer, Portfolio, Subscription, Transaction, VirtualTrade
 from api.serializers import BudgetSerializer, TransactionSerializer
 from api.services.budgets import INTERNAL_TRANSFER, REFUND, ZERO, spending_by_budget
-from api.services.copilot_tools import account_timezone
+from api.services.copilot_tools import DataLimitExceeded, account_timezone
 from api.services.subscription_planning import renewal_dates
 
 from .assistant import PrivateCopilotView
 from .deals import cached_deal_highlights
 
+MAX_ACTIVITY_ROWS = 40_000
 SECTIONS = ("overview", "monthly", "budgets", "subscriptions", "goals", "portfolio", "deals", "insights")
 
 
 def activity(owner, start, end):
     totals = defaultdict(lambda: {"income": ZERO, "expenses": ZERO, "refunds": ZERO, "categories": defaultdict(lambda: ZERO)})
     rows = Transaction.objects.filter(
-        user=owner, timestamp__gte=start, timestamp__lt=end,
+        user=owner, timestamp__gte=start, timestamp__lte=end,
     ).order_by().values_list("currency", "category", "amount", "particulars")
-    for currency, category, amount, description in rows.iterator():
+    for index, (currency, category, amount, description) in enumerate(rows[:MAX_ACTIVITY_ROWS + 1].iterator()):
+        if index == MAX_ACTIVITY_ROWS:
+            raise DataLimitExceeded
         if not amount or INTERNAL_TRANSFER.search(description):
             continue
-        row = totals[currency.upper()]
+        row = totals[currency.strip().upper()]
         if amount < 0:
             row["expenses"] -= amount
             row["categories"][category] -= amount
@@ -53,8 +56,7 @@ def upcoming(owner, today):
     ).exclude(tracking_status__in=[Subscription.TrackingStatus.PAUSED, Subscription.TrackingStatus.CANCELED])
     def entries():
         for row in subscriptions.iterator():
-            due = next(renewal_dates(row.next_expected_payment, row.billing_frequency, today, end, row.billing_anchor_day), None)
-            if due:
+            for due in renewal_dates(row.next_expected_payment, row.billing_frequency, today, end, row.billing_anchor_day):
                 yield {"id": row.pk, "merchant": row.merchant, "date": due.isoformat(),
                        "amount": str(row.estimated_amount), "currency": row.currency}
 
@@ -63,29 +65,33 @@ def upcoming(owner, today):
 
 class DashboardView(PrivateCopilotView):
     def get(self, request):
-        requested = request.query_params.get("sections", ",".join(SECTIONS))
-        sections = set(requested.split(","))
-        if not sections <= set(SECTIONS):
+        requested = request.query_params.getlist("sections") or [",".join(SECTIONS)]
+        sections = set(requested[0].split(",", len(SECTIONS)))
+        if len(requested) != 1 or not sections <= set(SECTIONS):
             raise serializers.ValidationError({"sections": "Choose supported dashboard sections."})
         user = request.user
         zone = account_timezone(user)
-        today = timezone.localdate(timezone=zone)
+        now = timezone.now()
+        today = timezone.localdate(now, timezone=zone)
         month = today.replace(day=1)
         response = {"month": month.isoformat(), "username": user.username}
         if sections & {"overview", "monthly", "insights"}:
-            response["activity"] = activity(
-                user, datetime.combine(month, time.min, zone), datetime.combine(today + timedelta(days=1), time.min, zone),
-            )
+            try:
+                response["activity"] = activity(user, datetime.combine(month, time.min, zone), now)
+            except DataLimitExceeded:
+                response["activity"] = None
         if "insights" in sections:
             preferences = CopilotPreferences.objects.filter(owner=user, history_enabled=True).first()
             answer = preferences.history[-1].get("response", {}).get("answer") if preferences and preferences.history else None
-            response["insight"] = answer[:500] if isinstance(answer, str) else None
+            response["insight"] = (answer[:500] + "…" if len(answer) > 500 else answer) if isinstance(answer, str) else None
         if "overview" in sections:
-            recent = Transaction.objects.filter(user=user).order_by("-timestamp", "-pk")[:5]
+            recent = Transaction.objects.filter(user=user, timestamp__lte=now).order_by("-timestamp", "-pk")[:5]
             response["recent"] = TransactionSerializer(recent, many=True).data
         if "budgets" in sections:
             # Use the same period and calculation as the Budget Planner.
-            budgets = list(Budget.objects.filter(owner=user, period=timezone.localdate().replace(day=1), archived=False))
+            budget_period = timezone.localdate(now).replace(day=1)
+            response["budget_period"] = budget_period.isoformat()
+            budgets = list(Budget.objects.filter(owner=user, period=budget_period, archived=False).order_by("category", "pk")[:5])
             response["budgets"] = BudgetSerializer(
                 budgets, many=True, context={"spending": spending_by_budget(user, budgets)},
             ).data
@@ -111,5 +117,5 @@ class DashboardView(PrivateCopilotView):
             for offer in response["deals"]:
                 offer["price"] = format(offer["price"], ".2f")
             if not response["deals"]:
-                response["deals"] = cached_deal_highlights()
+                response["deals"] = cached_deal_highlights(now)
         return Response(response)

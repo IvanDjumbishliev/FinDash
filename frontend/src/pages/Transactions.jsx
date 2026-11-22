@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../api";
-import { DashboardError, DashboardLoading } from "../components/DashboardWidgets";
+import { DashboardError, DashboardLoading } from "../components/DashboardFeedback";
 import TransactionList from "../components/TransactionList";
 import TransactionForm from "../components/TransactionForm";
 import "../styles/pages/Transactions.css";
@@ -12,6 +12,8 @@ export default function Transactions() {
   const [revision, setRevision] = useState(0);
   const [result, setResult] = useState(null);
   const [notice, setNotice] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const deletePending = useRef(false);
   const version = `${offset}:${revision}`;
   const current = result?.version === version ? result : null;
 
@@ -35,12 +37,18 @@ export default function Transactions() {
   }
 
   async function handleDelete(id) {
+    if (deletePending.current) return;
+    deletePending.current = true;
+    setDeleting(true);
     try {
       await api.delete(`/api/transaction/${id}/`, { timeout: 12_000 });
       setNotice("Transaction deleted.");
       refresh();
     } catch {
       setNotice("Could not delete the transaction. Try again.");
+    } finally {
+      deletePending.current = false;
+      setDeleting(false);
     }
   }
 
@@ -56,7 +64,7 @@ export default function Transactions() {
             {!current ? <DashboardLoading label="Loading transactions" /> : current.failed
               ? <DashboardError onRetry={refresh}>Could not load transactions.</DashboardError>
               : current.data.results.length ? <>
-                <TransactionList transactions={current.data.results} handleDelete={handleDelete} />
+                <TransactionList transactions={current.data.results} handleDelete={handleDelete} deleting={deleting} />
                 <nav className="transaction-pagination dash-actions" aria-label="Transaction pages">
                   <button type="button" className="dash-button" disabled={!offset}
                     onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>Previous</button>

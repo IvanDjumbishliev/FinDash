@@ -125,17 +125,33 @@ DEAL_CACHE_KEYS = {
 }
 
 
-def cached_deal_highlights():
-    """Read only unexpired public results fetched by the Deals page."""
+def cached_deal_highlights(now):
+    """Read public snapshots and omit expired offers when dates are available."""
+    from api.services.grocery_catalog import LOCAL_ZONE, observed_date
+
+    today = now.astimezone(LOCAL_ZONE).date()
     cached = cache.get_many(DEAL_CACHE_KEYS.values())
-    return [
-        {
-            "id": f"{retailer}-{index}", "retailer": retailer,
-            "product_name": offer["name"], "display_price": offer["price"],
-        }
-        for retailer, key in DEAL_CACHE_KEYS.items()
-        for index, offer in enumerate([item for item in cached.get(key, []) if item.get("name") and item.get("price")][:2])
-    ]
+    highlights = []
+    for retailer, key in DEAL_CACHE_KEYS.items():
+        count = 0
+        for offer in cached.get(key, []):
+            if not offer.get("name") or not offer.get("price"):
+                continue
+            metadata = offer.get("_catalog", {})
+            start, start_at = observed_date(metadata.get("start"))
+            end, end_at = observed_date(metadata.get("end"))
+            if (start and start > today or end and end < today
+                    or start_at and start_at > now or end_at and end_at < now):
+                continue
+            highlights.append({
+                "id": f"{retailer}-{count}", "retailer": retailer,
+                "product_name": offer["name"], "display_price": offer["price"],
+                "expires_on": end.isoformat() if end else None,
+            })
+            count += 1
+            if count == 2:
+                break
+    return highlights
 
 
 def scrape_lidl(*, catalog=False):

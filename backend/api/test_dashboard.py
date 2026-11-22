@@ -87,3 +87,54 @@ class DashboardTests(TestCase):
         self.assertEqual(compact.status_code, 200)
         self.assertEqual(set(compact.data), {"currency", "status", "totals"})
         self.assertEqual(compact.data["totals"], full.data["totals"])
+
+    def test_future_recorded_date_and_large_ledgers_do_not_show_partial_amounts(self):
+        self.record("25", "Pay")
+        self.record("80", "Scheduled later", timestamp=self.now.replace(hour=13))
+        with patch("api.views.dashboard.timezone.now", return_value=self.now):
+            response = self.client.get("/api/dashboard/", {"sections": "overview,monthly"})
+            self.assertEqual(response.data["activity"][0]["income"], "25.00")
+            self.assertEqual(len(response.data["recent"]), 1)
+            self.record("10", "Other income")
+            with patch("api.views.dashboard.MAX_ACTIVITY_ROWS", 1):
+                response = self.client.get("/api/dashboard/", {"sections": "overview,monthly"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["activity"])
+        self.assertEqual(len(response.data["recent"]), 2)
+
+    def test_upcoming_includes_multiple_charges_and_excludes_inactive_subscriptions(self):
+        initial = dict(owner=self.owner, estimated_amount=10, currency="EUR", billing_frequency="weekly",
+                       status="confirmed", detection_confidence=1, next_expected_payment=date(2026, 11, 22))
+        Subscription.objects.create(merchant="Active", normalized_merchant="active", **initial)
+        Subscription.objects.create(merchant="Paused", normalized_merchant="paused", tracking_status="paused", **initial)
+        with patch("api.views.dashboard.timezone.now", return_value=self.now):
+            response = self.client.get("/api/dashboard/", {"sections": "subscriptions"})
+        self.assertEqual([row["date"] for row in response.data["subscriptions"]],
+                         ["2026-11-22", "2026-11-29", "2026-12-06", "2026-12-13", "2026-12-20"])
+        self.assertEqual({row["merchant"] for row in response.data["subscriptions"]}, {"Active"})
+
+    def test_cached_deals_with_known_expired_dates_are_excluded(self):
+        key = DEAL_CACHE_KEYS["lidl"]
+        cache.set(key, [
+            {"name": "Expired", "price": "2.00 €", "_catalog": {"end": "2026-11-20"}},
+            {"name": "In range", "price": "2.00 €", "_catalog": {"end": "2026-11-22"}},
+        ], timeout=60)
+        self.addCleanup(cache.delete, key)
+        with patch("api.views.dashboard.timezone.now", return_value=self.now):
+            response = self.client.get("/api/dashboard/", {"sections": "deals"})
+        self.assertEqual([row["product_name"] for row in response.data["deals"]], ["In range"])
+
+    def test_transaction_paging_has_stable_order_limit_and_owner_scope(self):
+        Transaction.objects.bulk_create([
+            Transaction(user=self.owner, amount=1, currency="EUR", particulars=str(i),
+                        category="general", timestamp=self.now)
+            for i in range(101)
+        ])
+        self.record("20", "Other user", owner=self.other)
+        first = self.client.get("/api/transactions/", {"ordering": "-timestamp,-id", "limit": 150}).data
+        second = self.client.get("/api/transactions/", {"ordering": "-timestamp,-id", "limit": 150, "offset": 100}).data
+        self.assertEqual(first["count"], 101)
+        self.assertEqual(len(first["results"]), 100)
+        self.assertEqual(first["results"][0]["particulars"], "100")
+        self.assertEqual([row["particulars"] for row in second["results"]], ["0"])
+        self.assertIsNone(second["next"])

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from rest_framework import generics, serializers
 from django.core.paginator import Paginator
 from ..serializers import UserSerializer, TransactionSerializer
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from ..models import Transaction, UserProfile
 from api.services.notification_events import check_budgets, transaction_recorded
@@ -51,7 +52,12 @@ class CreateUserView(generics.CreateAPIView):
         )
 
 
+class TransactionPagination(LimitOffsetPagination):
+    max_limit = 100
+
+
 class TransactionListView(ListCreateAPIView):
+    pagination_class = TransactionPagination
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]

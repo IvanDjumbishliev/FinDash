@@ -1,7 +1,9 @@
-import { useSyncExternalStore } from "react";
-import { Link } from 'react-router-dom';
+import { Suspense, useEffect, useRef, useSyncExternalStore } from "react";
+import { Link, useLocation } from 'react-router-dom';
 import { Outlet } from "react-router";
 import Navigation from "./Navigation";
+import PageBoundary from "./PageBoundary";
+import { DashboardLoading } from "./DashboardFeedback";
 import { NotificationProvider } from "./NotificationInbox";
 import { notificationAccount } from "./notificationContext";
 import "../styles/components/Notifications.css";
@@ -15,6 +17,17 @@ function subscribeToStorage(listener) {
 
 export default function Footer() {
     const account = useSyncExternalStore(subscribeToStorage, notificationAccount);
+    const { pathname } = useLocation();
+    const previousPath = useRef(pathname);
+    const main = useRef(null);
+
+    useEffect(() => {
+        if (previousPath.current !== pathname) {
+            previousPath.current = pathname;
+            main.current?.focus({ preventScroll: true });
+        }
+    }, [pathname]);
+
     return (
         <div className="fade-in">
             <a className="skip-to-content" href="#main-content">Skip to content</a>
@@ -22,7 +35,13 @@ export default function Footer() {
                 <header className="header">
                     <Navigation />
                 </header>
-                <div id="main-content" tabIndex={-1}><Outlet /></div>
+                <div id="main-content" tabIndex={-1} ref={main}>
+                    <PageBoundary key={pathname} message="Could not load this page. Reload to try again.">
+                        <Suspense fallback={<div className="dashboard-shell"><DashboardLoading label="Loading page" /></div>}>
+                            <Outlet />
+                        </Suspense>
+                    </PageBoundary>
+                </div>
             </NotificationProvider>
             <footer className="footer">
                 <div className="footer-content">

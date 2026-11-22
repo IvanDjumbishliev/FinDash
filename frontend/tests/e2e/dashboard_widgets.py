@@ -75,6 +75,14 @@ def run(api, site, driver, firefox, _temporary):
             const bounds = menu.getBoundingClientRect();
             return !menu.hidden && bounds.width > 0 && bounds.x >= 0 && bounds.right <= 320;
         """))
+        browser.execute("""
+            const link = document.querySelector('[aria-label="Financial overview"] a[href="/transactions"]');
+            link.focus();
+        """)
+        browser.send_key("\ue007")
+        wait_for(lambda: browser.execute("""
+            return location.pathname === '/transactions' && document.activeElement.id === 'main-content';
+        """))
         print("Passed real dashboard data, widget persistence, selected API sections, and keyboard and mobile navigation.")
     finally:
         browser.close()

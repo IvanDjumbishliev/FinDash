@@ -8,9 +8,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Footer from "./components/Loyout";
 
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, useEffect } from "react";
 import { clearSession } from "./api";
-import { DashboardLoading } from "./components/DashboardWidgets";
 
 const Chat = lazy(() => import("./pages/Chat"));
 const Transactions = lazy(() => import("./pages/Transactions"));
@@ -27,10 +26,6 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const GroceryOptimizer = lazy(() => import("./pages/GroceryOptimizer"));
 const CashFlowForecast = lazy(() => import("./pages/CashFlowForecast"));
-
-function PageLoading() {
-  return <div className="dashboard-shell"><div className="dash-panel"><DashboardLoading label="Loading page" /></div></div>;
-}
 
 function Logout() {
   const navigate = useNavigate();
@@ -63,7 +58,7 @@ function App() {
             path="/transactions"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Transactions /></Suspense>
+                <Transactions />
               </ProtectedRoute>
             }
           />
@@ -71,7 +66,7 @@ function App() {
             path="/chat"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Chat /></Suspense>
+                <Chat />
               </ProtectedRoute>
             }
           />
@@ -79,31 +74,31 @@ function App() {
             path="/promotions"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Promotions /></Suspense>
+                <Promotions />
               </ProtectedRoute>
             }
           />
           <Route
             path="/grocery"
-            element={<ProtectedRoute><Suspense fallback={<PageLoading />}><GroceryOptimizer /></Suspense></ProtectedRoute>}
+            element={<ProtectedRoute><GroceryOptimizer /></ProtectedRoute>}
           />
           <Route
             path="/stocks"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Stocks /></Suspense>
+                <Stocks />
               </ProtectedRoute>
             }
           />
           <Route
             path="/portfolios"
-            element={<ProtectedRoute><Suspense fallback={<PageLoading />}><PortfolioSimulator /></Suspense></ProtectedRoute>}
+            element={<ProtectedRoute><PortfolioSimulator /></ProtectedRoute>}
           />
           <Route
             path="/news"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><News /></Suspense>
+                <News />
               </ProtectedRoute>
             }
           />
@@ -111,7 +106,7 @@ function App() {
             path="/budgets"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Budgets /></Suspense>
+                <Budgets />
               </ProtectedRoute>
             }
           />
@@ -119,7 +114,7 @@ function App() {
             path="/reports"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Reports /></Suspense>
+                <Reports />
               </ProtectedRoute>
             }
           />
@@ -127,19 +122,19 @@ function App() {
             path="/forecast"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><CashFlowForecast /></Suspense>
+                <CashFlowForecast />
               </ProtectedRoute>
             }
           />
-          <Route path="/goals" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><FinancialGoals /></Suspense></ProtectedRoute>} />
-          <Route path="/goals/:id/scenarios" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><GoalScenario /></Suspense></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><Notifications /></Suspense></ProtectedRoute>} />
-          <Route path="/notifications/settings" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><NotificationSettings /></Suspense></ProtectedRoute>} />
+          <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />
+          <Route path="/goals/:id/scenarios" element={<ProtectedRoute><GoalScenario /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+          <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
           <Route
             path="/subscriptions"
             element={
               <ProtectedRoute>
-                <Suspense fallback={<PageLoading />}><Subscriptions /></Suspense>
+                <Subscriptions />
               </ProtectedRoute>
             }
           />

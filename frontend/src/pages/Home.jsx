@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { FiActivity, FiSliders } from "react-icons/fi";
 import api from "../api";
+import PageBoundary from "../components/PageBoundary";
 import PDF_enter from "../components/PDFEnter";
 import { useNotificationInbox } from "../components/notificationContext";
-import { DashboardDataCard, DashboardError, DashboardLiveCard, DashboardLoading } from "../components/DashboardWidgets";
+import { DashboardError, DashboardLoading } from "../components/DashboardFeedback";
+import { DashboardDataCard, DashboardLiveCard } from "../components/DashboardWidgets";
 import { dashboardSections, defaultWidgets, readWidgets, saveWidgets, widgets } from "../dashboard";
 import "../styles/pages/Home.css";
 
@@ -95,9 +97,11 @@ export default function Home() {
       </div>}
       {widgets.filter(({ id }) => visible.includes(id)).map(({ id, separate }) => {
         if (id === "heatmap") return <div className="dash-wide dash-heatmap" key={id}>
-          <Suspense fallback={<DashboardLoading label="Loading spending heatmap" />}>
-            <SpendingHeatmap revision={revision} />
-          </Suspense>
+          <PageBoundary message="Could not load the spending heatmap. Reload to try again.">
+            <Suspense fallback={<DashboardLoading label="Loading spending heatmap" />}>
+              <SpendingHeatmap revision={revision} />
+            </Suspense>
+          </PageBoundary>
         </div>;
         if (separate) return <DashboardLiveCard key={id} type={id} revision={revision} />;
         return current?.data && <DashboardDataCard key={id} type={id} data={current.data} />;
