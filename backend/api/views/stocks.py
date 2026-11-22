@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,7 @@ import requests
 from django.core.cache import cache
 from django.utils import timezone
 from rest_framework import status, views
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 FINANCE_URL = "https://query1.finance.yahoo.com"
 TICKER_LENGTH = Stock._meta.get_field("ticker").max_length
 NAME_LENGTH = Stock._meta.get_field("name").max_length
+MARKET_BATCH_SIZE = 5
 
 
 def _finance_data(path, **params):
@@ -111,17 +114,19 @@ def _stock_market(symbol):
         return {"history": [], "market": {}}
 
     chart = results[0]
-    meta = chart["meta"]
-    if meta.get("symbol", symbol) != symbol:
+    meta = chart.get("meta") if isinstance(chart, Mapping) else None
+    if not isinstance(meta, Mapping) or meta.get("symbol", symbol) != symbol:
         raise ValueError("Unexpected quote ticker.")
     exchange_zone = ZoneInfo(meta.get("exchangeTimezoneName") or "UTC")
-    closes = (chart.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
+    indicators = chart.get("indicators") or {}
+    quote_series = (indicators.get("quote") or [{}])[0] if isinstance(indicators, Mapping) else {}
+    closes = quote_series.get("close") or [] if isinstance(quote_series, Mapping) else []
     history = [
         {
             "date": datetime.fromtimestamp(timestamp, exchange_zone).date().isoformat(),
             "price": price,
         }
-        for timestamp, price in zip(chart.get("timestamp", []), closes)
+        for timestamp, price in zip(chart.get("timestamp") or [], closes)
         if _market_number(price) is not None and _market_number(timestamp) is not None and timestamp < 253402214400
     ]
     history.sort(key=lambda point: point["date"])
@@ -149,7 +154,13 @@ class WatchlistView(views.APIView):
     throttle_scope = "stock_provider"
 
     def get(self, request):
-        stocks = list(Stock.objects.filter(user=request.user).values("ticker", "name"))
+        stocks = Stock.objects.filter(user=request.user).order_by("pk").values("ticker", "name")
+        symbols = request.query_params.getlist("symbol")
+        if symbols:
+            if len(symbols) > MARKET_BATCH_SIZE or any(not symbol or len(symbol) > TICKER_LENGTH for symbol in symbols):
+                raise ValidationError({"symbol": "Request up to five saved stock symbols."})
+            stocks = stocks.filter(ticker__in=symbols)
+        stocks = list(stocks)
         if request.query_params.get("include_history") == "false":
             return Response({"stocks": [{"symbol": stock["ticker"], "name": stock["name"]} for stock in stocks]})
         if stocks:

@@ -3,6 +3,14 @@ import StockMarketCard from "./StockMarketCard";
 import api from "../api";
 import "../styles/components/StockWatchlist.css";
 
+const WATCHLIST_URL = "/api/stocks/watchlist/";
+const MARKET_BATCH_SIZE = 5;
+
+function getStocks(data) {
+  if (!Array.isArray(data?.stocks)) throw new Error("Invalid watchlist response.");
+  return data.stocks;
+}
+
 export default function StockWatchlist() {
   const [watchlist, setWatchlist] = useState([]);
   const [query, setQuery] = useState("");
@@ -10,6 +18,8 @@ export default function StockWatchlist() {
   const [adding, setAdding] = useState(null);
   const [addError, setAddError] = useState("");
   const [watchlistError, setWatchlistError] = useState("");
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const term = query.trim();
@@ -17,21 +27,53 @@ export default function StockWatchlist() {
 
   useEffect(() => {
     const controller = new AbortController();
-    api.get("/api/stocks/watchlist/", { signal: controller.signal })
-      .then(({ data }) => {
+    const options = { signal: controller.signal, timeout: 20_000 };
+
+    async function loadWatchlist() {
+      let stocks;
+      try {
+        const { data } = await api.get(WATCHLIST_URL, { ...options, params: { include_history: false } });
+        stocks = getStocks(data);
+        if (controller.signal.aborted) return;
+        setWatchlist((previous) => {
+          const existing = new Map(previous.map((stock) => [stock.symbol, stock]));
+          return stocks.map((stock) => ({ ...existing.get(stock.symbol), ...stock }));
+        });
+      } catch (error) {
         if (!controller.signal.aborted) {
-          setWatchlist(data.stocks);
-          setWatchlistError("");
+          const message = error.response?.status === 401
+            ? "Your session has expired. Sign in again to load your watchlist."
+            : "Unable to load your saved stocks. Try again.";
+          setWatchlistError(message);
         }
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setWatchlistError(error.response?.data?.error || "Unable to load your stock watchlist.");
-        }
-      })
-      .finally(() => {
+        return;
+      } finally {
         if (!controller.signal.aborted) setWatchlistLoading(false);
-      });
+      }
+
+      if (!stocks.length) return;
+      setMarketLoading(true);
+      try {
+        for (let index = 0; index < stocks.length && !controller.signal.aborted; index += MARKET_BATCH_SIZE) {
+          const params = new URLSearchParams();
+          for (const stock of stocks.slice(index, index + MARKET_BATCH_SIZE)) params.append("symbol", stock.symbol);
+          try {
+            const { data } = await api.get(WATCHLIST_URL, { ...options, params });
+            const market = new Map(getStocks(data).map((stock) => [stock.symbol, stock]));
+            if (controller.signal.aborted) return;
+            setWatchlist((previous) => previous.map((stock) => market.get(stock.symbol) ?? stock));
+          } catch {
+            if (controller.signal.aborted) return;
+            setMarketError(true);
+            break;
+          }
+        }
+      } finally {
+        if (!controller.signal.aborted) setMarketLoading(false);
+      }
+    }
+
+    loadWatchlist();
     return () => controller.abort();
   }, [refresh]);
 
@@ -44,6 +86,7 @@ export default function StockWatchlist() {
         const { data } = await api.get("/api/stocks/search/", {
           params: { query: term },
           signal: controller.signal,
+          timeout: 12_000,
         });
         if (!controller.signal.aborted) setSearch({ term, stocks: data });
       } catch (error) {
@@ -62,6 +105,8 @@ export default function StockWatchlist() {
   function reloadWatchlist() {
     setWatchlistLoading(true);
     setWatchlistError("");
+    setMarketLoading(false);
+    setMarketError(false);
     setRefresh((previous) => previous + 1);
   }
 
@@ -69,7 +114,7 @@ export default function StockWatchlist() {
     setAddError("");
     setAdding(stock.symbol);
     try {
-      await api.post("/api/stocks/watchlist/", { symbol: stock.symbol });
+      await api.post(WATCHLIST_URL, { symbol: stock.symbol }, { timeout: 12_000 });
       setWatchlist((previous) => [
         ...previous.filter(({ symbol }) => symbol !== stock.symbol),
         stock,
@@ -124,7 +169,8 @@ export default function StockWatchlist() {
 
       {watchlistLoading && <p role="status" className="stock-status">Loading watchlist…</p>}
       {watchlistError && <p role="alert" className="stock-status">{watchlistError}</p>}
-      {(watchlistError || watchlist.some(({ error }) => error)) && !watchlistLoading && (
+      {marketError && <p role="alert" className="stock-status">Some market details could not load. Your saved stocks are shown below.</p>}
+      {(watchlistError || marketError || watchlist.some(({ error }) => error)) && !watchlistLoading && !marketLoading && (
         <button className="stock-retry" type="button" onClick={reloadWatchlist}>Retry loading</button>
       )}
       {!watchlist.length && !watchlistLoading && !watchlistError && (
@@ -132,7 +178,7 @@ export default function StockWatchlist() {
       )}
       <div className="stock-charts">
         {watchlist.map((stock) => (
-          <StockMarketCard key={stock.symbol} stock={stock} loading={watchlistLoading} />
+          <StockMarketCard key={stock.symbol} stock={stock} loading={watchlistLoading || marketLoading} />
         ))}
       </div>
     </section>

@@ -278,6 +278,20 @@ class StockEndpointTests(TestCase):
             "day_low": 118, "day_high": 125, "year_low": 90, "year_high": 160, "volume": 0,
         })
 
+    def test_saved_stocks_load_without_provider_and_details_only_use_owned_symbols(self):
+        for owner, ticker in ((self.user, "AAPL"), (self.other_user, "MSFT")):
+            Stock.objects.create(user=owner, ticker=ticker, name=ticker, quantity=0, price_per_share=0)
+        with patch("api.views.stocks._finance_data", return_value={"chart": {"result": [{"meta": None}]}}) as finance:
+            saved = self.client.get("/api/stocks/watchlist/", {"include_history": "false"})
+            self.assertEqual(saved.data, {"stocks": [{"name": "AAPL", "symbol": "AAPL"}]})
+            finance.assert_not_called()
+            details = self.client.get("/api/stocks/watchlist/", {"symbol": ["AAPL", "MSFT"]})
+            self.assertEqual(details.status_code, 200)
+            self.assertEqual([row["symbol"] for row in details.data["stocks"]], ["AAPL"])
+            self.assertIn("error", details.data["stocks"][0])
+            self.assertEqual(self.client.get("/api/stocks/watchlist/", {"symbol": ["AAPL"] * 6}).status_code, 400)
+            finance.assert_called_once_with("/v8/finance/chart/AAPL", range="1mo", interval="1d")
+
     def test_watchlist_marks_missing_history_without_dropping_stock(self):
         Stock.objects.create(
             user=self.user,
