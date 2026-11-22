@@ -13,6 +13,7 @@ export const storeList = PropTypes.arrayOf(PropTypes.shape({
   id: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   image: PropTypes.string.isRequired,
+  offerUrl: PropTypes.string,
 }));
 
 export const dealResults = PropTypes.objectOf(PropTypes.shape({

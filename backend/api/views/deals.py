@@ -20,9 +20,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 
-LIDL_SOURCE = "https://www.lidl.bg/c/aktsiya/a10106553"
+LIDL_SOURCE = "https://www.lidl.bg/"
 KAUFLAND_SOURCE = "https://www.kaufland.bg/aktualni-predlozheniya/oferti.html"
-FANTASTICO_SOURCE = "https://fantastico.bg/special-offers"
+FANTASTICO_SOURCE = "https://www.fantastico.bg/special-offers"
 
 
 def offer_output(offers, catalog):
@@ -119,7 +119,7 @@ def lidl_product_offers(html, timestamp, *, catalog=False):
 
 
 DEAL_CACHE_KEYS = {
-    "lidl": "scraped_deals_lidl_products_v2",
+    "lidl": "scraped_deals_lidl_products_v3",
     "kaufland": "scraped_deals_kaufland_current_v2",
     "fantastico": "scraped_deals_fantastico_products_v2",
 }
@@ -550,11 +550,28 @@ def scrape_fantastico(*, catalog=False):
     return offer_output(result, catalog)
 
 
+def catalog_deals(retailer, store):
+    """Serve verified, still-current advertised offers during a retailer outage."""
+    from api.models import GroceryOffer
+
+    offers = (GroceryOffer.objects.current().filter(retailer=retailer, availability_status="advertised")
+              .exclude(image_url="").order_by("product_name", "pk")[:100])
+    symbols = {"EUR": "€", "BGN": "лв."}
+    return [{
+        "name": offer.product_name,
+        "price": f"{offer.price:.2f}".replace(".", ",") + f" {symbols.get(offer.currency, offer.currency)}",
+        "image_url": offer.image_url,
+        "store": store,
+        "price_note": "Lidl Plus" if retailer == "lidl" and offer.requires_membership else
+        "Membership required" if offer.requires_membership else "",
+    } for offer in offers]
+
+
 class LidlDealsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        return Response(scrape_lidl(), status=200)
+        return Response(scrape_lidl() or catalog_deals("lidl", "Lidl"))
 
 
 class KauflandDealsView(APIView):
@@ -568,4 +585,4 @@ class FantasticoDealsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
-        return Response(scrape_fantastico(), status=200)
+        return Response(scrape_fantastico() or catalog_deals("fantastico", "Fantastico"))

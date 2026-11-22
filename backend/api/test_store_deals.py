@@ -1,9 +1,12 @@
 import json
+from datetime import timedelta
+from zoneinfo import ZoneInfo
 from html import escape
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 
@@ -31,6 +34,7 @@ class BrochureDealTests(SimpleTestCase):
         ))
         response = self.client.get("/api/deals/lidl/")
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(get.call_args.args, ("https://www.lidl.bg/",))
         self.assertEqual(response.data, [{
             "name": "Краве масло",
             "price": "2,99 €",
@@ -129,3 +133,31 @@ class BrochureDealTests(SimpleTestCase):
         self.assertEqual(offers[0]["price"], "2,99 €")
         self.assertEqual(offers[0]["discount_percent"], 25)
         self.assertTrue(offers[0]["image_url"].startswith("data:image/jpeg;base64,"))
+
+
+class CatalogDealFallbackTests(TestCase):
+    @patch("api.views.deals.scrape_fantastico", return_value=[])
+    def test_fantastico_outage_only_returns_current_catalog_cards(self, scrape):
+        from api.models import GroceryCatalogRefresh, GroceryOffer
+
+        now = timezone.now()
+        today = now.astimezone(ZoneInfo("Europe/Sofia")).date()
+        GroceryCatalogRefresh.objects.create(
+            retailer="fantastico", last_attempt_at=now, last_success_at=now,
+        )
+        for name, expires, status in (
+            ("Current", today, "advertised"),
+            ("Expired", today - timedelta(days=1), "advertised"),
+            ("Unverified", today, "unverified"),
+        ):
+            GroceryOffer.objects.create(
+                retailer="fantastico", fingerprint=name, product_name=name, price="2.99",
+                currency="EUR", starts_on=today - timedelta(days=2), expires_on=expires,
+                source_url="https://www.fantastico.bg/special-offers",
+                image_url="https://www.fantastico.bg/product.jpg",
+                last_successful_update=now, availability_status=status,
+            )
+
+        response = APIClient().get("/api/deals/fantastico/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([(row["name"], row["price"]) for row in response.data], [("Current", "2,99 €")])

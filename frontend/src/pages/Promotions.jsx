@@ -8,9 +8,9 @@ import fantasticoLogo from "../assets/fantastico-logo.png";
 import "../styles/pages/Promotion.css";
 
 const stores = [
-  { id: "kaufland", name: "Kaufland", image: kauflandLogo },
-  { id: "lidl", name: "Lidl", image: lidlLogo },
-  { id: "fantastico", name: "Фантастико", image: fantasticoLogo },
+  { id: "kaufland", name: "Kaufland", image: kauflandLogo, offerUrl: "https://www.kaufland.bg/aktualni-predlozheniya/oferti.html" },
+  { id: "lidl", name: "Lidl", image: lidlLogo, offerUrl: "https://www.lidl.bg/" },
+  { id: "fantastico", name: "Фантастико", image: fantasticoLogo, offerUrl: "https://www.fantastico.bg/special-offers" },
 ];
 
 export default function Promotions() {

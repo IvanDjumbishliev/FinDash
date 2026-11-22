@@ -70,6 +70,7 @@ const Deals = ({ stores, results }) => {
               : result.error
                 ? `Could not load deals from ${activeStore.name}.`
                 : `No current offers could be loaded for ${activeStore.name}.`}
+            {result && activeStore.offerUrl && <> <a href={activeStore.offerUrl}>View official offers</a></>}
           </p>
         ) : (
           <StoreItemGrid items={result.items} />
