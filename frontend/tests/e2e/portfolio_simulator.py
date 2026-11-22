@@ -29,7 +29,9 @@ def configure_provider():
             }]}}
         return {"chart": {"result": [{
             "meta": {"symbol": path.rsplit("/", 1)[-1], "regularMarketPrice": 160,
-                     "regularMarketTime": stamp, "currency": "USD", "exchangeTimezoneName": "UTC"},
+                     "regularMarketTime": stamp, "currency": "USD", "exchangeTimezoneName": "UTC",
+                     "fullExchangeName": "NasdaqGS", "regularMarketDayLow": 157, "regularMarketDayHigh": 162,
+                     "fiftyTwoWeekLow": 95, "fiftyTwoWeekHigh": 180, "regularMarketVolume": 12000},
             "timestamp": [stamp],
             "indicators": {"quote": [{"close": [160]}]},
         }]}}
@@ -66,6 +68,14 @@ def run(api, site, driver, firefox, temporary):
         browser.execute("localStorage.setItem('access', arguments[0]);", account.json()["access"])
         browser.navigate(f"{site}/stocks")
         wait_for(lambda: browser.execute("return !!document.querySelector('.stock-chart a[href*=\"ticker=AAPL\"]');"))
+        assert browser.execute("""
+            const card = document.querySelector('.stock-chart');
+            return card.textContent.includes('NasdaqGS') &&
+                card.textContent.includes('160.00 USD') &&
+                card.textContent.includes('Last reported') &&
+                card.textContent.includes('52-week range') &&
+                card.textContent.includes('12,000');
+        """)
         browser.execute("document.querySelector('.stock-chart a[href*=\"ticker=AAPL\"]').click();")
         wait_for(lambda: browser.execute("return !!document.querySelector('.portfolio-create');"))
         browser.change(".portfolio-create input", "Test positions")

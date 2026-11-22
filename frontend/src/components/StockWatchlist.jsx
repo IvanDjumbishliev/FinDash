@@ -1,15 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { FiArrowUpRight } from "react-icons/fi";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+import StockMarketCard from "./StockMarketCard";
 import api from "../api";
 import "../styles/components/StockWatchlist.css";
 
@@ -122,7 +112,7 @@ export default function StockWatchlist() {
               return (
                 <li key={stock.symbol}>
                   <button type="button" disabled={saved || Boolean(adding)} onClick={() => addStock(stock)}>
-                    <span><strong>{stock.symbol}</strong> · {stock.name}</span>
+                    <span><strong>{stock.symbol}</strong> · {stock.name}{stock.exchange && <small className="stock-result-exchange">{stock.exchange}</small>}</span>
                     <span>{saved ? "Added" : adding === stock.symbol ? "Adding…" : "Add"}</span>
                   </button>
                 </li>
@@ -142,30 +132,7 @@ export default function StockWatchlist() {
       )}
       <div className="stock-charts">
         {watchlist.map((stock) => (
-          <article key={stock.symbol} className="stock-chart">
-            <h2>{stock.name} ({stock.symbol})</h2>
-            <Link className="stock-simulator-link" to={`/portfolios?ticker=${encodeURIComponent(stock.symbol)}`}>
-              Simulate trade <FiArrowUpRight aria-hidden="true" />
-            </Link>
-            {stock.history?.length ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={stock.history}>
-                  <CartesianGrid stroke="var(--border-subtle)" strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tick={{ fill: "var(--muted)", fontSize: 12 }} tickFormatter={(date) => date.slice(5)} />
-                  <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--muted)", fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--surface)", borderColor: "var(--border-color)" }}
-                    labelStyle={{ color: "var(--ink)" }}
-                  />
-                  <Line name="Close" type="monotone" dataKey="price" stroke="var(--violet)" strokeWidth={2} dot={stock.history.length === 1} />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="stock-status" role="status">
-                {stock.error || (watchlistLoading ? "Loading price history…" : "No price history available.")}
-              </p>
-            )}
-          </article>
+          <StockMarketCard key={stock.symbol} stock={stock} loading={watchlistLoading} />
         ))}
       </div>
     </section>

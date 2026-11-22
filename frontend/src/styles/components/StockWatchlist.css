@@ -98,3 +98,64 @@
   font-weight: 650;
   margin: 4px 0 8px;
 }
+
+.stock-company,
+.stock-quote {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.stock-company h2 {
+    margin: 0.2rem 0 0;
+    font-size: 1.2rem;
+    overflow-wrap: anywhere;
+}
+
+.stock-company .stock-simulator-link { margin: 0; }
+
+.stock-symbol,
+.stock-price-history > p,
+.stock-data-source,
+.stock-quote small,
+.stock-result-exchange {
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.stock-symbol { margin: 0; font-weight: 700; }
+.stock-quote { margin: 0.9rem 0; }
+.stock-quote small,
+.stock-result-exchange { display: block; }
+
+.stock-quote-value {
+    font-size: clamp(1.35rem, 3vw, 1.85rem);
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+}
+
+.stock-period {
+    background: var(--accent-surface);
+    border-radius: 8px;
+    padding: 0.35rem 0.65rem;
+}
+
+.stock-period strong { font-variant-numeric: tabular-nums; }
+
+.stock-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+    gap: 0.7rem;
+    margin: 0.75rem 0;
+}
+
+.stock-metrics > div {
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+}
+
+.stock-metrics dt { color: var(--muted); font-size: 0.8rem; }
+.stock-metrics dd { margin: 0.15rem 0 0; font-weight: 650; font-variant-numeric: tabular-nums; }

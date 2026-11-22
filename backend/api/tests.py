@@ -257,6 +257,27 @@ class StockEndpointTests(TestCase):
             "/v8/finance/chart/AAPL", range="1mo", interval="1d"
         )
 
+    def test_watchlist_exposes_timestamped_quote_and_ranges_from_the_same_request(self):
+        from django.utils import timezone as django_timezone
+
+        now = django_timezone.now().replace(microsecond=0)
+        Stock.objects.create(user=self.user, ticker="LSE.L", name="Example PLC", quantity=0, price_per_share=0)
+        meta = {
+            "symbol": "LSE.L", "fullExchangeName": "London", "currency": "GBp",
+            "regularMarketPrice": 120.5, "regularMarketTime": int(now.timestamp()),
+            "regularMarketDayLow": 118, "regularMarketDayHigh": 125,
+            "fiftyTwoWeekLow": 90, "fiftyTwoWeekHigh": 160, "regularMarketVolume": 0,
+        }
+        chart = {"chart": {"result": [{"meta": meta}]}}
+        with patch("api.views.stocks._finance_data", return_value=chart) as finance:
+            response = self.client.get("/api/stocks/watchlist/")
+            self.client.get("/api/stocks/watchlist/")
+        finance.assert_called_once()
+        self.assertEqual(response.data["stocks"][0]["market"], {
+            "price": 120.5, "currency": "GBp", "exchange": "London", "quoted_at": now.isoformat(),
+            "day_low": 118, "day_high": 125, "year_low": 90, "year_high": 160, "volume": 0,
+        })
+
     def test_watchlist_marks_missing_history_without_dropping_stock(self):
         Stock.objects.create(
             user=self.user,

@@ -1,12 +1,13 @@
 import logging
-import math
+import re
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework import status, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -66,8 +67,38 @@ def _stock_info(symbol):
     return next((item for item in _search_stocks(symbol) if item["symbol"] == symbol), None)
 
 
-def _stock_history(symbol):
-    cache_key = f"stock-history:{symbol}"
+def _market_number(value, *, allow_zero=False):
+    if type(value) in (int, float) and 0 <= value < 1e16 and (value > 0 or allow_zero):
+        return value
+    return None
+
+
+def _market_details(meta):
+    currency = meta.get("currency")
+    timestamp = _market_number(meta.get("regularMarketTime"))
+    try:
+        quoted_at = datetime.fromtimestamp(timestamp, UTC) if timestamp is not None else None
+    except (OverflowError, OSError, ValueError):
+        quoted_at = None
+    now = timezone.now()
+    if quoted_at and quoted_at > now + timedelta(minutes=5):
+        quoted_at = None
+    exchange = meta.get("fullExchangeName") or meta.get("exchangeName")
+    return {
+        "exchange": exchange[:100] if isinstance(exchange, str) else None,
+        "currency": currency if isinstance(currency, str) and re.fullmatch(r"[A-Za-z]{3}", currency) else None,
+        "price": _market_number(meta.get("regularMarketPrice")) if quoted_at else None,
+        "quoted_at": quoted_at.isoformat() if quoted_at else None,
+        "day_low": _market_number(meta.get("regularMarketDayLow")) if quoted_at else None,
+        "day_high": _market_number(meta.get("regularMarketDayHigh")) if quoted_at else None,
+        "year_low": _market_number(meta.get("fiftyTwoWeekLow")),
+        "year_high": _market_number(meta.get("fiftyTwoWeekHigh")),
+        "volume": _market_number(meta.get("regularMarketVolume"), allow_zero=True) if quoted_at else None,
+    }
+
+
+def _stock_market(symbol):
+    cache_key = f"stock-market:v1:{symbol}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -77,31 +108,35 @@ def _stock_history(symbol):
     )
     results = data["chart"]["result"]
     if not results:
-        return []
+        return {"history": [], "market": {}}
 
     chart = results[0]
-    timezone = chart["meta"].get("exchangeTimezoneName", "UTC")
-    exchange_zone = ZoneInfo(timezone)
-    closes = chart["indicators"]["quote"][0]["close"]
+    meta = chart["meta"]
+    if meta.get("symbol", symbol) != symbol:
+        raise ValueError("Unexpected quote ticker.")
+    exchange_zone = ZoneInfo(meta.get("exchangeTimezoneName") or "UTC")
+    closes = (chart.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
     history = [
         {
             "date": datetime.fromtimestamp(timestamp, exchange_zone).date().isoformat(),
             "price": price,
         }
         for timestamp, price in zip(chart.get("timestamp", []), closes)
-        if isinstance(price, (int, float)) and math.isfinite(price)
+        if _market_number(price) is not None and _market_number(timestamp) is not None and timestamp < 253402214400
     ]
-    if history:
-        cache.set(cache_key, history, timeout=300)
-    return history
+    history.sort(key=lambda point: point["date"])
+    market_data = {"history": history, "market": _market_details(meta)}
+    if history or market_data["market"]["price"] is not None:
+        cache.set(cache_key, market_data, timeout=300)
+    return market_data
 
 
 def _watchlist_entry(stock):
     symbol = stock["ticker"]
     entry = {"symbol": symbol, "name": stock["name"], "history": []}
     try:
-        entry["history"] = _stock_history(symbol)
-    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError, ZoneInfoNotFoundError):
+        entry.update(_stock_market(symbol))
+    except (requests.RequestException, ValueError, KeyError, IndexError, TypeError, OverflowError, OSError, ZoneInfoNotFoundError):
         logger.warning("Stock history provider unavailable")
     if not entry["history"]:
         entry["error"] = "No price history available for this ticker right now."
