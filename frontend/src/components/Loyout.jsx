@@ -17,11 +17,12 @@ export default function Footer() {
     const account = useSyncExternalStore(subscribeToStorage, notificationAccount);
     return (
         <div className="fade-in">
+            <a className="skip-to-content" href="#main-content">Skip to content</a>
             <NotificationProvider key={account} account={account}>
                 <header className="header">
                     <Navigation />
                 </header>
-                <Outlet />
+                <div id="main-content" tabIndex={-1}><Outlet /></div>
             </NotificationProvider>
             <footer className="footer">
                 <div className="footer-content">

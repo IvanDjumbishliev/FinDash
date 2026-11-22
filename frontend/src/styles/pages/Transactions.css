@@ -35,3 +35,6 @@
     top: 0;
   }
 }
+
+.transaction-pagination { margin-top: 15px; justify-content: space-between; color: var(--muted); font-size: .88rem; }
+.transaction-pagination button:disabled { opacity: .52; cursor: default; }

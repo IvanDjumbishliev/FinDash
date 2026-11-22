@@ -9,33 +9,34 @@ function TransactionForm({ onTransactionAdded }) {
   const [currency, setCurrency] = useState("BGN");
   const [description, setDescription] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setFeedback(null);
     try {
-      const response = await api.post("/api/transactions/", {
-        amount,
-        category,
-        currency,
-        particulars: description,
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        alert("Transaction saved successfully!");
-        setAmount("");
-        setCategory("business services");
-        setCurrency("BGN");
-        setDescription("");
-        onTransactionAdded(); // Notify parent to refresh transactions
-      } else {
-        alert("Failed to save transaction.");
-        console.warn("Server error:");
-      }
-    } catch {
-      console.warn("Error submitting the form:");
-      alert("An error occurred. Please try again.");
+      await api.post("/api/transactions/", {
+        amount, category, currency, particulars: description,
+      }, { timeout: 12_000 });
+      setAmount("");
+      setCategory("business services");
+      setCurrency("BGN");
+      setDescription("");
+      setFeedback({ message: "Transaction recorded." });
+      onTransactionAdded();
+    } catch (error) {
+      const data = error.response?.data;
+      const details = data && typeof data === "object"
+        ? Object.values(data).flat().find((value) => typeof value === "string")
+        : null;
+      setFeedback({ error: true, message: details || "Could not record the transaction. Check the details and try again." });
+    } finally {
+      setBusy(false);
     }
-  };
+  }
 
   return (
     <div className="transaction-form">
@@ -95,8 +96,11 @@ function TransactionForm({ onTransactionAdded }) {
           onChange={(e) => setDescription(e.target.value)}
         ></textarea>
 
-        <button type="submit" className="invisi-btn">
-          Submit
+        {feedback && <p className={feedback.error ? "dash-error" : "dash-notice"} role={feedback.error ? "alert" : "status"}>
+          {feedback.message}
+        </p>}
+        <button type="submit" className="invisi-btn" disabled={busy}>
+          {busy ? "Saving…" : "Submit"}
         </button>
       </form>
     </div>

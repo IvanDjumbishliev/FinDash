@@ -16,6 +16,10 @@ class ForecastQuery(serializers.Serializer):
         return value.upper()
 
 
+class ForecastDisplayQuery(ForecastQuery):
+    summary_only = serializers.BooleanField(default=False)
+
+
 class CashFlowForecastView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -32,7 +36,7 @@ class CashFlowForecastView(APIView):
                 raise serializers.ValidationError({"starting_balance": "Supply the balance once."})
             params["starting_balance"] = balance
 
-        serializer = ForecastQuery(data=params)
+        serializer = ForecastDisplayQuery(data=params)
         serializer.is_valid(raise_exception=True)
         try:
             result = build_cash_flow_forecast(request.user, **serializer.validated_data)

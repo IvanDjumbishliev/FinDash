@@ -2,26 +2,35 @@ import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
-import Chat from "./pages/Chat";
+
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Transactions from "./pages/Transactions";
+
 import Footer from "./components/Loyout";
-import Promotions from "./pages/Promotions";
-import Stocks from "./pages/Stocks";
-import PortfolioSimulator from "./pages/PortfolioSimulator";
-import News from "./pages/News";
-import Subscriptions from "./pages/Subscriptions";
-import Budgets from "./pages/Budgets";
-import FinancialGoals from "./pages/FinancialGoals";
-import GoalScenario from "./pages/GoalScenario";
-import Reports from "./pages/Reports";
-import Notifications from "./pages/Notifications";
-import NotificationSettings from "./pages/NotificationSettings";
-import GroceryOptimizer from "./pages/GroceryOptimizer";
-import CashFlowForecast from "./pages/CashFlowForecast";
-import { useEffect } from "react";
+
+import { lazy, Suspense, useEffect } from "react";
 import { clearSession } from "./api";
+import { DashboardLoading } from "./components/DashboardWidgets";
+
+const Chat = lazy(() => import("./pages/Chat"));
+const Transactions = lazy(() => import("./pages/Transactions"));
+const Promotions = lazy(() => import("./pages/Promotions"));
+const Stocks = lazy(() => import("./pages/Stocks"));
+const PortfolioSimulator = lazy(() => import("./pages/PortfolioSimulator"));
+const News = lazy(() => import("./pages/News"));
+const Subscriptions = lazy(() => import("./pages/Subscriptions"));
+const Budgets = lazy(() => import("./pages/Budgets"));
+const FinancialGoals = lazy(() => import("./pages/FinancialGoals"));
+const GoalScenario = lazy(() => import("./pages/GoalScenario"));
+const Reports = lazy(() => import("./pages/Reports"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
+const GroceryOptimizer = lazy(() => import("./pages/GroceryOptimizer"));
+const CashFlowForecast = lazy(() => import("./pages/CashFlowForecast"));
+
+function PageLoading() {
+  return <div className="dashboard-shell"><div className="dash-panel"><DashboardLoading label="Loading page" /></div></div>;
+}
 
 function Logout() {
   const navigate = useNavigate();
@@ -54,7 +63,7 @@ function App() {
             path="/transactions"
             element={
               <ProtectedRoute>
-                <Transactions />
+                <Suspense fallback={<PageLoading />}><Transactions /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -62,7 +71,7 @@ function App() {
             path="/chat"
             element={
               <ProtectedRoute>
-                <Chat />
+                <Suspense fallback={<PageLoading />}><Chat /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -70,31 +79,31 @@ function App() {
             path="/promotions"
             element={
               <ProtectedRoute>
-                <Promotions />
+                <Suspense fallback={<PageLoading />}><Promotions /></Suspense>
               </ProtectedRoute>
             }
           />
           <Route
             path="/grocery"
-            element={<ProtectedRoute><GroceryOptimizer /></ProtectedRoute>}
+            element={<ProtectedRoute><Suspense fallback={<PageLoading />}><GroceryOptimizer /></Suspense></ProtectedRoute>}
           />
           <Route
             path="/stocks"
             element={
               <ProtectedRoute>
-                <Stocks />
+                <Suspense fallback={<PageLoading />}><Stocks /></Suspense>
               </ProtectedRoute>
             }
           />
           <Route
             path="/portfolios"
-            element={<ProtectedRoute><PortfolioSimulator /></ProtectedRoute>}
+            element={<ProtectedRoute><Suspense fallback={<PageLoading />}><PortfolioSimulator /></Suspense></ProtectedRoute>}
           />
           <Route
             path="/news"
             element={
               <ProtectedRoute>
-                <News />
+                <Suspense fallback={<PageLoading />}><News /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -102,7 +111,7 @@ function App() {
             path="/budgets"
             element={
               <ProtectedRoute>
-                <Budgets />
+                <Suspense fallback={<PageLoading />}><Budgets /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -110,7 +119,7 @@ function App() {
             path="/reports"
             element={
               <ProtectedRoute>
-                <Reports />
+                <Suspense fallback={<PageLoading />}><Reports /></Suspense>
               </ProtectedRoute>
             }
           />
@@ -118,19 +127,19 @@ function App() {
             path="/forecast"
             element={
               <ProtectedRoute>
-                <CashFlowForecast />
+                <Suspense fallback={<PageLoading />}><CashFlowForecast /></Suspense>
               </ProtectedRoute>
             }
           />
-          <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />
-          <Route path="/goals/:id/scenarios" element={<ProtectedRoute><GoalScenario /></ProtectedRoute>} />
-          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-          <Route path="/notifications/settings" element={<ProtectedRoute><NotificationSettings /></ProtectedRoute>} />
+          <Route path="/goals" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><FinancialGoals /></Suspense></ProtectedRoute>} />
+          <Route path="/goals/:id/scenarios" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><GoalScenario /></Suspense></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><Notifications /></Suspense></ProtectedRoute>} />
+          <Route path="/notifications/settings" element={<ProtectedRoute><Suspense fallback={<PageLoading />}><NotificationSettings /></Suspense></ProtectedRoute>} />
           <Route
             path="/subscriptions"
             element={
               <ProtectedRoute>
-                <Subscriptions />
+                <Suspense fallback={<PageLoading />}><Subscriptions /></Suspense>
               </ProtectedRoute>
             }
           />

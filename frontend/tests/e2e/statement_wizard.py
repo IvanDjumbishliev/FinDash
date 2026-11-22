@@ -118,7 +118,10 @@ def run(base, site, driver, firefox, temporary):
         stats = requests.get(f"{base}/api/transaction-stats/", headers=headers, timeout=5)
         assert stats.json() == [{"category": "groceries", "amount": 37.25}]
         assert browser.click("Done")
-        wait_for(lambda: browser.execute("return document.querySelector('.transactions-table')?.innerText.includes('37.25');"))
+        wait_for(lambda: browser.execute("""
+            const activity = document.querySelector('[aria-label="Financial overview"] .dash-rows');
+            return activity?.textContent.includes('37.25') && activity.textContent.includes('EUR');
+        """))
 
         # The existing file-picker route still works for local PDF parsing.
         pdf_path = Path(temporary) / "synthetic.pdf"

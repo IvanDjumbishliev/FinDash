@@ -30,6 +30,8 @@ FinDash brings transactions, expense insights, document imports, shopping deals,
 - [Backend, frontend, and browser tests](docs/testing.md)
 - [Screenshot placeholders](docs/screenshots/README.md)
 
+On the overview, use **Customize dashboard** to choose which financial and shopping widgets appear. FinDash saves the selection per account in the current browser. The dashboard uses recorded amounts and shows currencies separately. Cash flow forecasts and virtual activity are labeled as estimates or simulations.
+
 ## Quick start
 
 ### Docker Compose development
@@ -147,7 +149,8 @@ Common endpoints are served below `/api/`:
 
 - `POST /api/user/register/`
 - `POST /api/token/`, `POST /api/token/refresh/` and `POST /api/token/logout/`
-- `GET|POST /api/transactions/`
+- `GET /api/dashboard/` supports a comma-separated `sections` filter for combined widget summaries.
+- `GET|POST /api/transactions/` supports `limit`, `offset`, and timestamp ordering on reads.
 - `GET /api/transaction-stats/`
 - `POST /api/bank-statement/`
 - `GET /api/summary/`

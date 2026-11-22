@@ -273,7 +273,7 @@ def project_days(start, horizon, scheduled, weeks, starting_balance):
 
 
 def build_cash_flow_forecast(
-    owner, *, horizon=30, currency=None, starting_balance=None, as_of=None, include_uncertainty=True,
+    owner, *, horizon=30, currency=None, starting_balance=None, as_of=None, include_uncertainty=True, summary_only=False,
 ):
     """Estimate cash flow from the owner's recorded ledger, independent of HTTP."""
     if horizon not in HORIZONS:
@@ -296,6 +296,9 @@ def build_cash_flow_forecast(
     scheduled, events = forecast_events(schedules, start, end)
     coverage, weeks = weekly_baseline(ledger, recurring_ids, as_of)
     days, totals = project_days(start, horizon, scheduled, weeks, starting_balance)
+    status = "estimated" if weeks is not None else "insufficient_history"
+    if summary_only:
+        return {"currency": currency, "status": status, "totals": totals}
     previous = cash_components(ledger)
     first, last = min((item.day for item in ledger), default=None), max((item.day for item in ledger), default=None)
     uncertainty = None
@@ -315,7 +318,7 @@ def build_cash_flow_forecast(
         "timezone": zone.key,
         "currency": currency,
         "starting_balance": money(starting_balance) if starting_balance is not None else None,
-        "status": "estimated" if weeks is not None else "insufficient_history",
+        "status": status,
         "history": {
             "scan_start": history_start.isoformat(),
             "scan_end": as_of.isoformat(),

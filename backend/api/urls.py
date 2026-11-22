@@ -1,6 +1,7 @@
 from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
+from .views.dashboard import DashboardView
 from .views.deals import (
     FantasticoDealsView,
     KauflandDealsView,
@@ -54,6 +55,7 @@ from .views.views import (
 )
 
 urlpatterns = [
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("deals/lidl/", LidlDealsView.as_view()),
     path("deals/kaufland/", KauflandDealsView.as_view()),
     path("deals/fantastico/", FantasticoDealsView.as_view()),

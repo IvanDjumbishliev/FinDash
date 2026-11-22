@@ -56,7 +56,7 @@ class TransactionListView(ListCreateAPIView):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter]
-    ordering_fields = ["timestamp"]
+    ordering_fields = ["timestamp", "id"]
 
     def get_queryset(self):
         user = self.request.user

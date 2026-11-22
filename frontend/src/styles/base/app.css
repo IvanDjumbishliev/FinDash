@@ -317,3 +317,42 @@ body {
   top: 1rem;
   right: 1rem;
 }
+
+.skip-to-content {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  transform: translateY(-150%);
+  padding: 9px 12px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.skip-to-content:focus { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .fade-in { animation: none; }
+}
+
+#main-content :is(.forecast-page, .goals-page, .grocery-page, .portfolio-page, .reports-page, .notification-page) {
+  max-width: 1240px;
+  padding-inline: clamp(14px, 3vw, 24px);
+}
+#main-content :is(.forecast-heading, .goals-page-header, .grocery-hero, .portfolio-hero, .reports-heading,
+                  .notification-page-header, .budget-hero, .subscription-hero) h1 {
+  font-size: clamp(1.75rem, 4vw, 2.7rem);
+  line-height: 1.13;
+  letter-spacing: -.04em;
+}
+#main-content .recharts-default-tooltip {
+  color: var(--ink);
+  background: var(--surface) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 9px;
+  box-shadow: var(--shadow-sm);
+}
+#main-content .recharts-tooltip-label { font-weight: 700; }
+#main-content :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+}

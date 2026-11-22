@@ -6,7 +6,7 @@ from rest_framework import serializers
 from api.serializers import BudgetSerializer
 from api.views.assistant import CopilotRequestSerializer, CopilotSettingsSerializer
 from api.views.budget_recommendations import ApprovalRequest, RecommendationRequest
-from api.views.forecast import ForecastQuery
+from api.views.forecast import ForecastDisplayQuery
 from api.views.forecast_scenarios import SavedScenarioInput, SavedScenarioOutput, ScenarioPreviewInput
 from api.views.goal_scenarios import PreviewInput, SavedGoalScenarioInput, SavedGoalScenarioOutput
 from api.views.goals import ContributionInput, ContributionOutput, GoalSerializer, ProjectionOutput, ProjectionQuery
@@ -60,6 +60,9 @@ BUDGET_PERIODS = document("BudgetPeriod", many=True, period=serializers.DateFiel
 AUTH_PAIR = document("AuthPair", access=serializers.CharField(), refresh=serializers.CharField())
 
 OPERATIONS = {
+    "DashboardView": {"GET": {"parameters": [OpenApiParameter(
+        "sections", str, description="Comma-separated dashboard sections. Omit for all summaries.",
+    )]}},
     "CreateUserView": {"POST": {"response": {201: document(
         "RegistrationResponse", id=serializers.IntegerField(), username=serializers.CharField(),
         access=serializers.CharField(), refresh=serializers.CharField(),
@@ -133,7 +136,7 @@ OPERATIONS = {
         "FinancialReportPreview", report=serializers.DictField(), export_token=serializers.CharField(),
     )}}},
     "FinancialReportPDFView": {"POST": {"request": ReportExportInput, "response": {(200, "application/pdf"): OpenApiTypes.BINARY}}},
-    "CashFlowForecastView": {"GET": {"parameters": [ForecastQuery, OpenApiParameter("X-Starting-Balance", str, location="header")]}},
+    "CashFlowForecastView": {"GET": {"parameters": [ForecastDisplayQuery, OpenApiParameter("X-Starting-Balance", str, location="header")]}},
     "CashFlowScenarioPreviewView": {"POST": {"request": ScenarioPreviewInput, "response": {200: OBJECT}}},
     "CashFlowScenarioListView": {"GET": {"response": SavedScenarioOutput(many=True)},
                                 "POST": {"request": SavedScenarioInput, "response": {201: SavedScenarioOutput}}},

@@ -118,8 +118,28 @@ def lidl_product_offers(html, timestamp, *, catalog=False):
     return offer_output(sorted(offers.values(), key=lambda offer: offer["discount_percent"] or 0, reverse=True), catalog)
 
 
+DEAL_CACHE_KEYS = {
+    "lidl": "scraped_deals_lidl_products_v2",
+    "kaufland": "scraped_deals_kaufland_current_v2",
+    "fantastico": "scraped_deals_fantastico_products_v2",
+}
+
+
+def cached_deal_highlights():
+    """Read only unexpired public results fetched by the Deals page."""
+    cached = cache.get_many(DEAL_CACHE_KEYS.values())
+    return [
+        {
+            "id": f"{retailer}-{index}", "retailer": retailer,
+            "product_name": offer["name"], "display_price": offer["price"],
+        }
+        for retailer, key in DEAL_CACHE_KEYS.items()
+        for index, offer in enumerate([item for item in cached.get(key, []) if item.get("name") and item.get("price")][:2])
+    ]
+
+
 def scrape_lidl(*, catalog=False):
-    cache_key = "scraped_deals_lidl_products_v2"
+    cache_key = DEAL_CACHE_KEYS["lidl"]
     cached = cache.get(cache_key)
     if cached is not None and not catalog:
         return offer_output(cached if catalog else [row for row in cached if row["image_url"] and row["price"]], catalog)
@@ -174,7 +194,7 @@ def extract_ssr_json(html):
 
 
 def scrape_kaufland(*, catalog=False):
-    cache_key = "scraped_deals_kaufland_current_v2"
+    cache_key = DEAL_CACHE_KEYS["kaufland"]
     cached = cache.get(cache_key)
     if cached is not None and not catalog:
         return offer_output(cached, catalog)
@@ -392,7 +412,7 @@ def reject_brochure_redirect(response):
 
 
 def scrape_fantastico(*, catalog=False):
-    cache_key = "scraped_deals_fantastico_products_v2"
+    cache_key = DEAL_CACHE_KEYS["fantastico"]
     cached = cache.get(cache_key)
     if cached is not None and not catalog:
         return offer_output(cached, catalog)
