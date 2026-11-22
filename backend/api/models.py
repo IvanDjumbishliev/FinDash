@@ -606,3 +606,19 @@ class ProductPreference(models.Model):
             models.UniqueConstraint(fields=["owner", "normalized_name"], name="user_product_identity_unique"),
             models.CheckConstraint(condition=models.Q(minimum_discount__lte=100), name="product_discount_at_most_100"),
         ]
+
+
+class PersonalizedOfferReview(models.Model):
+    class Decision(models.TextChoices):
+        ACCEPT = "accept", "Accept as comparable"
+        REJECT = "reject", "Reject"
+
+    preference = models.ForeignKey(ProductPreference, on_delete=models.CASCADE, related_name="offer_reviews")
+    offer = models.ForeignKey(GroceryOffer, on_delete=models.CASCADE)
+    decision = models.CharField(max_length=6, choices=Decision.choices)
+    signature = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["preference", "offer"], name="personal_offer_review_unique"),
+        ]

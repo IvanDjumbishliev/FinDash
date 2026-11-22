@@ -23,6 +23,7 @@ from .views.forecast_scenarios import (
 from .views.budgets import BudgetDetailView, BudgetHistoryView, BudgetListView, BudgetOverviewView
 from .views.goal_scenarios import GoalScenarioDetailView, GoalScenarioListView, GoalScenarioPreviewView
 from .views.goals import GoalContributionView, GoalDetailView, GoalListView, GoalProjectionView
+from .views.personalized_deals import PersonalizedDealsView, PersonalizedOfferReviewView
 from .views.product_preferences import (
     ProductLibraryView, ProductPreferenceDetailView, ProductSettingsView, ProductSuggestionView,
 )
@@ -64,6 +65,9 @@ urlpatterns = [
     path("deals/kaufland/", KauflandDealsView.as_view()),
     path("deals/fantastico/", FantasticoDealsView.as_view()),
     path("grocery/optimize/", GroceryOptimizeView.as_view(), name="grocery-optimize"),
+    path("grocery/personalized-deals/", PersonalizedDealsView.as_view(), name="personalized-deals"),
+    path("grocery/personalized-deals/<int:preference_id>/offers/<int:offer_id>/review/",
+         PersonalizedOfferReviewView.as_view(), name="personalized-offer-review"),
     path("grocery/my-products/", ProductLibraryView.as_view(), name="my-products"),
     path("grocery/my-products/<int:pk>/", ProductPreferenceDetailView.as_view(), name="my-product-detail"),
     path("grocery/my-products/settings/", ProductSettingsView.as_view(), name="my-product-settings"),

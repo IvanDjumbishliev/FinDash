@@ -106,6 +106,21 @@ class BrochureDealTests(SimpleTestCase):
             "source_url": current_url, "price_text": "2,99 €",
         })
 
+    def test_catalog_uses_only_the_selected_fantastico_publication_dates(self):
+        from bs4 import BeautifulSoup
+
+        from api.views.deals import fantastico_brochure_dates
+
+        listing = BeautifulSoup(
+            '<article>12.11.2026 – 18.11.2026 <a href="/special-offers/old?id=111">Old</a></article>'
+            '<article>19.11.2026 – 25.11.2026 <a href="/special-offers/weekly?id=222">Weekly</a></article>',
+            "html.parser",
+        )
+        self.assertEqual(fantastico_brochure_dates(listing, "https://online.flippingbook.com/view/222/", None), {
+            "start": "2026-11-19", "end": "2026-11-25",
+        })
+        self.assertEqual(fantastico_brochure_dates(listing, "https://online.flippingbook.com/view/333/", None), {})
+
     def test_fantastico_pairs_searchable_product_words_with_price_and_photo(self):
         from io import BytesIO
 

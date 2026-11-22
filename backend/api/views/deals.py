@@ -427,6 +427,44 @@ def reject_brochure_redirect(response):
     response.raise_for_status()
 
 
+
+FANTASTICO_DATES = re.compile(r"(\d{2}\.\d{2}\.\d{4})\s*[-–—]\s*(\d{2}\.\d{2}\.\d{4})")
+
+
+def fantastico_brochure_dates(listing, flipbook_url, selected):
+    """Use only a published range associated with the selected publication."""
+    publication = urlsplit(flipbook_url).path.strip("/").split("/")[-1]
+    details = listing.select('a[href*="/special-offers/"][href*="id="]')
+
+    def publication_id(link):
+        return parse_qs(urlsplit(link["href"]).query).get("id", [""])[0]
+
+    anchors = [link for link in details if publication_id(link) == publication]
+    if selected is not None:
+        anchors.append(selected)
+    for anchor in anchors:
+        for block in [anchor, *list(anchor.parents)[:3]]:
+            if any(publication_id(link) != publication for link in block.select('a[href*="/special-offers/"][href*="id="]')):
+                break
+            switches = block.select(".brochure-switch[data-url]")
+            if any(urlsplit(link["data-url"]).path.rstrip("/").split("/")[-1] != publication for link in switches):
+                break
+            matches = set(FANTASTICO_DATES.findall(block.get_text(" ", strip=True)))
+            if len(matches) > 1:
+                break
+            if not matches:
+                continue
+            start_text, end_text = matches.pop()
+            try:
+                start = datetime.strptime(start_text, "%d.%m.%Y").date()
+                end = datetime.strptime(end_text, "%d.%m.%Y").date()
+            except ValueError:
+                break
+            if start <= end:
+                return {"start": start.isoformat(), "end": end.isoformat()}
+    return {}
+
+
 def scrape_fantastico(*, catalog=False):
     cache_key = DEAL_CACHE_KEYS["fantastico"]
     cached = cache.get(cache_key)
@@ -454,6 +492,7 @@ def scrape_fantastico(*, catalog=False):
             flipbook_url = f"https://online.flippingbook.com/view/{publication}/"
         if not allowed_brochure_origin(flipbook_url, "online.flippingbook.com"):
             return []
+        brochure_dates = fantastico_brochure_dates(soup, flipbook_url, current)
         flipbook = requests.get(
             flipbook_url, headers={**HEADERS, "Referer": listing.url}, timeout=10, allow_redirects=False
         )
@@ -542,7 +581,7 @@ def scrape_fantastico(*, catalog=False):
     brochure_source = urlsplit(flipbook_url)._replace(query="", fragment="").geturl()
     for offer in sorted(offers, key=lambda item: item["discount_percent"] or 0, reverse=True):
         deals.setdefault((offer["name"].casefold(), offer["price"]), {
-            **offer, "_catalog": {"source_url": brochure_source, "price_text": offer["price"]},
+            **offer, "_catalog": {"source_url": brochure_source, "price_text": offer["price"], **brochure_dates},
         })
     result = list(deals.values())
     if result:

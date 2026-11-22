@@ -36,3 +36,14 @@ Receipt personalization is opt-in. It suggests recognized staples purchased on a
 Per-product alerts are off by default. Successful runs of `manage.py refresh_grocery_catalog` check the refreshed retailer for matching offers and create private in-app notifications, subject to notification settings. Receipt data and preferences stay in FinDash. Retailer integrations fetch public offers without sending user preferences.
 
 Authenticated endpoints are rooted at `/api/grocery/my-products/`. GET returns the library, settings, suggestions, and matching offers. POST adds a manual product. PATCH or DELETE `{id}/` edits or removes it. PATCH `settings/` updates personalization controls. POST `suggestions/` accepts `normalized_name` and an `approve` or `reject` decision, and DELETE `suggestions/` clears inferred preferences.
+
+### Personalized deals API
+
+`GET /api/grocery/personalized-deals/` ranks current advertised offers for saved product preferences, grouped by product. The manual library sorts ahead of receipt-approved interests. Each group separates verified matches from optional review candidates. Exact matches require documented product and package evidence. A score is a ranking signal based on catalog evidence, not a probability of availability.
+
+- Set `currency=EUR` (default) or `currency=BGN`. Prices are compared within the requested currency and measurement unit.
+- Repeat `membership_retailers` for stores whose membership prices you want included. Membership prices are excluded by default and remain labeled when included.
+- Set `include_review=true` to see uncertain alternatives. Incompatible products, expired or stale offers, and offers without usable advertised prices or package data are excluded.
+- If receipt personalization is on, a comparable confirmed receipt may supply a historical price per kg or liter. FinDash sends no savings claim. Retailer coverage depends on the catalog’s last successful refresh.
+
+`PUT /api/grocery/personalized-deals/{preference_id}/offers/{offer_id}/review/` accepts `{"decision":"accept"}` for an uncertain candidate or `{"decision":"reject"}` to hide a match. Accepted candidates remain comparable. Send DELETE to the same path to undo either correction. Decisions are private and rechecked when product evidence changes.
