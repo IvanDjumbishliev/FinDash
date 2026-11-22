@@ -33,6 +33,7 @@ Django reads process environment variables first, then `backend/.env`. Compose u
 | `NOTIFICATION_MARKET_CHECKS_ENABLED` | Opt-in scheduled market threshold checks. Defaults to false. |
 | `NOTIFICATION_RENEWAL_INTERVAL_SECONDS`, `NOTIFICATION_BUDGET_INTERVAL_SECONDS` | Beat schedules. Defaults are 3600 and 900 seconds. |
 | `NOTIFICATION_RETENTION_INTERVAL_SECONDS`, `NOTIFICATION_MARKET_INTERVAL_SECONDS` | Cleanup and optional stock checks. Defaults are 86400 and 900 seconds. |
+| `NOTIFICATION_GROCERY_INTERVAL_SECONDS` | Periodic in-app deal evaluation interval. Defaults to 900 seconds. |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Compose database initialization. The database and user default to `findash`. Generate a password. |
 | `BACKEND_PORT`, `FRONTEND_PORT` | Compose loopback ports. Defaults are 8000 and 5173. |
 | `VITE_DEV_PROXY_TARGET` | Vite’s upstream during development. Defaults to `http://127.0.0.1:8000`. |

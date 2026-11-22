@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from api.models import GroceryCatalogRefresh, GroceryOffer, Notification, ProductPreference, Receipt, ReceiptItem
-from api.services.product_preferences import notify_product_offers
+from api.services.deal_alerts import evaluate_deal_alerts
 from api.services.receipts import SOFIA
 
 URL = "/api/grocery/my-products/"
@@ -134,16 +134,17 @@ class MyProductsTests(TestCase):
 
     def test_alert_is_private_idempotent_and_respects_mute_and_discount(self):
         offer = self.offer()
+        self.client.patch(URL + "settings/", {"deal_alerts_enabled": True}, format="json")
         preference = self.add("Milk", notifications_enabled=True, minimum_discount=25, muted=True)
-        notify_product_offers("lidl")
+        evaluate_deal_alerts(self.owner, now=self.now)
         self.assertFalse(Notification.objects.exists())
         detail = f"{URL}{preference['id']}/"
         self.client.patch(detail, {"muted": False, "minimum_discount": 40}, format="json")
-        notify_product_offers("lidl")
+        evaluate_deal_alerts(self.owner, now=self.now)
         self.assertFalse(Notification.objects.exists())
         self.client.patch(detail, {"minimum_discount": 25}, format="json")
-        notify_product_offers("lidl")
-        notify_product_offers("lidl")
+        evaluate_deal_alerts(self.owner, now=self.now)
+        evaluate_deal_alerts(self.owner, now=self.now)
         notice = Notification.objects.get()
         self.assertEqual(notice.owner, self.owner)
         self.assertEqual(notice.category, "grocery_deal")

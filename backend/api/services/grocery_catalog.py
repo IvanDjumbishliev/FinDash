@@ -180,6 +180,14 @@ def normalize_offer(row, observed_at):
     }
 
 
+
+def schedule_deal_recheck():
+    from api.services.notifications import after_commit
+    from api.tasks import enqueue, schedule_grocery_deals
+
+    after_commit(enqueue, schedule_grocery_deals)
+
+
 def refresh_catalog(retailer, *, now=None):
     now = now or timezone.now()
     with transaction.atomic():
@@ -220,4 +228,5 @@ def refresh_catalog(retailer, *, now=None):
         state.status = "success"
         state.offer_count = len(normalized_rows)
         state.save(update_fields=["last_success_at", "status", "offer_count"])
+        schedule_deal_recheck()
         return state.status, state.offer_count

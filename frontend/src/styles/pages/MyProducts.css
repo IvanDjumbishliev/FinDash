@@ -20,3 +20,6 @@
 .my-products :is(input, select, button):focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
 .my-products button:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 800px) { .product-layout { grid-template-columns: minmax(0, 1fr); } }
+
+.product-deal-settings, .product-tracked-offer { margin: 0.65rem 0; }
+.product-deal-settings .product-fields { margin-top: 0.45rem; }

@@ -10,6 +10,7 @@ from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from kombu.exceptions import OperationalError as BrokerUnavailable
 
+from api.services.deal_alerts import evaluate_deal_alerts
 from api.services.notification_events import (
     MarketQuotesUnavailable,
     check_budgets,
@@ -131,3 +132,20 @@ def purge():
 def purge_expired_tokens():
     _, counts = OutstandingToken.objects.filter(expires_at__lte=timezone.now()).delete()
     return counts.get(OutstandingToken._meta.label, 0)
+
+
+@shared_task(base=NotificationTask, name="notifications.schedule_grocery_deals")
+def schedule_grocery_deals(cursor=0):
+    owners = get_user_model().objects.filter(
+        shopping_personalization__deal_alerts_enabled=True,
+        product_preferences__notifications_enabled=True,
+        product_preferences__muted=False,
+        product_preferences__excluded=False,
+    )
+    return fan_out(owners, check_owner_grocery_deals, schedule_grocery_deals, cursor)
+
+
+@shared_task(base=NotificationTask, name="notifications.check_grocery_deals")
+def check_owner_grocery_deals(owner_id):
+    owner = active_owner(owner_id)
+    return evaluate_deal_alerts(owner) if owner else 0

@@ -12,6 +12,7 @@ const endpoint = "/api/grocery/my-products/";
 const units = { item: "Items", kg: "kg", l: "L" };
 const blank = {
   name: "", preferred_brand: "", preferred_quantity: "", preferred_unit: "", minimum_discount: "",
+  alert_price: "", alert_currency: "",
   favorite: true, notifications_enabled: false, excluded: false, muted: false,
 };
 
@@ -20,6 +21,7 @@ function productFields(value) {
     ...value,
     preferred_quantity: value.preferred_quantity ?? "",
     minimum_discount: value.minimum_discount ?? "",
+    alert_price: value.alert_price ?? "",
   };
 }
 
@@ -34,6 +36,8 @@ function ProductEditor({ product, onSave, onCancel, busy }) {
       preferred_quantity: form.preferred_quantity === "" ? null : form.preferred_quantity,
       preferred_unit: form.preferred_unit,
       minimum_discount: form.minimum_discount === "" ? null : Number(form.minimum_discount),
+      alert_price: form.alert_price === "" ? null : form.alert_price,
+      alert_currency: form.alert_currency,
       favorite: form.favorite,
       notifications_enabled: form.notifications_enabled,
       excluded: form.excluded,
@@ -54,6 +58,11 @@ function ProductEditor({ product, onSave, onCancel, busy }) {
         </select></label>
         <label>Minimum discount (%)<input value={form.minimum_discount} type="number" min="0" max="100"
           onChange={(event) => update("minimum_discount", event.target.value)} /></label>
+        <label>Alert at or below<input value={form.alert_price} type="number" min="0.01" step="0.01"
+          onChange={(event) => update("alert_price", event.target.value)} /></label>
+        <label>Alert currency<select value={form.alert_currency} onChange={(event) => update("alert_currency", event.target.value)}>
+          <option value="">Choose currency</option><option value="EUR">EUR</option><option value="BGN">BGN</option>
+        </select></label>
       </div>
       <div className="product-toggles">
         {[["favorite", "Favorite"], ["excluded", "Exclude from recommendations"], ["muted", "Mute product"],
@@ -78,6 +87,7 @@ ProductEditor.propTypes = {
 
 function ProfileSettings({ settings, retailers, categories, onSave, onClear, busy }) {
   const [form, setForm] = useState(settings);
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const [confirm, setConfirm] = useState(false);
   const toggle = (key, value) => setForm((current) => ({
     ...current, [key]: current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value],
@@ -89,6 +99,22 @@ function ProfileSettings({ settings, retailers, categories, onSave, onClear, bus
         {" "}Suggest products I often buy
       </label>
       <p className="product-note">Uses your confirmed FinDash receipts. Preferences stay in FinDash.</p>
+      <div className="product-deal-settings">
+        <label><input type="checkbox" checked={form.deal_alerts_enabled}
+          onChange={(event) => update("deal_alerts_enabled", event.target.checked)} /> Enable in-app deal alerts</label>
+        <div className="product-fields">
+          <label>Delivery<select value={form.deal_delivery} onChange={(event) => update("deal_delivery", event.target.value)}>
+            <option value="individual">Individual alerts</option><option value="digest">Daily digest</option>
+          </select></label>
+          {form.deal_delivery === "digest" && <label>Digest time<input type="time" value={form.digest_time}
+            onChange={(event) => update("digest_time", event.target.value)} required /></label>}
+          <label>Quiet hours start<input type="time" value={form.quiet_start ?? ""}
+            onChange={(event) => update("quiet_start", event.target.value || null)} /></label>
+          <label>Quiet hours end<input type="time" value={form.quiet_end ?? ""}
+            onChange={(event) => update("quiet_end", event.target.value || null)} /></label>
+        </div>
+        <p className="product-note">Times follow your FinDash account timezone. Enable alerts on individual products as well.</p>
+      </div>
       {[["preferred_retailers", "Preferred supermarkets", retailers],
         ["category_interests", "Category interests", categories]].map(([key, label, choices]) => <fieldset className="product-choices" key={key}>
         <legend>{label}</legend>
@@ -112,6 +138,11 @@ function ProfileSettings({ settings, retailers, categories, onSave, onClear, bus
 ProfileSettings.propTypes = {
   settings: PropTypes.shape({
     automatic_enabled: PropTypes.bool.isRequired,
+    deal_alerts_enabled: PropTypes.bool.isRequired,
+    deal_delivery: PropTypes.string.isRequired,
+    digest_time: PropTypes.string.isRequired,
+    quiet_start: PropTypes.string,
+    quiet_end: PropTypes.string,
     preferred_retailers: PropTypes.arrayOf(PropTypes.string).isRequired,
     category_interests: PropTypes.arrayOf(PropTypes.string).isRequired,
   }).isRequired,
@@ -191,6 +222,13 @@ export default function MyProducts() {
                 {product.preferred_brand && <p>Preferred brand: {product.preferred_brand}</p>}
                 {product.preferred_quantity && <p>Package: {Number(product.preferred_quantity)} {units[product.preferred_unit]}</p>}
                 {product.minimum_discount != null && <p>Minimum discount: {product.minimum_discount}%</p>}
+                {product.alert_price != null && <p>Alert at or below {money(product.alert_price, product.alert_currency)}</p>}
+                {product.tracked_offers?.map((tracked) => <div key={tracked.offer_id} className="dash-actions product-tracked-offer">
+                  <span>{tracked.name} · {value.retailers[tracked.retailer]}</span>
+                  <button className="dash-button" type="button" disabled={busy} onClick={() => mutate(
+                    "delete", `${endpoint}${product.id}/tracked-offers/${tracked.offer_id}/`, undefined, "Offer untracked",
+                  )}>Stop tracking</button>
+                </div>)}
                 {product.purchase_frequency > 0 && <p className="product-note">
                   {product.purchase_frequency} purchase days in the last recorded {value.lookback_days}-day window
                   {product.last_purchase_date && ` · Last purchased ${displayDate(product.last_purchase_date)}`}
@@ -238,17 +276,26 @@ export default function MyProducts() {
           <p className="product-note">Advertised prices from the FinDash catalog. In-store stock can vary.</p>
           {!value.offers.length ? <p className="product-note">No current offers match your products or category interests.</p>
             : <ul className="product-list product-offers">
-              {value.offers.map((offer) => <li key={offer.id}>
+              {value.offers.map((offer) => {
+                const saved = value.products.find((product) => product.normalized_name === offer.normalized_name);
+                const tracked = saved?.tracked_offers?.some((row) => row.offer_id === offer.id);
+                return <li key={offer.id}>
                 <h3><FiTag aria-hidden="true" /> {offer.product_name}</h3>
                 <p>{value.retailers[offer.retailer]} · <strong>{money(offer.price, offer.currency)}</strong>
                   {offer.discount_percent != null && ` · ${offer.discount_percent}% off`}</p>
                 <p className="product-note">Through {displayDate(offer.expires_on)}
                   {offer.requires_membership && " · Store membership required"}</p>
-                {!value.products.some((product) => product.normalized_name === offer.normalized_name) &&
+                {!saved &&
                   <button type="button" className="dash-button" disabled={busy} onClick={() => mutate(
                     "post", endpoint, { product: offer.id }, "Catalog product added",
                   )}>Favorite {offer.product_name}</button>}
-              </li>)}
+                {saved && !offer.requires_membership && <button type="button" className="dash-button"
+                  disabled={busy || tracked || !saved.notifications_enabled}
+                  onClick={() => mutate("post", `${endpoint}${saved.id}/tracked-offers/`, { offer_id: offer.id }, "Offer tracked")}>
+                  {tracked ? "Expiry tracked" : "Track expiry"}
+                </button>}
+              </li>;
+              })}
             </ul>}
         </section>
       </>}

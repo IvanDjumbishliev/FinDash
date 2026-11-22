@@ -27,7 +27,7 @@ class NotificationOutput(serializers.ModelSerializer):
 
     class Meta:
         model = Notification
-        fields = ("id", "category", "title", "message", "created_at", "read_at", "dismissed_at", "read", "dismissed")
+        fields = ("id", "category", "title", "message", "created_at", "read_at", "dismissed_at", "read", "dismissed", "payload")
 
     def get_read(self, item) -> bool:
         return item.read_at is not None
@@ -36,6 +36,8 @@ class NotificationOutput(serializers.ModelSerializer):
         return item.dismissed_at is not None
 
     def get_title(self, item) -> str:
+        if item.category == NotificationCategory.GROCERY_DEAL and item.payload.get("kind") == "digest":
+            return "Daily grocery deal digest"
         return MESSAGES[item.category][0]
 
     def get_message(self, item) -> str:

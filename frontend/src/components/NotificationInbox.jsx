@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { FiAlertCircle, FiBarChart2, FiBell, FiCalendar, FiCheck, FiFileText, FiTrendingUp, FiUpload } from "react-icons/fi";
+import { displayDate, money } from "../copilotPresentation";
 import api from "../api";
 import { ACCESS_TOKEN } from "../constants";
 import { categories, notificationPath } from "../notifications";
@@ -68,6 +69,13 @@ export function NotificationList({ items, full = false }) {
           </div>
           <p className="notification-title">{item.title}</p>
           <p className="notification-message">{item.message}</p>
+          {item.category === "grocery_deal" && Array.isArray(item.payload?.deals) && <ul className="notification-deal-details">
+            {item.payload.deals.map((deal, index) => <li key={`${deal.offer_id}-${index}`}>
+              <strong>{deal.product}</strong> · {deal.retailer} · {money(deal.price, deal.currency)}
+              <div>Advertised through {deal.expires_at ? dateFormat.format(new Date(deal.expires_at)) : displayDate(deal.expires_on)}</div>
+              {deal.reasons.map((reason) => <div key={reason}>{reason}</div>)}
+            </li>)}
+          </ul>}
           <div className="notification-item-actions">
             {!item.read && <span className="notification-unread">Unread</span>}
             {item.dismissed && <span>Dismissed</span>}

@@ -329,6 +329,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "notifications.purge_expired_tokens",
         "schedule": 86400,
     },
+    "notification-grocery-deals": {
+        "task": "notifications.schedule_grocery_deals",
+        "schedule": max(60, int(env("NOTIFICATION_GROCERY_INTERVAL_SECONDS", default="900"))),
+    },
     "notification-retention": {
         "task": "notifications.purge",
         "schedule": max(60, int(env("NOTIFICATION_RETENTION_INTERVAL_SECONDS", default="86400"))),

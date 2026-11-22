@@ -415,6 +415,7 @@ class Notification(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     category = models.CharField(max_length=24, choices=NotificationCategory.choices)
     created_at = models.DateTimeField(auto_now_add=True)
+    payload = models.JSONField(default=dict, blank=True)
     read_at = models.DateTimeField(null=True)
     dismissed_at = models.DateTimeField(null=True)
 
@@ -570,8 +571,17 @@ class ReceiptItem(models.Model):
 
 
 class ShoppingPersonalization(models.Model):
+    class Delivery(models.TextChoices):
+        INDIVIDUAL = "individual", "Individual alerts"
+        DIGEST = "digest", "Daily digest"
+
     owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name="shopping_personalization")
     automatic_enabled = models.BooleanField(default=False)
+    deal_alerts_enabled = models.BooleanField(default=False)
+    deal_delivery = models.CharField(max_length=10, choices=Delivery.choices, default=Delivery.INDIVIDUAL)
+    quiet_start = models.TimeField(null=True, blank=True)
+    quiet_end = models.TimeField(null=True, blank=True)
+    digest_time = models.TimeField(default=datetime.time(9))
     preferred_retailers = models.JSONField(default=list, blank=True)
     category_interests = models.JSONField(default=list, blank=True)
 
@@ -592,6 +602,8 @@ class ProductPreference(models.Model):
     preferred_unit = models.CharField(max_length=4, choices=GroceryOffer.Unit.choices, blank=True)
     minimum_discount = models.PositiveSmallIntegerField(null=True, blank=True)
     notifications_enabled = models.BooleanField(default=False)
+    alert_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    alert_currency = models.CharField(max_length=3, blank=True)
     excluded = models.BooleanField(default=False)
     muted = models.BooleanField(default=False)
     last_purchase_date = models.DateField(null=True, blank=True)
@@ -621,4 +633,14 @@ class PersonalizedOfferReview(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["preference", "offer"], name="personal_offer_review_unique"),
+        ]
+
+
+class TrackedGroceryOffer(models.Model):
+    preference = models.ForeignKey(ProductPreference, on_delete=models.CASCADE, related_name="tracked_offers")
+    offer = models.ForeignKey(GroceryOffer, on_delete=models.CASCADE)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["preference", "offer"], name="tracked_grocery_offer_once"),
         ]

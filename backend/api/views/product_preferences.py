@@ -2,14 +2,17 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
-from api.models import GroceryOffer, GroceryRetailer, ProductPreference, ShoppingPersonalization
+from api.models import GroceryOffer, GroceryRetailer, ProductPreference, ShoppingPersonalization, TrackedGroceryOffer
 from api.services.product_preferences import CATEGORY_LABELS, LIBRARY_LIMIT, LOOKBACK_DAYS, available_offers, purchase_signals, suggested_products
+from api.services.grocery_matching import describe
+from api.services.personalized_deals import assess, discount_met, interest_product
 from api.services.receipts import product_identity
 
 from .assistant import PrivateCopilotView, StrictBooleanField
@@ -17,6 +20,7 @@ from .assistant import PrivateCopilotView, StrictBooleanField
 
 class ProductSettingsSerializer(serializers.ModelSerializer):
     automatic_enabled = StrictBooleanField(required=False)
+    deal_alerts_enabled = StrictBooleanField(required=False)
     preferred_retailers = serializers.ListField(
         child=serializers.ChoiceField(choices=GroceryRetailer.choices), max_length=len(GroceryRetailer.values), required=False,
     )
@@ -26,10 +30,25 @@ class ProductSettingsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ShoppingPersonalization
-        fields = ("automatic_enabled", "preferred_retailers", "category_interests")
+        fields = ("automatic_enabled", "preferred_retailers", "category_interests", "deal_alerts_enabled",
+                  "deal_delivery", "quiet_start", "quiet_end", "digest_time")
 
     def validate(self, attrs):
+        start = attrs.get("quiet_start", getattr(self.instance, "quiet_start", None))
+        end = attrs.get("quiet_end", getattr(self.instance, "quiet_end", None))
+        if (start is None) != (end is None) or (start is not None and start == end):
+            raise ValidationError({"quiet_end": "Enter a distinct start and end time for quiet hours, or clear both."})
         return {key: list(dict.fromkeys(value)) if isinstance(value, list) else value for key, value in attrs.items()}
+
+
+class TrackedOfferOutput(serializers.ModelSerializer):
+    offer_id = serializers.IntegerField()
+    name = serializers.CharField(source="offer.product_name")
+    retailer = serializers.ChoiceField(source="offer.retailer", choices=GroceryRetailer.choices)
+
+    class Meta:
+        model = TrackedGroceryOffer
+        fields = ("offer_id", "name", "retailer")
 
 
 class ProductPreferenceSerializer(serializers.ModelSerializer):
@@ -38,6 +57,11 @@ class ProductPreferenceSerializer(serializers.ModelSerializer):
         max_digits=14, decimal_places=6, min_value=Decimal("0.000001"), allow_null=True, required=False,
     )
     minimum_discount = serializers.IntegerField(min_value=0, max_value=100, allow_null=True, required=False)
+    alert_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01"), allow_null=True, required=False,
+    )
+    alert_currency = serializers.ChoiceField(choices=["EUR", "BGN"], allow_blank=True, required=False)
+    tracked_offers = TrackedOfferOutput(many=True, read_only=True)
     favorite = StrictBooleanField(required=False)
     notifications_enabled = StrictBooleanField(required=False)
     excluded = StrictBooleanField(required=False)
@@ -49,6 +73,7 @@ class ProductPreferenceSerializer(serializers.ModelSerializer):
             "id", "product", "name", "normalized_name", "source", "favorite", "preferred_brand",
             "preferred_quantity", "preferred_unit", "minimum_discount", "notifications_enabled",
             "excluded", "muted", "last_purchase_date", "purchase_frequency", "last_notified_offer",
+            "alert_price", "alert_currency", "tracked_offers",
         )
         read_only_fields = ("id", "normalized_name", "source", "last_purchase_date", "purchase_frequency", "last_notified_offer")
 
@@ -70,6 +95,10 @@ class ProductPreferenceSerializer(serializers.ModelSerializer):
             raise ValidationError({"preferred_unit": "Enter both a package quantity and unit, or clear both."})
         if unit == GroceryOffer.Unit.ITEM and quantity != quantity.to_integral_value():
             raise ValidationError({"preferred_quantity": "Package item counts must be whole numbers."})
+        price = attrs.get("alert_price", getattr(self.instance, "alert_price", None))
+        currency = attrs.get("alert_currency", getattr(self.instance, "alert_currency", ""))
+        if (price is None) != (not currency):
+            raise ValidationError({"alert_currency": "Set both a threshold price and currency, or clear both."})
         return attrs
 
 
@@ -124,7 +153,7 @@ class ProductLibraryView(PrivateCopilotView):
     @extend_schema(responses=ProductLibrarySerializer)
     def get(self, request):
         settings = product_settings(request.user)
-        products = list(products_for(request.user))
+        products = list(products_for(request.user).prefetch_related("tracked_offers__offer"))
         signals = list(purchase_signals(request.user)) if settings.automatic_enabled else []
         signal_map = {row["normalized_name"]: row for row in signals}
         if settings.automatic_enabled:
@@ -210,4 +239,42 @@ class ProductSuggestionView(PrivateCopilotView):
     def delete(self, request):
         lock_owner(request.user)
         products_for(request.user).filter(source=ProductPreference.Source.INFERRED).delete()
+        return Response(status=204)
+
+
+class TrackedOfferSerializer(serializers.Serializer):
+    offer_id = serializers.IntegerField(min_value=1, max_value=2**63 - 1)
+
+
+class ProductTrackedOfferView(PrivateCopilotView):
+    @extend_schema(request=TrackedOfferSerializer, responses={201: TrackedOfferSerializer})
+    @transaction.atomic
+    def post(self, request, pk):
+        lock_owner(request.user)
+        preference = get_object_or_404(products_for(request.user).select_related("product"), pk=pk)
+        form = TrackedOfferSerializer(data=request.data)
+        form.is_valid(raise_exception=True)
+        offer = get_object_or_404(GroceryOffer.objects.current(now=timezone.now()), pk=form.validated_data["offer_id"],
+                                  availability_status="advertised", requires_membership=False, price__gt=0)
+        if preference.muted or preference.excluded or not discount_met(preference, offer):
+            raise ValidationError({"offer_id": "This offer is outside the active preference."})
+        result = assess(preference, interest_product(preference), offer, describe(offer))
+        if result is None or result[0] == "needs_review" or (preference.preferred_brand and not result[2]) or (
+            preference.preferred_quantity is not None and not result[3]
+        ):
+            raise ValidationError({"offer_id": "Track a compatible current offer for this product."})
+        rows = preference.tracked_offers
+        if not rows.filter(offer=offer).exists() and rows.count() >= 20:
+            raise ValidationError({"offer_id": "Remove a tracked offer before adding another."})
+        rows.get_or_create(offer=offer)
+        return Response({"offer_id": offer.pk}, status=201)
+
+
+class ProductTrackedOfferDetailView(PrivateCopilotView):
+    @extend_schema(responses={204: None})
+    @transaction.atomic
+    def delete(self, request, pk, offer_id):
+        lock_owner(request.user)
+        preference = get_object_or_404(products_for(request.user), pk=pk)
+        TrackedGroceryOffer.objects.filter(preference=preference, offer_id=offer_id).delete()
         return Response(status=204)

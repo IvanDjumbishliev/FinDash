@@ -225,3 +225,12 @@
   .notification-page-header { flex-wrap: wrap; }
   .nav-container .nav-links { padding-bottom: 8px; }
 }
+
+.notification-deal-details {
+  display: grid;
+  gap: 0.35rem;
+  padding-inline-start: 1.15rem;
+  margin: 0.3rem 0;
+  overflow-wrap: anywhere;
+}
+.notification-deal-details li > div { color: var(--muted); }

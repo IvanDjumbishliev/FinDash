@@ -126,10 +126,12 @@ def rank_key(entry, preferred_retailers):
     )
 
 
-def personalize(owner, settings, *, currency, membership_retailers, include_review, now=None):
+def personalize(owner, settings, *, currency, membership_retailers, include_review, now=None,
+                alerts_only=False, match_filter=None):
     now = now or timezone.now()
     library = list(ProductPreference.objects.filter(owner=owner).select_related("product"))
-    preferences = [pref for pref in library if not pref.muted and not pref.excluded]
+    preferences = [pref for pref in library if not pref.muted and not pref.excluded
+                   and (not alerts_only or pref.notifications_enabled)]
     suppressed = {pref.normalized_name for pref in library if pref.muted or pref.excluded}
     preferences.sort(key=lambda row: (row.source != ProductPreference.Source.MANUAL, not row.favorite, row.normalized_name))
     if not preferences:
@@ -143,8 +145,10 @@ def personalize(owner, settings, *, currency, membership_retailers, include_revi
             by_category[target.category].add(pk)
         by_title[target.title].add(pk)
     by_id = {pref.pk: pref for pref in preferences}
-    offers = list(current_offers(currency=currency, membership_retailers=membership_retailers, now=now)
-                  .order_by("-last_successful_update", "pk")[:MAX_OFFERS + 1])
+    offer_query = current_offers(currency=currency, membership_retailers=membership_retailers, now=now)
+    if alerts_only and settings.preferred_retailers:
+        offer_query = offer_query.filter(retailer__in=settings.preferred_retailers)
+    offers = list(offer_query.order_by("-last_successful_update", "pk")[:MAX_OFFERS + 1])
     reviews = {(review.preference_id, review.offer_id): review for review in
                PersonalizedOfferReview.objects.filter(
                    preference__owner=owner, offer_id__in=[offer.pk for offer in offers[:MAX_OFFERS]],
@@ -187,6 +191,8 @@ def personalize(owner, settings, *, currency, membership_retailers, include_revi
                 "historical": {"unit_price": historical[0].quantize(Decimal("0.000001")),
                                "purchased_at": historical[1]} if historical else None,
             }
+            if match_filter and not match_filter(pref, entry):
+                continue
             needs_review = relation == "needs_review"
             bucket = (uncertain if needs_review else matches)[pk]
             limit = MAX_REVIEW if needs_review else MAX_MATCHES

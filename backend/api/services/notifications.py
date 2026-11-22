@@ -28,18 +28,22 @@ def categories_for(owner_id):
     return {**default_notification_categories(), **(configured or {})}
 
 
+def reserve_event(owner_id, category, event_key):
+    digest = hashlib.sha256(str(event_key).encode()).hexdigest()
+    return NotificationEvent.objects.get_or_create(owner_id=owner_id, category=category, digest=digest)
+
+
 @transaction.atomic
-def notify(owner_id, category, event_key):
+def notify(owner_id, category, event_key, *, payload=None):
     """Record an in-app event once. Delivery is outside this service."""
     if category not in NotificationCategory.values:
         raise ValueError("Unknown notification category.")
     if not categories_for(owner_id)[category]:
         return None
-    digest = hashlib.sha256(str(event_key).encode()).hexdigest()
-    event, created = NotificationEvent.objects.get_or_create(owner_id=owner_id, category=category, digest=digest)
+    event, created = reserve_event(owner_id, category, event_key)
     if not created:
         return None
-    return Notification.objects.create(owner_id=owner_id, category=category, event=event)
+    return Notification.objects.create(owner_id=owner_id, category=category, event=event, payload=payload or {})
 
 
 def after_commit(callback, *args):

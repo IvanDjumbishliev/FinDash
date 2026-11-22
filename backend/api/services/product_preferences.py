@@ -72,33 +72,3 @@ def available_offers(preferences, settings):
         offers = offers.filter(retailer__in=settings.preferred_retailers)
     return [offer for offer in offers[:1000] if offer.normalized_name not in library
             or matches_preference(offer, library[offer.normalized_name])][:30]
-
-
-def notify_product_offers(retailer):
-    """Check only the updated, current catalog and create private in-app alerts."""
-    from django.db import transaction
-
-    from api.models import NotificationCategory, ProductPreference, ShoppingPersonalization
-    from api.services.notifications import notify
-
-    current = GroceryOffer.objects.current().filter(retailer=retailer, availability_status="advertised")
-    eligible = ProductPreference.objects.filter(notifications_enabled=True, excluded=False, muted=False,
-                                                normalized_name__in=current.values("normalized_name"))
-    for preference_id in eligible.values_list("pk", flat=True).iterator():
-        with transaction.atomic():
-            preference = eligible.select_for_update().filter(pk=preference_id).first()
-            if preference is None:
-                continue
-            stores = ShoppingPersonalization.objects.filter(owner_id=preference.owner_id).values_list(
-                "preferred_retailers", flat=True,
-            ).first()
-            if stores and retailer not in stores:
-                continue
-            offer = next((offer for offer in current.filter(normalized_name=preference.normalized_name)
-                          .order_by("-starts_on", "-last_successful_update", "-pk")[:100]
-                          if matches_preference(offer, preference)), None)
-            if offer and offer.pk != preference.last_notified_offer_id:
-                notice = notify(preference.owner_id, NotificationCategory.GROCERY_DEAL, f"offer:{offer.pk}")
-                if notice:
-                    preference.last_notified_offer = offer
-                    preference.save(update_fields=["last_notified_offer"])

@@ -26,6 +26,7 @@ from .views.goals import GoalContributionView, GoalDetailView, GoalListView, Goa
 from .views.personalized_deals import PersonalizedDealsView, PersonalizedOfferReviewView
 from .views.product_preferences import (
     ProductLibraryView, ProductPreferenceDetailView, ProductSettingsView, ProductSuggestionView,
+    ProductTrackedOfferDetailView, ProductTrackedOfferView,
 )
 from .views.grocery import (GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
@@ -70,6 +71,9 @@ urlpatterns = [
          PersonalizedOfferReviewView.as_view(), name="personalized-offer-review"),
     path("grocery/my-products/", ProductLibraryView.as_view(), name="my-products"),
     path("grocery/my-products/<int:pk>/", ProductPreferenceDetailView.as_view(), name="my-product-detail"),
+    path("grocery/my-products/<int:pk>/tracked-offers/", ProductTrackedOfferView.as_view(), name="product-tracked-offers"),
+    path("grocery/my-products/<int:pk>/tracked-offers/<int:offer_id>/", ProductTrackedOfferDetailView.as_view(),
+         name="product-tracked-offer-detail"),
     path("grocery/my-products/settings/", ProductSettingsView.as_view(), name="my-product-settings"),
     path("grocery/my-products/suggestions/", ProductSuggestionView.as_view(), name="my-product-suggestions"),
     path("grocery/catalog/", GroceryCatalogView.as_view(), name="grocery-catalog"),
