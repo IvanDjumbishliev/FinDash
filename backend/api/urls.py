@@ -1,6 +1,7 @@
 from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
+from .views.warranties import WarrantyDetailView, WarrantyListView, WarrantyProofView
 from .views.dashboard import DashboardView
 from .views.deals import (
     FantasticoDealsView,
@@ -86,6 +87,9 @@ urlpatterns = [
         TransactionDeleteView.as_view(),
         name="transaction-delete",
     ),
+    path("warranties/", WarrantyListView.as_view(), name="warranty-list"),
+    path("warranties/<int:pk>/", WarrantyDetailView.as_view(), name="warranty-detail"),
+    path("warranties/<int:pk>/proof/", WarrantyProofView.as_view(), name="warranty-proof"),
     path("receipts/", ReceiptListView.as_view(), name="receipt-list"),
     path("receipts/statistics/", ReceiptStatisticsView.as_view(), name="receipt-statistics"),
     path("receipts/preview/", ReceiptPreviewView.as_view(), name="receipt-preview"),

@@ -391,6 +391,7 @@ class NotificationCategory(models.TextChoices):
     FINANCIAL_REPORT = "financial_report", "Financial report"
     STOCK_THRESHOLD = "stock_threshold", "Stock threshold"
     GROCERY_DEAL = "grocery_deal", "Grocery deal"
+    WARRANTY_EXPIRATION = "warranty_expiration", "Warranty expiration"
 
 
 def default_notification_categories():
@@ -647,3 +648,35 @@ class TrackedGroceryOffer(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["preference", "offer"], name="tracked_grocery_offer_once"),
         ]
+
+
+class Warranty(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="warranties")
+    receipt_item = models.ForeignKey(ReceiptItem, null=True, blank=True, on_delete=models.SET_NULL, related_name="warranties")
+    product_name = models.CharField(max_length=255)
+    search_text = models.TextField(blank=True)
+    retailer = models.CharField(max_length=255)
+    purchased_on = models.DateField()
+    duration_months = models.PositiveSmallIntegerField(null=True, blank=True)
+    expires_on = models.DateField()
+    field_sources = models.JSONField(default=dict)
+    reminder_days = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["expires_on", "pk"]
+        indexes = [models.Index(fields=["owner", "expires_on"], name="warranty_owner_expires_idx")]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(expires_on__gte=models.F("purchased_on")),
+                                   name="warranty_expiry_after_purchase"),
+            models.CheckConstraint(condition=models.Q(duration_months__range=(1, 600)) | models.Q(duration_months__isnull=True),
+                                   name="warranty_duration_range"),
+        ]
+
+
+class WarrantyProof(models.Model):
+    warranty = models.OneToOneField(Warranty, on_delete=models.CASCADE, related_name="proof")
+    image = models.BinaryField(editable=False)
+    byte_size = models.PositiveIntegerField()
+    uploaded_at = models.DateTimeField(auto_now=True)

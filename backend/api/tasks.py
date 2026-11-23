@@ -6,6 +6,7 @@ from celery import Task, shared_task
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import InterfaceError, OperationalError
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from kombu.exceptions import OperationalError as BrokerUnavailable
@@ -17,7 +18,9 @@ from api.services.notification_events import (
     generate_renewal_alerts,
     generate_stock_alerts,
 )
+from api.models import Warranty
 from api.services.notifications import purge_notifications
+from api.services.warranties import purge_warranty_data, warranty_reminders
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 200
@@ -149,3 +152,21 @@ def schedule_grocery_deals(cursor=0):
 def check_owner_grocery_deals(owner_id):
     owner = active_owner(owner_id)
     return evaluate_deal_alerts(owner) if owner else 0
+
+
+@shared_task(base=NotificationTask, name="notifications.schedule_warranties")
+def schedule_warranties(cursor=0):
+    enabled = Warranty.objects.filter(owner_id=OuterRef("pk")).exclude(reminder_days=[])
+    owners = get_user_model().objects.filter(Exists(enabled))
+    return fan_out(owners, check_owner_warranties, schedule_warranties, cursor)
+
+
+@shared_task(base=NotificationTask, name="notifications.check_warranties")
+def check_owner_warranties(owner_id):
+    owner = active_owner(owner_id)
+    return warranty_reminders(owner) if owner else 0
+
+
+@shared_task(base=NotificationTask, name="notifications.purge_warranty_data")
+def purge_warranties():
+    return purge_warranty_data()

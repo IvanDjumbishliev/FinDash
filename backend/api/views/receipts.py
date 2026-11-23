@@ -76,7 +76,7 @@ class ReviewedReceiptItemSerializer(serializers.ModelSerializer):
         model = ReceiptItem
         read_only_fields = ["normalized_name"]
         fields = (
-            "original_description", "normalized_name", "quantity", "unit", "unit_price", "line_total",
+            "id", "original_description", "normalized_name", "quantity", "unit", "unit_price", "line_total",
             "discount", "category", "brand", "confidence", "product",
         )
 
@@ -138,6 +138,14 @@ class ReceiptCorrectionSerializer(serializers.ModelSerializer):
         if not 1900 <= value.year < 9999:
             raise ValidationError("Choose a purchase date between 1900 and 9998.")
         return value
+
+
+class ExistingReceiptItemSerializer(ReviewedReceiptItemSerializer):
+    id = serializers.IntegerField(min_value=1, max_value=2**63 - 1, required=False)
+
+
+class ExistingReceiptCorrectionSerializer(ReceiptCorrectionSerializer):
+    items = ExistingReceiptItemSerializer(many=True, allow_empty=False, max_length=MAX_ITEMS)
 
 
 class ReceiptConfirmationSerializer(ReceiptCorrectionSerializer):
@@ -363,14 +371,14 @@ class ReceiptDetailView(PrivateCopilotView, generics.RetrieveDestroyAPIView):
     def get_queryset(self):
         return receipt_queryset(self.request.user)
 
-    @extend_schema(request=ReceiptCorrectionSerializer, responses=ReceiptSerializer)
+    @extend_schema(request=ExistingReceiptCorrectionSerializer, responses=ReceiptSerializer)
     def patch(self, request, pk):
-        form = ReceiptCorrectionSerializer(data=request.data, partial=True)
+        form = ExistingReceiptCorrectionSerializer(data=request.data, partial=True)
         form.is_valid(raise_exception=True)
         details = dict(form.validated_data)
         corrected_items = details.pop("items", None)
         if corrected_items is not None:
-            item_form = ReviewedReceiptItemSerializer(data=request.data["items"], many=True, allow_empty=False, max_length=MAX_ITEMS)
+            item_form = ExistingReceiptItemSerializer(data=request.data["items"], many=True, allow_empty=False, max_length=MAX_ITEMS)
             item_form.is_valid(raise_exception=True)
             corrected_items = item_form.validated_data
         try:
@@ -391,10 +399,17 @@ class ReceiptDetailView(PrivateCopilotView, generics.RetrieveDestroyAPIView):
                 receipt.save(update_fields=[*details, "normalized_merchant", "fingerprint", "transaction", "updated_at"])
                 if corrected_items is not None:
                     rows = build_receipt_items(corrected_items)
+                    existing_ids = [row.pk for row in rows if row.pk is not None]
+                    if len(set(existing_ids)) != len(existing_ids) or receipt.items.filter(pk__in=existing_ids).count() != len(existing_ids):
+                        raise ValidationError({"items": "Each existing item ID must belong to this receipt and appear once."})
                     for row in rows:
                         row.receipt = receipt
-                    receipt.items.all().delete()
-                    ReceiptItem.objects.bulk_create(rows)
+                    receipt.items.exclude(pk__in=existing_ids).delete()
+                    ReceiptItem.objects.bulk_update(
+                        [row for row in rows if row.pk is not None],
+                        [field.name for field in ReceiptItem._meta.concrete_fields if not field.primary_key and field.name != "receipt"],
+                    )
+                    ReceiptItem.objects.bulk_create([row for row in rows if row.pk is None])
         except IntegrityError as error:
             raise ReceiptConflict("The receipt could not be updated because a conflicting change was saved.") from error
         return receipt_response(request, pk)

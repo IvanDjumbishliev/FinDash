@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import api from "../../api";
 import { money } from "../../copilotPresentation";
@@ -39,7 +40,7 @@ export default function SavedReceipt({ receipt, onChange, onDelete }) {
     try {
       const correction = confirmationBody(undefined, fields);
       body = { ...correction, items: correction.items.map((item, index) => ({
-        ...item, product: fields.items[index].product ?? null, brand: fields.items[index].brand ?? "",
+        ...item, id: fields.items[index].id, product: fields.items[index].product ?? null, brand: fields.items[index].brand ?? "",
       })) };
     } catch (failure) {
       setError(failure.message);
@@ -90,6 +91,7 @@ export default function SavedReceipt({ receipt, onChange, onDelete }) {
           <div><strong>{item.original_description}</strong><span>{money(item.line_total, receipt.currency)}</span></div>
           <small>{item.category || "Uncategorized"}{item.quantity != null && ` · ${item.quantity} ${item.unit || ""}`}
             {item.discount != null && ` · Discount ${money(item.discount, receipt.currency)}`}</small>
+          <Link className="dash-link" to={`/warranties?receipt=${receipt.id}&item=${item.id}`}>Track warranty</Link>
         </li>)}
       </ul>
       <ReceiptTotals receipt={receipt} />

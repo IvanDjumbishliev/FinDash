@@ -111,6 +111,7 @@ REST_FRAMEWORK = {
         "retailer": "30/min",
         "stock_provider": "60/min",
         "receipt_scan": "15/min",
+        "warranty_proof": "30/min",
         "grocery_optimize": "30/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
@@ -295,6 +296,8 @@ GROCERY_CATALOG_RETAILERS = frozenset(
     value.strip() for value in env("GROCERY_CATALOG_RETAILERS", default="").split(",") if value.strip()
 )
 
+WARRANTY_PROOF_RETENTION_DAYS = max(0, int(env("WARRANTY_PROOF_RETENTION_DAYS", default="365")))
+WARRANTY_RECORD_RETENTION_DAYS = max(0, int(env("WARRANTY_RECORD_RETENTION_DAYS", default="0")))
 NOTIFICATION_RETENTION_DAYS = max(1, int(env("NOTIFICATION_RETENTION_DAYS", default="90")))
 
 CELERY_BROKER_URL = (
@@ -327,6 +330,14 @@ CELERY_BEAT_SCHEDULE = {
     },
     "expired-authentication-tokens": {
         "task": "notifications.purge_expired_tokens",
+        "schedule": 86400,
+    },
+    "notification-warranties": {
+        "task": "notifications.schedule_warranties",
+        "schedule": 3600,
+    },
+    "warranty-retention": {
+        "task": "notifications.purge_warranty_data",
         "schedule": 86400,
     },
     "notification-grocery-deals": {

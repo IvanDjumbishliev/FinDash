@@ -89,6 +89,7 @@ def receipt_image(upload):
             grayscale.thumbnail((2200, 3200))
             grayscale = ImageOps.autocontrast(grayscale, cutoff=0.5)
             output = io.BytesIO()
+            grayscale.info.clear()
             grayscale.save(output, format="PNG")
     except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError) as error:
         raise ReceiptScanError("The receipt image could not be decoded.", 415) from error

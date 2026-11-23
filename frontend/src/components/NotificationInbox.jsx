@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import PropTypes from "prop-types";
 import { FiAlertCircle, FiBarChart2, FiBell, FiCalendar, FiCheck, FiFileText, FiTrendingUp, FiUpload } from "react-icons/fi";
 import { displayDate, money } from "../copilotPresentation";
@@ -69,6 +70,10 @@ export function NotificationList({ items, full = false }) {
           </div>
           <p className="notification-title">{item.title}</p>
           <p className="notification-message">{item.message}</p>
+          {item.category === "warranty_expiration" && item.payload?.product && <div className="notification-message">
+            <strong>{item.payload.product}</strong> · Expires {displayDate(item.payload.expires_on)}
+            <div><Link className="dash-link" to="/warranties">Open Warranty Vault</Link></div>
+          </div>}
           {item.category === "grocery_deal" && Array.isArray(item.payload?.deals) && <ul className="notification-deal-details">
             {item.payload.deals.map((deal, index) => <li key={`${deal.offer_id}-${index}`}>
               <strong>{deal.product}</strong> · {deal.retailer} · {money(deal.price, deal.currency)}

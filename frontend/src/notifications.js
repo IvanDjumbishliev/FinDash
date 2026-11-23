@@ -7,6 +7,7 @@ export const categories = {
   statement_import: { label: "Statement imports", description: "When a bank statement import completes." },
   financial_report: { label: "Financial reports", description: "When a financial report is generated." },
   grocery_deal: { label: "Grocery deals", description: "When a catalog refresh finds an advertised offer for a product with alerts enabled." },
+  warranty_expiration: { label: "Warranty expiration", description: "When a warranty reaches one of your selected reminder dates." },
   stock_threshold: { label: "Stock price thresholds", description: "When a fresh quote meets a watchlist price rule and market checks are enabled." },
 };
 

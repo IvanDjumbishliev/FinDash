@@ -1,0 +1,29 @@
+.warranty-page { display: grid; gap: 1rem; }
+.warranty-page h1 svg { vertical-align: middle; color: var(--violet); }
+.warranty-panel { display: block; min-width: 0; }
+.warranty-panel h2 { margin-top: 0; scroll-margin-top: 6rem; }
+.warranty-panel fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.warranty-fields, .warranty-filters, .warranty-grid { display: grid; gap: .75rem; }
+.warranty-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); margin-bottom: .65rem; }
+.warranty-filters { grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); align-items: end; margin-bottom: .85rem; }
+.warranty-fields label, .warranty-filters label { display: grid; gap: .25rem; min-width: 0; }
+.warranty-panel input:not([type="file"]), .warranty-panel select {
+  box-sizing: border-box; width: 100%; min-width: 0; padding: .55rem; color: var(--ink); background: var(--field-surface);
+  border: 1px solid var(--border-color); border-radius: 7px; font: inherit;
+}
+.warranty-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+.warranty-grid article { padding: .8rem; border-radius: 10px; border: 1px solid var(--border-subtle); background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
+.warranty-grid header { display: flex; align-items: start; justify-content: space-between; gap: .45rem; }
+.warranty-grid h3 { margin: 0; }
+.warranty-grid dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; margin: .65rem 0; }
+.warranty-grid dd { margin: 0; font-weight: 650; }
+.warranty-grid dt, .warranty-muted, .warranty-grid small, .warranty-fields small { color: var(--muted); font-size: .85rem; }
+.warranty-grid small { display: block; }
+.warranty-status { text-transform: capitalize; background: var(--accent-surface); border: 1px solid var(--border-color); padding: .2rem .45rem; border-radius: 5px; }
+.warranty-status[data-status="expired"] { border-style: dashed; }
+.warranty-proof-actions, .warranty-pages { margin: .65rem 0; }
+.warranty-upload { position: relative; display: inline-flex; align-items: center; gap: .4rem; padding: .5rem; border: 1px solid var(--border-color); border-radius: 8px; }
+.warranty-upload input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.warranty-panel button:disabled { opacity: .55; }
+.warranty-page :is(input, button, select, a):focus-visible, .warranty-upload:focus-within { outline: 2px solid var(--violet); outline-offset: 2px; }
+.warranty-callout { margin: 0; padding: .65rem; background: var(--accent-surface); border: 1px solid var(--border-color); border-radius: 8px; }
