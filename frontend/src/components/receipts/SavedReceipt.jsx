@@ -91,6 +91,11 @@ export default function SavedReceipt({ receipt, onChange, onDelete }) {
           <div><strong>{item.original_description}</strong><span>{money(item.line_total, receipt.currency)}</span></div>
           <small>{item.category || "Uncategorized"}{item.quantity != null && ` · ${item.quantity} ${item.unit || ""}`}
             {item.discount != null && ` · Discount ${money(item.discount, receipt.currency)}`}</small>
+          {Number(item.line_total) >= 0 && (item.quantity == null || Number(item.quantity) > 0) &&
+            <button type="button" className="dash-button" disabled={!!busy} onClick={() => run("pantry", async (options) => {
+              const response = await api.post("/api/pantry/from-receipt/", { receipt_item: item.id }, options);
+              if (!options.signal.aborted) toast.success(response.status === 201 ? "Added to pantry as an estimate." : "This receipt item is already in your pantry.");
+            })}>Add to pantry</button>}
           <Link className="dash-link" to={`/warranties?receipt=${receipt.id}&item=${item.id}`}>Track warranty</Link>
         </li>)}
       </ul>

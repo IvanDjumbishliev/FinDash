@@ -23,6 +23,7 @@ const FinancialGoals = lazy(() => import("./pages/FinancialGoals"));
 const GoalScenario = lazy(() => import("./pages/GoalScenario"));
 const LoyaltyWallet = lazy(() => import("./pages/LoyaltyWallet"));
 const Warranties = lazy(() => import("./pages/Warranties"));
+const Pantry = lazy(() => import("./pages/Pantry"));
 const ReceiptHistory = lazy(() => import("./pages/ReceiptHistory"));
 const Receipts = lazy(() => import("./pages/Receipts"));
 const Reports = lazy(() => import("./pages/Reports"));
@@ -139,6 +140,7 @@ function App() {
           <Route path="/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
           <Route path="/loyalty-wallet" element={<ProtectedRoute><LoyaltyWallet /></ProtectedRoute>} />
           <Route path="/warranties" element={<ProtectedRoute><Warranties /></ProtectedRoute>} />
+          <Route path="/pantry" element={<ProtectedRoute><Pantry /></ProtectedRoute>} />
           <Route path="/receipts/history" element={<ProtectedRoute><ReceiptHistory /></ProtectedRoute>} />
           <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />
           <Route path="/goals/:id/scenarios" element={<ProtectedRoute><GoalScenario /></ProtectedRoute>} />

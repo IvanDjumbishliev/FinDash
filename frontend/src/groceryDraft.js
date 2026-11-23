@@ -36,3 +36,23 @@ export function addCatalogPackage(draft, offer) {
     options: { ...draft?.options, currency: items.length && draft?.options?.currency ? draft.options.currency : offer.currency },
   };
 }
+
+export function addPantryReplenishment(draft, product, quantity) {
+  const items = draft?.items ?? [];
+  const name = product.name.trim();
+  const unit = product.unit;
+  const brand = product.brand || "";
+  const amount = Number(quantity);
+  if (!unit || !(amount > 0 && amount <= 1000) || (unit === "item" && !Number.isInteger(amount))) {
+    return { error: "Enter a valid shopping quantity in the pantry item's unit." };
+  }
+  if (items.some((item) => item.name.trim().toLowerCase() === name.toLowerCase() &&
+      item.unit === unit && item.preferred_brand.toLowerCase() === brand.toLowerCase())) {
+    return { error: "This product is already in your shopping draft. Adjust its quantity there." };
+  }
+  if (items.length >= maxDraftItems) return { error: "Your shopping draft is full." };
+  const id = items.reduce((largest, item) => Math.max(largest, item.id), 0) + 1;
+  return { ...draft, items: [...items, {
+    ...defaultGroceryItem, id, name, unit, quantity, preferred_brand: brand,
+  }] };
+}

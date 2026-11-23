@@ -731,3 +731,24 @@ class GroceryListItem(models.Model):
 
     class Meta:
         ordering = ["pk"]
+
+
+class PantryItem(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="pantry_items")
+    receipt_item = models.ForeignKey(ReceiptItem, null=True, blank=True, on_delete=models.SET_NULL)
+    product = models.ForeignKey(GroceryOffer, null=True, blank=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=180)
+    brand = models.CharField(max_length=120, blank=True)
+    quantity = models.DecimalField(max_digits=13, decimal_places=6, null=True)
+    unit = models.CharField(max_length=4, choices=GroceryOffer.Unit.choices, blank=True)
+    quantity_confirmed = models.BooleanField(default=False)
+    expires_on = models.DateField(null=True, blank=True)
+    replenish_below = models.DecimalField(max_digits=13, decimal_places=6, null=True, blank=True)
+    track_deals = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "receipt_item"], name="pantry_receipt_item_once"),
+        ]

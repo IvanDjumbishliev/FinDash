@@ -1,6 +1,7 @@
 from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
+from .views.pantry import PantryDeals, PantryDetail, PantryList, PantryReceiptAdd, PantryRecipes
 from .views.loyalty import LoyaltyCardDetailView, LoyaltyCardImageView, LoyaltyCardListView
 from .views.warranties import WarrantyDetailView, WarrantyListView, WarrantyProofView
 from .views.dashboard import DashboardView
@@ -71,6 +72,11 @@ urlpatterns = [
     path("deals/lidl/", LidlDealsView.as_view()),
     path("deals/kaufland/", KauflandDealsView.as_view()),
     path("deals/fantastico/", FantasticoDealsView.as_view()),
+    path("pantry/", PantryList.as_view(), name="pantry-list"),
+    path("pantry/from-receipt/", PantryReceiptAdd.as_view(), name="pantry-from-receipt"),
+    path("pantry/recipes/", PantryRecipes.as_view(), name="pantry-recipes"),
+    path("pantry/<int:pk>/", PantryDetail.as_view(), name="pantry-detail"),
+    path("pantry/<int:pk>/deals/", PantryDeals.as_view(), name="pantry-deals"),
     path("grocery/optimize/", GroceryOptimizeView.as_view(), name="grocery-optimize"),
     path("grocery/personalized-deals/", PersonalizedDealsView.as_view(), name="personalized-deals"),
     path("grocery/personalized-deals/<int:preference_id>/offers/<int:offer_id>/review/",

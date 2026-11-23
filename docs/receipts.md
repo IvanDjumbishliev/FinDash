@@ -68,3 +68,13 @@ From Grocery basket, create a shared list or enable sharing on a saved list. A l
 The shared list polls while visible. Server-side revocation applies to subsequent reads and writes immediately. Items carry a revision, and a conflicting edit or removal returns HTTP 409. Reload the changed item before retrying. Existing private lists keep their original format until the owner enables sharing.
 
 Shared operations are under `/api/grocery/lists/{id}/`. Use GET or POST `household/` to open or enable sharing, POST `members/` to invite by username, DELETE `members/{member_id}/` to revoke, POST `invitation/` to accept or decline, and GET `/api/grocery/lists/invitations/` for pending invites. POST `items/` adds a product. PATCH `items/{item_id}/` requires the current `revision` with the change. DELETE uses the `revision` query parameter. POST `optimize/` runs the existing optimizer against the current unpurchased list.
+
+### Smart Pantry
+
+Open **Smart Pantry** from the shopping navigation, or choose **Add to pantry** on an item in a confirmed receipt. Imports are explicit and a receipt line can be added once while its pantry entry exists. Receipt edits and financial reconciliation do not change pantry stock. Deleting a receipt disconnects its source reference and keeps the separately saved inventory entry.
+
+Receipt quantities are estimates until checked. A quantity may be unknown. Record expiration dates manually and set a low-stock level per item to receive a replenishment suggestion when its quantity reaches that level. Date labels do not indicate food safety. Use **Add to shopping list** to enter the quantity to buy and send it to the existing browser shopping draft. From there you can optimize, save, or explicitly share the list.
+
+Deal lookup requires per-item opt-in and checks current public EUR catalog offers. Recipe ideas are optional and generated locally from a short list of combinations and positive, user-confirmed quantities. They do not verify ingredient amounts, freshness, or dietary suitability. Pantry records and receipt references stay private.
+
+Authenticated endpoints are GET/POST `/api/pantry/`, GET/PATCH/DELETE `/api/pantry/{id}/`, POST `/api/pantry/from-receipt/` with `receipt_item`, GET `/api/pantry/{id}/deals/`, and GET `/api/pantry/recipes/`.

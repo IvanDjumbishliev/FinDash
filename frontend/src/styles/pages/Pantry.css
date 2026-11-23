@@ -1,0 +1,12 @@
+.pantry-page { display: grid; gap: 1rem; }
+.pantry-items, .pantry-results { list-style: none; padding: 0; margin: 0; }
+.pantry-items { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr)); }
+.pantry-items h2 { overflow-wrap: anywhere; }
+.pantry-form fieldset { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: .75rem; }
+.pantry-form label, .pantry-replenish label { display: grid; gap: .3rem; }
+.pantry-form .pantry-check { grid-template-columns: auto 1fr; align-items: center; }
+.pantry-form input:not([type="checkbox"]), .pantry-form select, .pantry-replenish input { width: 100%; min-width: 0; box-sizing: border-box; color: inherit; background: var(--input-bg, transparent); border: 1px solid var(--border-subtle); border-radius: .5rem; padding: .55rem; }
+.pantry-form .dash-actions, .pantry-items .dash-actions, .pantry-page header .dash-actions { flex-wrap: wrap; }
+.pantry-replenish { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; margin-top: .75rem; }
+.pantry-results { margin: .75rem 0; display: grid; gap: .6rem; }
+.pantry-results small { display: block; }
