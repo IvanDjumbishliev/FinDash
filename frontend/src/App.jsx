@@ -30,6 +30,7 @@ const Notifications = lazy(() => import("./pages/Notifications"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const MyDeals = lazy(() => import("./pages/MyDeals"));
 const MyProducts = lazy(() => import("./pages/MyProducts"));
+const HouseholdGroceries = lazy(() => import("./pages/HouseholdGroceries"));
 const GroceryOptimizer = lazy(() => import("./pages/GroceryOptimizer"));
 const CashFlowForecast = lazy(() => import("./pages/CashFlowForecast"));
 
@@ -84,6 +85,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/grocery/household/:id" element={<ProtectedRoute><HouseholdGroceries /></ProtectedRoute>} />
           <Route
             path="/grocery"
             element={<ProtectedRoute><GroceryOptimizer /></ProtectedRoute>}

@@ -124,12 +124,12 @@ class Browser:
         requests.delete(self.origin + self.prefix, timeout=8)
 
 
-def main(run_browser, server_script=__file__):
+def main(run_browser, server_script=__file__, *, second_browser=False):
     firefox = os.getenv("FIREFOX_BIN") or shutil.which("firefox")
     geckodriver = os.getenv("GECKODRIVER_BIN") or shutil.which("geckodriver")
     if not firefox or not geckodriver:
         raise SystemExit("Install Firefox and geckodriver or set FIREFOX_BIN and GECKODRIVER_BIN.")
-    api_port, vite_port, driver_port = free_ports(3)
+    api_port, vite_port, driver_port, *extra_ports = free_ports(3 + second_browser)
     api, site, driver = [f"http://127.0.0.1:{port}" for port in (api_port, vite_port, driver_port)]
     processes = []
     with TemporaryDirectory(prefix="findash-browser-e2e-") as temporary:
@@ -155,7 +155,13 @@ def main(run_browser, server_script=__file__):
             wait_for(lambda: requests.get(api + "/api/transactions/", timeout=2).status_code == 401)
             wait_for(lambda: requests.get(site + "/login", timeout=2).ok)
             wait_for(lambda: requests.get(driver + "/status", timeout=2).ok)
-            run_browser(api, site, driver, firefox, temporary)
+            additional_drivers = []
+            for port in extra_ports:
+                origin = f"http://127.0.0.1:{port}"
+                launch("geckodriver-secondary", [geckodriver, "--port", str(port), "--profile-root", temporary], ROOT)
+                wait_for(lambda: requests.get(origin + "/status", timeout=2).ok)
+                additional_drivers.append(origin)
+            run_browser(api, site, driver, firefox, temporary, *additional_drivers)
         except Exception:
             for service, log in logs.items():
                 with log.open("rb") as output:

@@ -60,3 +60,11 @@ Open **More → My Deals** or visit `/my-deals`. Promotions and the Grocery Opti
 Catalog badges distinguish current, stale, and unavailable retailer data. Offers are omitted when their catalog snapshot is stale. **Add to shopping list** rechecks the selected catalog package on the server, then adds the product and package quantity to the account's draft list for the current browser tab. The optimizer calculates its own current prices when comparing the basket.
 
 The deals response includes image and expiration metadata, retailer catalog status, and the difference between the historical and current unit prices where available. `GET /api/grocery/catalog/{id}/` validates a catalog package for the optimizer handoff, including advertised price, expiry, and public eligibility.
+
+### Household shopping lists
+
+From Grocery basket, create a shared list or enable sharing on a saved list. A list remains accessible only to its owner until a registered FinDash user accepts an invitation. The owner can invite and remove members or delete the list. Accepted members can add and remove products, change quantities, mark purchases, and optimize unpurchased items. Product lines show who added and completed them. Only this shopping list and its optimizer settings are shared.
+
+The shared list polls while visible. Server-side revocation applies to subsequent reads and writes immediately. Items carry a revision, and a conflicting edit or removal returns HTTP 409. Reload the changed item before retrying. Existing private lists keep their original format until the owner enables sharing.
+
+Shared operations are under `/api/grocery/lists/{id}/`. Use GET or POST `household/` to open or enable sharing, POST `members/` to invite by username, DELETE `members/{member_id}/` to revoke, POST `invitation/` to accept or decline, and GET `/api/grocery/lists/invitations/` for pending invites. POST `items/` adds a product. PATCH `items/{item_id}/` requires the current `revision` with the change. DELETE uses the `revision` query parameter. POST `optimize/` runs the existing optimizer against the current unpurchased list.

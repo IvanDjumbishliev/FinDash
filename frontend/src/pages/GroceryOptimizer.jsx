@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FiArrowRight, FiMinus, FiPlus, FiSearch, FiShoppingCart, FiTrash2 } from "react-icons/fi";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
 import GroceryBasketResults, { ProductImage, RetailerMark } from "../components/GroceryBasketResults";
 import { money } from "../copilotPresentation";
@@ -13,6 +13,7 @@ const endpoint = "/api/grocery/";
 const initialOptions = { retailers: retailerIds, max_stores: 3, allow_multi_store: true, overhead_per_store: "0.00", currency: "EUR" };
 
 export default function GroceryOptimizer() {
+  const navigate = useNavigate();
   const { account } = useNotificationInbox();
   const [draft] = useState(() => groceryDraft(account));
   const [items, setItems] = useState(() => draft?.items || []);
@@ -23,6 +24,8 @@ export default function GroceryOptimizer() {
   const [active, setActive] = useState(-1);
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(null);
+  const [invitations, setInvitations] = useState([]);
+  const [invitationError, setInvitationError] = useState(false);
   const [savedError, setSavedError] = useState("");
   const [savedRevision, setSavedRevision] = useState(0);
   const [result, setResult] = useState(null);
@@ -57,6 +60,9 @@ export default function GroceryOptimizer() {
     api.get(`${endpoint}lists/`, { signal: controller.signal })
       .then(({ data }) => { if (!controller.signal.aborted) setSaved(data); })
       .catch(() => { if (!controller.signal.aborted) setSavedError("Couldn’t load saved lists."); });
+    api.get(`${endpoint}lists/invitations/`, { signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) { setInvitations(data); setInvitationError(false); } })
+      .catch(() => { if (!controller.signal.aborted) setInvitationError(true); });
     return () => controller.abort();
   }, [savedRevision]);
 
@@ -137,6 +143,20 @@ export default function GroceryOptimizer() {
       setSavedRevision((value) => value + 1);
     } catch (failure) {
       setError(errorText(failure, "Couldn’t save this list."));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function household(url, body, openId) {
+    setBusy("household");
+    setSavedError("");
+    try {
+      const { data } = await api.post(url, body);
+      if (openId === null) setSavedRevision((value) => value + 1);
+      else navigate(`/grocery/household/${openId ?? data.id}`);
+    } catch (failure) {
+      setSavedError(errorText(failure, "Could not update the shared list."));
     } finally {
       setBusy("");
     }
@@ -279,14 +299,36 @@ export default function GroceryOptimizer() {
           <h2 id="grocery-saved-heading">Saved lists</h2>
           <form onSubmit={save}><label>List name<input value={name} maxLength={80} disabled={Boolean(busy)}
             onChange={(event) => setName(event.target.value)} /></label>
-            <button type="submit" disabled={Boolean(busy) || !items.length || !name.trim()}>Save list</button></form>
+            <button type="submit" disabled={Boolean(busy) || !items.length || !name.trim()}>Save list</button>
+            <button type="button" disabled={Boolean(busy) || !name.trim()} onClick={() => household(`${endpoint}lists/`, {
+              name: name.trim(), shared: true, ...basketSettings(items, options),
+            })}>Create shared list</button></form>
+          {invitationError && <p role="alert">Could not load invitations. <button type="button"
+            onClick={() => setSavedRevision((value) => value + 1)}>Retry invitations</button></p>}
+          {invitations.length > 0 && <ul className="grocery-saved-list" aria-label="Shopping list invitations">
+            {invitations.map((invitation) => <li key={invitation.list_id}>
+              <span>{invitation.invited_by} invited you to {invitation.name}</span>
+              <button type="button" disabled={Boolean(busy)} onClick={() => household(
+                `${endpoint}lists/${invitation.list_id}/invitation/`, { accept: true }, invitation.list_id,
+              )}>Accept invitation</button>
+              <button type="button" disabled={Boolean(busy)} onClick={() => household(
+                `${endpoint}lists/${invitation.list_id}/invitation/`, { accept: false }, null,
+              )}>Decline</button>
+            </li>)}</ul>}
           {savedError ? <p role="alert">{savedError} <button type="button" onClick={() => { setSavedError(""); setSavedRevision((value) => value + 1); }}>Try again</button></p>
             : saved === null ? <p className="grocery-muted" role="status">Loading saved lists…</p>
               : !saved.length ? <p className="grocery-muted">Save a named list to use it again.</p>
                 : <ul className="grocery-saved-list">{saved.map((record) => <li key={record.id}>
                   <strong>{record.name}</strong>
-                  <span><button type="button" onClick={() => load(record)} disabled={Boolean(busy)} aria-label={`Load ${record.name}`}>Load</button>
-                    <button type="button" onClick={() => remove(record)} disabled={Boolean(busy)} aria-label={`Delete ${record.name}`}><FiTrash2 aria-hidden="true" /></button></span>
+                  <span>{record.shared
+                    ? <Link className="dash-link" to={`/grocery/household/${record.id}`}>Open shared list</Link>
+                    : <>
+                      <button type="button" onClick={() => load(record)} disabled={Boolean(busy)} aria-label={`Load ${record.name}`}>Load</button>
+                      <button type="button" disabled={Boolean(busy)} onClick={() => household(
+                        `${endpoint}lists/${record.id}/household/`, {}, record.id,
+                      )}>Enable sharing</button>
+                    </>}
+                    {record.can_manage && <button type="button" onClick={() => remove(record)} disabled={Boolean(busy)} aria-label={`Delete ${record.name}`}><FiTrash2 aria-hidden="true" /></button>}</span>
                 </li>)}</ul>}
         </section>
       </aside>

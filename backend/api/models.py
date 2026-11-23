@@ -331,6 +331,8 @@ class GroceryShoppingList(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="grocery_shopping_lists")
     name = models.CharField(max_length=80)
     settings = models.JSONField()
+    shared = models.BooleanField(default=False)
+    edit_version = models.PositiveBigIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -708,3 +710,24 @@ class LoyaltyCardImage(models.Model):
     card = models.OneToOneField(LoyaltyCard, on_delete=models.CASCADE, related_name="image")
     content = models.BinaryField(editable=False)
     byte_size = models.PositiveIntegerField()
+
+
+class GroceryListMember(models.Model):
+    shopping_list = models.ForeignKey(GroceryShoppingList, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="grocery_list_memberships")
+    accepted = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["shopping_list", "user"], name="grocery_list_member_once")]
+
+
+class GroceryListItem(models.Model):
+    shopping_list = models.ForeignKey(GroceryShoppingList, on_delete=models.CASCADE, related_name="shared_items")
+    product = models.JSONField()
+    added_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    completed_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name="+")
+    purchased = models.BooleanField(default=False)
+    revision = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["pk"]

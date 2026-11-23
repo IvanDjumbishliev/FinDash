@@ -30,6 +30,10 @@ from .views.product_preferences import (
     ProductLibraryView, ProductPreferenceDetailView, ProductSettingsView, ProductSuggestionView,
     ProductTrackedOfferDetailView, ProductTrackedOfferView,
 )
+from .views.shared_grocery import (
+    HouseholdInvitationView, HouseholdInvitationsView, HouseholdItemDetailView, HouseholdItemsView,
+    HouseholdMemberDetailView, HouseholdMemberView, HouseholdOptimizeView, HouseholdView,
+)
 from .views.grocery import (GroceryCatalogDetailView, GroceryCatalogView, GroceryOptimizeView, GroceryShoppingListView, GroceryShoppingListDetailView)
 from .views.leaflet_billa import BillaLeafletView
 from .views.legacy_deals import LegacyLeafletSearchView, LegacyLeafletView
@@ -81,6 +85,14 @@ urlpatterns = [
     path("grocery/catalog/", GroceryCatalogView.as_view(), name="grocery-catalog"),
     path("grocery/catalog/<int:pk>/", GroceryCatalogDetailView.as_view(), name="grocery-catalog-detail"),
     path("grocery/lists/", GroceryShoppingListView.as_view(), name="grocery-lists"),
+    path("grocery/lists/invitations/", HouseholdInvitationsView.as_view(), name="grocery-list-invitations"),
+    path("grocery/lists/<int:pk>/invitation/", HouseholdInvitationView.as_view(), name="grocery-list-invitation"),
+    path("grocery/lists/<int:pk>/household/", HouseholdView.as_view(), name="grocery-list-household"),
+    path("grocery/lists/<int:pk>/members/", HouseholdMemberView.as_view(), name="grocery-list-members"),
+    path("grocery/lists/<int:pk>/members/<int:member_id>/", HouseholdMemberDetailView.as_view(), name="grocery-list-member"),
+    path("grocery/lists/<int:pk>/items/", HouseholdItemsView.as_view(), name="grocery-list-items"),
+    path("grocery/lists/<int:pk>/items/<int:item_id>/", HouseholdItemDetailView.as_view(), name="grocery-list-item"),
+    path("grocery/lists/<int:pk>/optimize/", HouseholdOptimizeView.as_view(), name="grocery-list-optimize"),
     path("grocery/lists/<int:pk>/", GroceryShoppingListDetailView.as_view(), name="grocery-list-detail"),
     path("transactions/", TransactionListView.as_view()),
     path(

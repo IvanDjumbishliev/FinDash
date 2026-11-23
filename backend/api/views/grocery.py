@@ -11,7 +11,8 @@ from rest_framework import serializers
 from rest_framework.response import Response
 
 from api.throttles import SensitiveEndpointThrottle
-from api.models import GroceryOffer, GroceryRetailer, GroceryShoppingList
+from api.models import GroceryListItem, GroceryOffer, GroceryRetailer, GroceryShoppingList
+from api.services.shared_grocery import visible_lists, writable_list
 from api.services.grocery_basket import BasketLimit, infer_unit, optimize_basket, requested_product
 from api.services.grocery_catalog import UNIT, normalized, parse_package
 from api.services.grocery_matching import describe
@@ -187,19 +188,40 @@ class GroceryCatalogView(PrivateCopilotView):
 
 class ShoppingListInput(GroceryBasketInput):
     name = serializers.CharField(max_length=80)
+    shared = StrictBooleanField(default=False)
+    items = ShoppingListItem(many=True, allow_empty=True, max_length=40)
+
+    def validate(self, attrs):
+        if not attrs["shared"] and not attrs["items"]:
+            raise serializers.ValidationError({"items": "Add at least one item to a private list."})
+        return attrs
+
+
+def saved_product(row):
+    return {
+        "name": row["name"], "quantity": format(row["quantity"], "f"), "unit": row["product"].unit,
+        "preferred_brand": row["preferred_brand"], "allow_substitutions": row["allow_substitutions"],
+    }
 
 
 class ShoppingListOutput(serializers.ModelSerializer):
+    can_manage = serializers.SerializerMethodField()
+
+    def get_can_manage(self, record) -> bool:
+        return record.owner_id == self.context["request"].user.pk
+
     class Meta:
         model = GroceryShoppingList
-        fields = ("id", "name", "settings", "created_at")
+        fields = ("id", "name", "settings", "created_at", "shared", "can_manage")
 
 
 class GroceryShoppingListView(PrivateCopilotView):
+    @extend_schema(responses=ShoppingListOutput(many=True))
     def get(self, request):
-        records = GroceryShoppingList.objects.filter(owner=request.user)
-        return Response(ShoppingListOutput(records, many=True).data)
+        records = visible_lists(request.user)
+        return Response(ShoppingListOutput(records, many=True, context={"request": request}).data)
 
+    @extend_schema(request=ShoppingListInput, responses={201: ShoppingListOutput})
     def post(self, request):
         serializer = ShoppingListInput(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -207,27 +229,31 @@ class GroceryShoppingListView(PrivateCopilotView):
         name = data.pop("name")
         data["overhead_per_store"] = str(data["overhead_per_store"])
         data["max_stores"] = min(data["max_stores"], len(data["retailers"]))
-        data["items"] = [
-            {
-                "name": row["name"], "quantity": format(row["quantity"], "f"), "unit": row["product"].unit,
-                "preferred_brand": row["preferred_brand"], "allow_substitutions": row["allow_substitutions"],
-            }
-            for row in data["items"]
-        ]
+        shared = data.pop("shared")
+        products = [saved_product(row) for row in data.pop("items")]
+        data["items"] = [] if shared else products
         try:
             with transaction.atomic():
                 owner = get_user_model().objects.select_for_update().get(pk=request.user.pk)
                 if GroceryShoppingList.objects.filter(owner=owner).count() >= 50:
                     return Response({"name": ["Delete a saved list before adding another."]}, status=400)
-                record = GroceryShoppingList.objects.create(owner=owner, name=name, settings=data)
+                record = GroceryShoppingList.objects.create(owner=owner, name=name, settings=data, shared=shared)
+                if shared:
+                    GroceryListItem.objects.bulk_create([
+                        GroceryListItem(shopping_list=record, product=product, added_by=owner) for product in products
+                    ])
         except IntegrityError:
             return Response({"name": ["A shopping list with this name already exists."]}, status=400)
-        return Response(ShoppingListOutput(record).data, status=201)
+        return Response(ShoppingListOutput(record, context={"request": request}).data, status=201)
 
 
 class GroceryShoppingListDetailView(PrivateCopilotView):
+    @extend_schema(responses=ShoppingListOutput)
+    def get(self, request, pk):
+        record = get_object_or_404(visible_lists(request.user), pk=pk)
+        return Response(ShoppingListOutput(record, context={"request": request}).data)
+
+    @transaction.atomic
     def delete(self, request, pk):
-        deleted, _ = GroceryShoppingList.objects.filter(owner=request.user, pk=pk).delete()
-        if not deleted:
-            return Response({"error": "Shopping list not found."}, status=404)
+        writable_list(request.user, pk, owner_only=True, require_shared=False).delete()
         return Response(status=204)
