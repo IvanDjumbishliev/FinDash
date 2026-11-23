@@ -21,6 +21,7 @@ const Subscriptions = lazy(() => import("./pages/Subscriptions"));
 const Budgets = lazy(() => import("./pages/Budgets"));
 const FinancialGoals = lazy(() => import("./pages/FinancialGoals"));
 const GoalScenario = lazy(() => import("./pages/GoalScenario"));
+const LoyaltyWallet = lazy(() => import("./pages/LoyaltyWallet"));
 const Warranties = lazy(() => import("./pages/Warranties"));
 const ReceiptHistory = lazy(() => import("./pages/ReceiptHistory"));
 const Receipts = lazy(() => import("./pages/Receipts"));
@@ -134,6 +135,7 @@ function App() {
           <Route path="/my-deals" element={<ProtectedRoute><MyDeals /></ProtectedRoute>} />
           <Route path="/my-products" element={<ProtectedRoute><MyProducts /></ProtectedRoute>} />
           <Route path="/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
+          <Route path="/loyalty-wallet" element={<ProtectedRoute><LoyaltyWallet /></ProtectedRoute>} />
           <Route path="/warranties" element={<ProtectedRoute><Warranties /></ProtectedRoute>} />
           <Route path="/receipts/history" element={<ProtectedRoute><ReceiptHistory /></ProtectedRoute>} />
           <Route path="/goals" element={<ProtectedRoute><FinancialGoals /></ProtectedRoute>} />

@@ -1,6 +1,7 @@
 from api.views.stocks import StockSearchView, WatchlistView
 from django.urls import path
 
+from .views.loyalty import LoyaltyCardDetailView, LoyaltyCardImageView, LoyaltyCardListView
 from .views.warranties import WarrantyDetailView, WarrantyListView, WarrantyProofView
 from .views.dashboard import DashboardView
 from .views.deals import (
@@ -87,6 +88,9 @@ urlpatterns = [
         TransactionDeleteView.as_view(),
         name="transaction-delete",
     ),
+    path("loyalty-cards/", LoyaltyCardListView.as_view(), name="loyalty-cards"),
+    path("loyalty-cards/<uuid:pk>/", LoyaltyCardDetailView.as_view(), name="loyalty-card"),
+    path("loyalty-cards/<uuid:pk>/image/", LoyaltyCardImageView.as_view(), name="loyalty-card-image"),
     path("warranties/", WarrantyListView.as_view(), name="warranty-list"),
     path("warranties/<int:pk>/", WarrantyDetailView.as_view(), name="warranty-detail"),
     path("warranties/<int:pk>/proof/", WarrantyProofView.as_view(), name="warranty-proof"),

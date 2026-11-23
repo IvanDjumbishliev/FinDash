@@ -112,6 +112,7 @@ REST_FRAMEWORK = {
         "stock_provider": "60/min",
         "receipt_scan": "15/min",
         "warranty_proof": "30/min",
+        "loyalty_image": "30/min",
         "grocery_optimize": "30/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",

@@ -680,3 +680,31 @@ class WarrantyProof(models.Model):
     image = models.BinaryField(editable=False)
     byte_size = models.PositiveIntegerField()
     uploaded_at = models.DateTimeField(auto_now=True)
+
+
+class LoyaltyCard(models.Model):
+    class CodeFormat(models.TextChoices):
+        NONE = "none", "Identifier only"
+        CODE128 = "code128", "Code 128"
+        EAN13 = "ean13", "EAN-13"
+        EAN8 = "ean8", "EAN-8"
+        UPCA = "upca", "UPC-A"
+        QR = "qrcode", "QR code"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="loyalty_cards")
+    retailer = models.CharField(max_length=120)
+    label = models.CharField(max_length=80, blank=True)
+    identifier = models.CharField(max_length=64)
+    code_format = models.CharField(max_length=8, choices=CodeFormat.choices, default=CodeFormat.NONE)
+    favorite = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-favorite", "retailer", "pk"]
+        indexes = [models.Index(fields=["owner", "retailer"], name="loyalty_owner_retailer_idx")]
+
+
+class LoyaltyCardImage(models.Model):
+    card = models.OneToOneField(LoyaltyCard, on_delete=models.CASCADE, related_name="image")
+    content = models.BinaryField(editable=False)
+    byte_size = models.PositiveIntegerField()
